@@ -77,17 +77,25 @@ def main() -> int:
                        5))
     if has_llm:
         rules += [
-            ("LLM: high_conviction + buy",
+            ("LLM strict: high_conviction + buy only",
              rule_factory(sizes, llm_ok=("high_conviction", "buy")), 5),
-            ("LLM: high_conviction only",
+            ("LLM standard: + watch (Option A)",
+             rule_factory(sizes,
+                          llm_ok=("high_conviction", "buy", "watch")), 5),
+            ("LLM high_conviction only",
              rule_factory(sizes, llm_ok=("high_conviction",)), 5),
         ]
         if has_heuristic:
-            rules.append((
-                "LLM AND heuristic (both approve)",
-                rule_factory(sizes,
+            rules += [
+                ("LLM strict AND heuristic (both approve)",
+                 rule_factory(sizes,
                               llm_ok=("high_conviction", "buy"),
-                              heuristic_ok=("buy", "high_conviction")), 5))
+                              heuristic_ok=("buy", "high_conviction")), 5),
+                ("LLM standard AND heuristic",
+                 rule_factory(sizes,
+                              llm_ok=("high_conviction", "buy", "watch"),
+                              heuristic_ok=("buy", "high_conviction")), 5),
+            ]
 
     rows = []
     for label, rule, max_n in rules:
