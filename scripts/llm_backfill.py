@@ -55,13 +55,24 @@ def _html_to_text(raw: bytes) -> str:
     return text.strip()
 
 
-def _load_anthropic():
+def _load_client(use_claude_code: bool = False):
+    """Return an anthropic-API-shaped client.
+
+    If use_claude_code=True, use the Claude Code CLI (user's subscription).
+    Otherwise, use the anthropic SDK with API key.
+    """
+    if use_claude_code:
+        from alpha.llm.claude_code_client import ClaudeCodeClient
+        return ClaudeCodeClient()
     try:
         from anthropic import Anthropic
     except ImportError:
         raise SystemExit("anthropic SDK not installed. `pip install anthropic`.")
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise SystemExit("ANTHROPIC_API_KEY not set.")
+        raise SystemExit(
+            "ANTHROPIC_API_KEY not set. "
+            "Either set it, or pass --use-claude-code to use your subscription."
+        )
     return Anthropic()
 
 
@@ -140,6 +151,13 @@ def main() -> int:
                     help="Print plan and stop. No API calls made.")
     ap.add_argument("--limit", type=int, default=None,
                     help="Max filings to process (for testing).")
+    ap.add_argument("--use-claude-code", action="store_true",
+                    help="Use the `claude` CLI (your Pro/Max subscription) "
+                         "instead of the anthropic SDK. No API key needed. "
+                         "Slower but free on an existing plan.")
+    ap.add_argument("--call-pause-seconds", type=float, default=0.2,
+                    help="Seconds to sleep between calls. Claude Code users "
+                         "may want 2-5s to space requests politely.")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO,
@@ -198,11 +216,18 @@ def main() -> int:
         _write_enriched_csv(df, store, args)
         return 0
 
-    edgar = EdgarClient()
-    client = _load_anthropic()
+    client = _load_client(use_claude_code=args.use_claude_code)
+    if args.use_claude_code:
+        logging.info("Using Claude Code CLI (subscription). No API cost.")
+        # Budget cap is moot with subscription; keep the loop limit generous.
 
-    calls_allowed = min(len(need_call),
-                         int(args.budget_usd / COST_PER_CALL_USD))
+    if args.use_claude_code:
+        # Budget doesn't apply — subscription-billed. Process everything.
+        calls_allowed = len(need_call)
+    else:
+        calls_allowed = min(
+            len(need_call), int(args.budget_usd / COST_PER_CALL_USD)
+        )
     logging.info("Will process up to %d filings this run.", calls_allowed)
 
     spent = 0.0
@@ -253,11 +278,11 @@ def main() -> int:
         logging.info("  -> %s (score=%.2f) spent=$%.2f",
                      assessment.recommendation, assessment.quality_score, spent)
 
-        if spent + COST_PER_CALL_USD > args.budget_usd:
+        if not args.use_claude_code and spent + COST_PER_CALL_USD > args.budget_usd:
             logging.info("Budget exhausted; stopping.")
             break
-        # Gentle SEC rate limit spacing
-        time.sleep(0.2)
+        # Spacing between calls — SEC rate limit + polite to Claude Code
+        time.sleep(args.call_pause_seconds)
 
     logging.info("Done. ok=%d fail=%d spent=$%.2f", n_ok, n_fail, spent)
     _write_enriched_csv(df, store, args)
