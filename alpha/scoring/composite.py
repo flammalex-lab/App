@@ -19,9 +19,15 @@ from typing import Any
 from alpha.store import Store
 
 
+# Weights calibrated from walk-forward test (2019-2023, see
+# data/backtest/WALK_FORWARD_ANALYSIS.md):
+# - Spinoff: kept high; 18m excess vs IWM +26.7% in walk-forward.
+# - Activist 13D: REDUCED 1.4 -> 0.9. Walk-forward showed no meaningful
+#   excess return vs IWM in the current regime. Stacking required for
+#   small-cap targets (enforced in ActivistSignal).
 SIGNAL_WEIGHT = {
     "spinoff":                   1.5,
-    "activist_13d":              1.4,
+    "activist_13d":              0.9,
     "insider_cluster":           1.2,
     "post_bankruptcy":           1.3,
     "capital_allocator_regime":  1.3,
