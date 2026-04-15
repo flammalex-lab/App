@@ -117,6 +117,33 @@ alpha backtest-activists                    # 28 historical 13D campaigns
 alpha backtest --prices data/prices.parquet # Magic Formula reference
 ```
 
+### Validating the LLM judgment layer
+
+The heuristic filter (free, rule-based) catches obvious disasters
+(China VIE, OTC-only, shell companies) but can't distinguish
+"ugly because forced-seller" (good) from "ugly because dying" (bad).
+The LLM filter (Claude Sonnet) reads each Form 10 and makes that
+judgment.
+
+```bash
+# 1. Get an Anthropic API key from https://console.anthropic.com/
+#    Add billing, create key, save the sk-ant-... string.
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# 2. Run backfill on all 197 historical Form 10s
+#    Estimated cost: ~$20. Hard budget cap enforced.
+python scripts/llm_backfill.py \
+    --csv data/backtest/walk_forward_2015-01-01_2024-12-31/spinoff_events.csv \
+    --budget-usd 25
+
+# 3. Re-run walk-forward with LLM filter
+python scripts/backtest_with_llm.py
+```
+
+Results cached in SQLite; rerunning is free. If the script stops
+mid-run (budget hit, network error), restart it and it picks up
+where it left off.
+
 ### Key empirical findings
 
 Full write-ups in `data/backtest/`:
