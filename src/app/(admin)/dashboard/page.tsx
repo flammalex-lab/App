@@ -56,6 +56,11 @@ export default async function DashboardPage() {
             <div className="mono text-sm">{money(o.total)}</div>
           </Link>
         ))}
+        {!((recentOrders as any[]) ?? []).length ? (
+          <div className="p-6 text-sm text-ink-secondary text-center">
+            No orders yet. Accounts with buyers on the portal will show up here as they order.
+          </div>
+        ) : null}
       </div>
     </div>
   );

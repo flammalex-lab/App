@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { OrderStatus } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Textarea, Field } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 
 const STATUSES: OrderStatus[] = ["pending", "confirmed", "processing", "ready", "shipped", "delivered", "cancelled"];
 
@@ -19,18 +20,18 @@ export function OrderStatusForm({
   const [status, setStatus] = useState<OrderStatus>(currentStatus);
   const [notes, setNotes] = useState(internalNotes);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const toast = useToast();
 
   async function save() {
     setSaving(true);
-    setMsg(null);
     const res = await fetch(`/api/admin/orders/${orderId}/update`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, internal_notes: notes }),
     });
     setSaving(false);
-    setMsg(res.ok ? "Saved." : "Error saving.");
+    if (res.ok) toast.push(`Status → ${status}`, "success");
+    else toast.push("Error saving", "error");
   }
 
   return (
@@ -45,7 +46,6 @@ export function OrderStatusForm({
       </Field>
       <div className="flex items-center gap-3">
         <Button onClick={save} loading={saving}>Save</Button>
-        {msg ? <span className="text-sm text-ink-secondary">{msg}</span> : null}
       </div>
     </div>
   );

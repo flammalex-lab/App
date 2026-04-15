@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { AccountPricing, PricingTier, Product } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import { TIER_MULTIPLIERS } from "@/lib/constants";
 import { money } from "@/lib/utils/format";
 
@@ -28,12 +29,11 @@ export function AccountPricingEditor({
 
   const [state, setState] = useState<Record<string, string>>(initial);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const toast = useToast();
   const router = useRouter();
 
   async function save() {
     setSaving(true);
-    setMsg(null);
     const entries = Object.entries(state)
       .filter(([, v]) => v !== "" && Number(v) > 0)
       .map(([product_id, v]) => ({ product_id, custom_price: Number(v) }));
@@ -44,8 +44,12 @@ export function AccountPricingEditor({
       body: JSON.stringify({ overrides: entries }),
     });
     setSaving(false);
-    setMsg(res.ok ? "Saved." : (await res.json()).error ?? "Error");
-    if (res.ok) router.refresh();
+    if (res.ok) {
+      toast.push(`${entries.length} overrides saved`, "success");
+      router.refresh();
+    } else {
+      toast.push((await res.json()).error ?? "Save failed", "error");
+    }
   }
 
   return (
@@ -90,7 +94,6 @@ export function AccountPricingEditor({
       </div>
       <div className="sticky bottom-4 flex gap-2 items-center">
         <Button onClick={save} loading={saving}>Save</Button>
-        {msg ? <span className="text-sm text-ink-secondary">{msg}</span> : null}
       </div>
     </div>
   );

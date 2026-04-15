@@ -87,9 +87,13 @@ export default async function GuidePage() {
       </div>
 
       {items.length === 0 ? (
-        <div className="card p-6 text-center">
-          <p className="mb-2">Your guide is empty.</p>
-          <p className="text-sm text-ink-secondary mb-4">Ask your rep to curate it, or add items from the catalog.</p>
+        <div className="card p-8 text-center">
+          <div className="text-5xl mb-3 opacity-40">☰</div>
+          <h2 className="text-xl font-serif mb-2">Your guide is empty</h2>
+          <p className="text-sm text-ink-secondary mb-5 max-w-sm mx-auto">
+            Your rep will usually curate this based on a first conversation — it becomes your
+            one-tap reorder list. You can also browse the catalog and add items yourself.
+          </p>
           <Link href="/catalog" className="btn-primary text-sm">Browse catalog</Link>
         </div>
       ) : (

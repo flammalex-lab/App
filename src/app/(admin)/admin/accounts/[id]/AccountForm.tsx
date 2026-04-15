@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Account, AccountType, AccountStatus, Category, Channel, DeliveryZone, PricingTier } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import { CATEGORY_LABELS, ZONE_LABELS } from "@/lib/constants";
 
 const CAT_LIST: Category[] = ["beef", "pork", "eggs", "dairy", "produce"];
@@ -35,11 +36,10 @@ export function AccountForm({ account }: { account: Account | null }) {
   });
   const [saving, setSaving] = useState(false);
   const [inviting, setInviting] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const toast = useToast();
 
   async function save() {
     setSaving(true);
-    setMsg(null);
     const res = await fetch(`/api/admin/accounts/${account?.id ?? "new"}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -52,14 +52,15 @@ export function AccountForm({ account }: { account: Account | null }) {
       }),
     });
     setSaving(false);
-    if (!res.ok) { setMsg((await res.json()).error ?? "Save failed"); return; }
+    if (!res.ok) { toast.push((await res.json()).error ?? "Save failed", "error"); return; }
+    toast.push("Account saved", "success");
     const { id } = await res.json();
     if (!account) router.push(`/admin/accounts/${id}`);
     else router.refresh();
   }
 
   async function inviteBuyer() {
-    if (!account) { setMsg("Save the account first."); return; }
+    if (!account) { toast.push("Save the account first", "error"); return; }
     const phone = prompt("Buyer phone (US):");
     if (!phone) return;
     const name = prompt("Buyer name:") ?? "";
@@ -70,8 +71,12 @@ export function AccountForm({ account }: { account: Account | null }) {
       body: JSON.stringify({ phone, name }),
     });
     setInviting(false);
-    setMsg(res.ok ? "Invite sent via SMS." : (await res.json()).error ?? "Invite failed");
-    if (res.ok) router.refresh();
+    if (res.ok) {
+      toast.push("Invite sent via SMS", "success");
+      router.refresh();
+    } else {
+      toast.push((await res.json()).error ?? "Invite failed", "error");
+    }
   }
 
   function toggleCat(c: Category) {
@@ -161,7 +166,6 @@ export function AccountForm({ account }: { account: Account | null }) {
       <div className="flex items-center gap-2 pt-2">
         <Button onClick={save} loading={saving}>Save</Button>
         {account ? <Button onClick={inviteBuyer} loading={inviting} variant="secondary">Invite buyer by SMS</Button> : null}
-        {msg ? <span className="text-sm text-ink-secondary">{msg}</span> : null}
       </div>
     </div>
   );

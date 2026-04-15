@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Brand, Category, Product } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import { BRAND_LABELS, CATEGORY_LABELS } from "@/lib/constants";
 
 export function ProductForm({ product }: { product: Product | null }) {
@@ -28,10 +29,9 @@ export function ProductForm({ product }: { product: Product | null }) {
     is_active: product?.is_active ?? true,
   });
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const toast = useToast();
 
   async function save() {
-    setErr(null);
     setSaving(true);
     const res = await fetch(`/api/admin/products/${product?.id ?? "new"}`, {
       method: "POST",
@@ -45,7 +45,8 @@ export function ProductForm({ product }: { product: Product | null }) {
       }),
     });
     setSaving(false);
-    if (!res.ok) { setErr((await res.json()).error ?? "Save failed"); return; }
+    if (!res.ok) { toast.push((await res.json()).error ?? "Save failed", "error"); return; }
+    toast.push("Product saved", "success");
     const { id } = await res.json();
     router.push(`/admin/products/${id}`);
     router.refresh();
@@ -100,7 +101,6 @@ export function ProductForm({ product }: { product: Product | null }) {
       <div className="flex items-center gap-2">
         <Button onClick={save} loading={saving}>Save</Button>
         {product ? <Button onClick={del} variant="danger">Delete</Button> : null}
-        {err ? <span className="text-sm text-feedback-error">{err}</span> : null}
       </div>
     </div>
   );

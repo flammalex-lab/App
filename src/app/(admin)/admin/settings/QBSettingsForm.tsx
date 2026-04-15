@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import type { QBSetting } from "@/lib/supabase/types";
 
 export function QBSettingsForm({ settings }: { settings: QBSetting[] }) {
@@ -10,7 +11,7 @@ export function QBSettingsForm({ settings }: { settings: QBSetting[] }) {
     () => Object.fromEntries(settings.map((s) => [s.key, s.value])),
   );
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const toast = useToast();
 
   async function save() {
     setSaving(true);
@@ -20,7 +21,7 @@ export function QBSettingsForm({ settings }: { settings: QBSetting[] }) {
       body: JSON.stringify({ settings: state }),
     });
     setSaving(false);
-    setMsg(res.ok ? "Saved." : "Error saving.");
+    toast.push(res.ok ? "QB mapping saved" : "Error saving", res.ok ? "success" : "error");
   }
 
   return (
@@ -37,7 +38,6 @@ export function QBSettingsForm({ settings }: { settings: QBSetting[] }) {
       ))}
       <div className="flex items-center gap-2 pt-2">
         <Button onClick={save} loading={saving}>Save</Button>
-        {msg ? <span className="text-sm text-ink-secondary">{msg}</span> : null}
       </div>
     </div>
   );

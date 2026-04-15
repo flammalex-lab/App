@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Product, StandingFreq } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -40,7 +41,7 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
   const [accountId, setAccountId] = useState<string | null>(adminContext?.accountId ?? null);
   const [profileId, setProfileId] = useState<string | null>(adminContext?.profileId ?? null);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const toast = useToast();
   const router = useRouter();
 
   const byId = useMemo(() => {
@@ -73,11 +74,10 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
   }
 
   async function save() {
-    setMsg(null);
-    if (!name.trim()) { setMsg("Give it a name."); return; }
-    if (!days.length) { setMsg("Pick at least one day."); return; }
-    if (!items.length) { setMsg("Add at least one item."); return; }
-    if (adminContext && (!accountId || !profileId)) { setMsg("Pick an account and buyer."); return; }
+    if (!name.trim()) { toast.push("Give it a name", "error"); return; }
+    if (!days.length) { toast.push("Pick at least one day", "error"); return; }
+    if (!items.length) { toast.push("Add at least one item", "error"); return; }
+    if (adminContext && (!accountId || !profileId)) { toast.push("Pick an account and buyer", "error"); return; }
 
     setSaving(true);
     const res = await fetch(`/api/standing/${standingOrderId ?? "new"}`, {
@@ -95,11 +95,10 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
       }),
     });
     setSaving(false);
-    if (!res.ok) { setMsg((await res.json()).error ?? "Save failed"); return; }
-    const { id } = await res.json();
+    if (!res.ok) { toast.push((await res.json()).error ?? "Save failed", "error"); return; }
+    toast.push("Standing order saved", "success");
     router.push(adminContext ? `/admin/standing` : `/standing`);
     router.refresh();
-    if (!standingOrderId) router.push(adminContext ? `/admin/standing/${id}` : `/standing`);
   }
 
   async function del() {
@@ -237,7 +236,6 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
       <div className="flex items-center gap-2">
         <Button onClick={save} loading={saving}>Save</Button>
         {standingOrderId ? <Button onClick={del} variant="danger">Delete</Button> : null}
-        {msg ? <span className="text-sm text-feedback-error">{msg}</span> : null}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PWARegister } from "@/components/PWARegister";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "Fingerlakes Farms",
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
         <PWARegister />
       </body>
     </html>

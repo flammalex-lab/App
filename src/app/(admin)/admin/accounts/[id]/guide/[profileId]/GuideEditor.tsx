@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { OrderGuideItem, Product } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
 type Row = OrderGuideItem & { product: Product };
@@ -30,8 +31,8 @@ export function GuideEditor({
 }) {
   const [items, setItems] = useState<Row[]>(initialItems);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const toast = useToast();
   const router = useRouter();
 
   const existingIds = useMemo(() => new Set(items.map((i) => i.product_id)), [items]);
@@ -79,7 +80,6 @@ export function GuideEditor({
 
   async function save() {
     setSaving(true);
-    setMsg(null);
     const res = await fetch(`/api/admin/order-guides/${guideId}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -94,9 +94,9 @@ export function GuideEditor({
     });
     setSaving(false);
     if (!res.ok) {
-      setMsg((await res.json()).error ?? "Save failed");
+      toast.push((await res.json()).error ?? "Save failed", "error");
     } else {
-      setMsg("Saved.");
+      toast.push(`Guide saved (${items.length} items)`, "success");
       router.refresh();
     }
   }
@@ -175,7 +175,6 @@ export function GuideEditor({
 
       <div className="sticky bottom-4 flex gap-2 items-center">
         <Button onClick={save} loading={saving}>Save guide</Button>
-        {msg ? <span className="text-sm text-ink-secondary">{msg}</span> : null}
       </div>
     </div>
   );
