@@ -9,6 +9,8 @@ from alpha.signals.capital_allocator import CapitalAllocatorRegimeSignal
 from alpha.signals.supply_chain import SupplyChainSignal
 from alpha.signals.hedging_language import HedgingLanguageSignal
 from alpha.signals.ghost_ships import GhostShipSignal
+from alpha.signals.microcap_deep_value import MicrocapDeepValueSignal
+from alpha.signals.spac_warrants import SpacWarrantSignal
 
 ALL_SIGNALS: list[type[Signal]] = [
     SpinoffSignal,
@@ -20,6 +22,8 @@ ALL_SIGNALS: list[type[Signal]] = [
     SupplyChainSignal,
     HedgingLanguageSignal,
     GhostShipSignal,
+    MicrocapDeepValueSignal,
+    SpacWarrantSignal,
 ]
 
 __all__ = ["Signal", "SignalHit", "ALL_SIGNALS"]

@@ -117,6 +117,34 @@ def digest(top: int = typer.Option(25, "--top")) -> None:
 
 
 @app.command()
+def concentrated(
+    top: int = typer.Option(8, "--top",
+                             help="Top-N high-conviction picks."),
+    portfolio_value: float = typer.Option(
+        None, "--portfolio", "-p",
+        help="Portfolio value in USD for $ sizing."),
+    aggression: float = typer.Option(
+        1.0, "--aggression", "-a",
+        help="Risk aggression multiplier. 1.0 = quarter-Kelly default; "
+             "1.5 = more aggressive."),
+    days: int = typer.Option(30, "--days"),
+) -> None:
+    """Concentrated, conviction-ranked digest with Kelly sizing + LEAPS overlay.
+
+    For the aggressive operator who wants 5-10 high-conviction positions
+    rather than 25 watchlist names.
+    """
+    ensure_dirs()
+    store = Store()
+    from alpha.digest.concentrated import write_concentrated_digest
+    path = write_concentrated_digest(
+        store, top_n=top, portfolio_value=portfolio_value,
+        risk_aggression=aggression,
+    )
+    console.print(f"[green]{path}[/green]")
+
+
+@app.command()
 def signals(days: int = typer.Option(7, "--days", "-d")) -> None:
     """List recent signals."""
     store = Store()

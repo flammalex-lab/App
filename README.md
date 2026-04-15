@@ -34,25 +34,37 @@ enforce patience (rule-based scoring, drawdown circuit breaker).
 6. **Walk-forward backtest harness** — validates any rule-based strategy
    before committing capital.
 
-## Strategy summary
+## Strategy summary — Aggressive (calibrated to backtest)
 
-Three sleeves for a risk-tolerant, high-cash-flow operator:
+For a young, cash-flow-rich, risk-tolerant operator. The walk-forward
+shows **+44% CAGR** is achievable from a top-5-per-year concentration
+in nano + small spin-offs alone (10-year sim, $100k → $3.76M, pre-tax).
 
-| Sleeve | Allocation | Purpose |
-|---|---|---|
-| Special situations | 40-50% | Event-driven (spin, 13D, post-BK, activist) |
-| Micro/nano-cap deep value | 20-30% | Structural coverage inefficiency |
-| LEAPS / high-conviction concentrated | 10-20% | Leveraged upside on best ideas |
-| Dry powder (T-bills) | 10-20% | Dislocation ammunition |
+Realistic target after taxes + slippage + execution discipline:
+**25-35% annualized.**
 
-Rules (non-negotiable):
+| Sleeve | Allocation | Mechanism | Per-position expectation |
+|---|---:|---|---:|
+| **Concentrated nano/small spin-offs** | 35-45% | Top 5-7 per year, 5-10% each | +50-60% over 18m |
+| **LEAPS overlay on highest conviction** | 10-20% | 24m calls 5-10% OTM, 1-3% per name | +100-300% when right |
+| **Special situations** | 15-20% | 13D coattails, mergers, post-BK | +20-30% per event |
+| **Microcap deep value** | 10-15% | Negative-EV with quality gate | +30-60% over 24m |
+| **Lottery (SPAC warrants, biotech)** | 5-10% | 1% positions, diversified | -100% / +500-1000% |
+| **Dry powder (T-bills)** | 5-15% | Dislocation ammunition | T-bill rate |
+
+### Rules (non-negotiable)
 
 - Max 10% per position at market, 8% at cost.
-- Max 20% LEAPS sleeve. Max 5% "lottery" sleeve.
+- Max 20% LEAPS sleeve. Max 10% "lottery" sleeve.
+- Use Kelly fraction (¼- to ½-Kelly) for sizing, capped by hard caps.
+- 5% cash floor minimum. Build to 15% during obvious bubbles.
+- Drawdown circuit breaker: 30% portfolio drop → 2-week new-deployment
+  freeze (forces you to re-evaluate, not panic-sell).
+- 6 months living expenses *outside* the portfolio so cash flow can
+  fund DCAs through drawdowns instead of you being a forced seller.
 - Pre-mortem each position before entry.
-- 30% portfolio drawdown → 2-week new-deployment freeze.
-- 6 months living expenses *outside* the portfolio (so you're never a
-  forced seller yourself).
+- LEAPS only when IV is in bottom half of 1y range — never pay for
+  someone else's fear.
 
 ## Install
 
@@ -70,15 +82,21 @@ and will block you without one. Use the format: `Your Name email@example.com`.
 ## Quickstart
 
 ```bash
-alpha init                 # create data dirs + DB
-alpha run                  # full daily run: scan + extract + score + digest
-alpha run --no-llm         # scan + score only (skip LLM extractions)
-alpha run -s spinoff       # run a single signal
-alpha digest               # regenerate today's digest from stored hits
-alpha signals --days 14    # view the raw signal log
+alpha init                                     # create data dirs + DB
+alpha run                                      # daily scan + extract + score + digest
+alpha run --no-llm                             # skip LLM extractions
+alpha run -s spinoff                           # run a single signal
+alpha digest                                   # broad watchlist (top 25)
+alpha concentrated --top 5 -p 200000 -a 1.2    # AGGRESSIVE: top-5 high-conviction
+                                               # picks with Kelly sizing for $200k portfolio
+alpha signals --days 14                        # raw signal log
 ```
 
-Digest lands at `data/reports/digest-YYYY-MM-DD.md`.
+The **concentrated** digest is the one to use as an aggressive operator.
+It scores each name with the ConvictionScorer, applies Kelly sizing
+(¼- to ½-Kelly capped at hard limits), and recommends LEAPS overlays
+on the highest-conviction picks. Output at
+`data/reports/concentrated-YYYY-MM-DD.md`.
 
 ## Cron setup
 
@@ -99,13 +117,26 @@ alpha backtest-activists                    # 28 historical 13D campaigns
 alpha backtest --prices data/prices.parquet # Magic Formula reference
 ```
 
-### Key empirical findings (see `data/backtest/SUMMARY.md`)
+### Key empirical findings
 
-**Spin-offs (2015-2024)**: Small spin-offs (<15% of parent mcap) with
-T+21 entry beat IWM by **+29% mean over 18 months**, hit rate **70%**.
-The default signal now enforces a 21-trading-day entry delay.
+Full write-ups in `data/backtest/`:
+- `SUMMARY.md` — initial curated event studies
+- `WALK_FORWARD_ANALYSIS.md` — honest pipeline test (no curation)
+- `SIZE_FILTER_FINDINGS.md` — Greenblatt thesis confirmed
+- `concentration_study.md` — top-N concentration test
 
-**Activist 13Ds (2022-2024)**: Large-cap targets beat IWM by +33% over
+**Walk-forward 2015-2024 spin-offs (n=197 raw, ~120 with size data):**
+- Nano newcos (<$500M): +47.9% excess vs IWM at 18m
+- Small newcos ($500M-$2B): +39.9% excess vs IWM at 18m
+- Mid newcos ($2B-$10B): +7.1% excess (the trap — avoid weighting)
+- Large newcos (>$10B): +23.0% excess at 18m
+
+**Concentration test (top-N per year by smallest mcap, recycled capital):**
+- Top 10 per year: +43% CAGR over 10 years
+- Top 5 per year: **+44.1% CAGR** ($100k → $3.76M pre-tax)
+- Top 3 per year: **+44.2% CAGR**
+
+**Activist 13Ds (2019-2023)**: Large-cap targets beat IWM by +33% over
 24m; small-cap targets underperformed in the weak 2022-24 regime. The
 system now **requires stacking confirmation** for small-cap activist
 signals.
