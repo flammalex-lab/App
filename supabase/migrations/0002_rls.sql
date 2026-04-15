@@ -130,7 +130,7 @@ begin
     coalesce((new.raw_user_meta_data->>'role')::role_t, 'dtc_customer'),
     new.raw_user_meta_data->>'first_name',
     new.raw_user_meta_data->>'last_name',
-    new.phone,
+    coalesce(new.phone, new.raw_user_meta_data->>'phone'),
     new.email
   )
   on conflict (id) do nothing;

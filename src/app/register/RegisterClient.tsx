@@ -24,11 +24,11 @@ export function RegisterClient() {
     const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      phone,
       options: {
         data: {
           first_name: form.first,
           last_name: form.last,
+          phone,
           role: "dtc_customer",
         },
       },
