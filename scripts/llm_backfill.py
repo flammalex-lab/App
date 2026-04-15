@@ -214,7 +214,11 @@ def main() -> int:
         filed_date = row.get("filed_date", "")
         logging.info("[%d/%d] cik=%s acc=%s filed=%s",
                      i, calls_allowed, cik, acc, filed_date)
-        doc_url = _get_primary_doc_url(edgar, cik, acc)
+        # primary_doc_url was resolved alongside accession at top of main()
+        doc_url = row.get("primary_doc_url")
+        if not doc_url:
+            # Fallback: re-resolve on the fly
+            _, doc_url = _find_accession_and_doc(edgar, cik, filed_date)
         if not doc_url:
             logging.warning("  no primary doc URL")
             n_fail += 1
