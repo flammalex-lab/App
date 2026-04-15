@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
 import { money } from "@/lib/utils/format";
 
 export const metadata = { title: "Admin — Pricing" };
@@ -8,8 +8,13 @@ export default async function AdminPricingPage() {
   const db = await createClient();
   const { data: rows } = await db
     .from("account_pricing")
-    .select("*, account:accounts(name), product:products(name, unit, pack_size)")
-    .order("account(name)" as any, { ascending: true });
+    .select("*, account:accounts(id,name), product:products(name, unit, pack_size)")
+    .order("effective_date", { ascending: false })
+    .limit(500);
+  // Sort by account name client-side since PostgREST doesn't allow ORDER on joined column aliases reliably.
+  const sorted = ((rows as any[]) ?? []).slice().sort((a, b) =>
+    (a.account?.name ?? "").localeCompare(b.account?.name ?? ""),
+  );
 
   return (
     <div className="max-w-5xl">
@@ -26,9 +31,13 @@ export default async function AdminPricingPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
-            {((rows as any[]) ?? []).map((r) => (
+            {sorted.map((r) => (
               <tr key={r.id}>
-                <td className="p-3">{r.account?.name}</td>
+                <td className="p-3">
+                  <Link href={`/admin/accounts/${r.account?.id}/pricing`} className="underline">
+                    {r.account?.name}
+                  </Link>
+                </td>
                 <td className="p-3">
                   {r.product?.name}
                   {r.product?.pack_size ? <span className="text-xs text-ink-secondary"> · {r.product.pack_size}</span> : null}
@@ -38,11 +47,14 @@ export default async function AdminPricingPage() {
                 <td className="p-3 text-xs">{r.expiry_date ?? "—"}</td>
               </tr>
             ))}
+            {!sorted.length ? (
+              <tr><td colSpan={5} className="p-4 text-sm text-ink-secondary">No account-specific pricing set.</td></tr>
+            ) : null}
           </tbody>
         </table>
       </div>
       <p className="text-xs text-ink-secondary mt-3">
-        Edit from an individual account&apos;s page (Account → Pricing). Bulk editor coming soon.
+        Set per-account pricing from the account&apos;s page → Pricing.
       </p>
     </div>
   );

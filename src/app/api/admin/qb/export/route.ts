@@ -12,8 +12,9 @@ export async function POST(request: Request) {
   const svc = createServiceClient();
 
   const [{ data: orders }, { data: settings }] = await Promise.all([
-    svc.from("orders")
-      .select("*, account:accounts(*), parent:accounts!accounts_parent_account_id_fkey(*), items:order_items(*, product:products(*))")
+    svc
+      .from("orders")
+      .select("*, account:accounts(*), items:order_items(*, product:products(*))")
       .eq("qb_exported", false)
       .neq("status", "cancelled")
       .order("created_at", { ascending: true }),
@@ -24,15 +25,30 @@ export async function POST(request: Request) {
   const rows = (orders as any[]) ?? [];
   if (!rows.length) return NextResponse.json({ error: "no orders to export" }, { status: 400 });
 
+  // Resolve parents for accounts that have a parent_account_id, in one query.
+  const parentIds = Array.from(
+    new Set(rows.map((r) => r.account?.parent_account_id).filter(Boolean)),
+  ) as string[];
+  let parents: Record<string, { name: string; qb_customer_name: string | null }> = {};
+  if (parentIds.length) {
+    const { data: parentRows } = await svc
+      .from("accounts")
+      .select("id, name, qb_customer_name")
+      .in("id", parentIds);
+    for (const p of (parentRows as any[] | null) ?? []) {
+      parents[p.id] = { name: p.name, qb_customer_name: p.qb_customer_name };
+    }
+  }
+
   const invoices = rows.map((r) => {
     const items = (r.items as (OrderItem & { product: Product })[]) ?? [];
+    const acct = r.account as Account | null;
+    const parent = acct?.parent_account_id ? parents[acct.parent_account_id] : null;
     return buildInvoice({
       order: r as Order,
       items,
-      account: r.account as Account | null,
-      parentAccount: (r.account as any)?.parent_account_id
-        ? ({ name: r.parent?.name, qb_customer_name: r.parent?.qb_customer_name } as any)
-        : null,
+      account: acct,
+      parentAccount: parent ?? null,
       settings: qbSettings,
     });
   });
@@ -52,7 +68,8 @@ export async function POST(request: Request) {
     .update({ qb_exported: true, qb_exported_at: new Date().toISOString() })
     .in("id", bundle.orderIds);
 
-  return new NextResponse(bundle.body, {
+  const bodyOut = typeof bundle.body === "string" ? bundle.body : new Uint8Array(bundle.body);
+  return new NextResponse(bodyOut, {
     headers: {
       "Content-Type": bundle.mimeType,
       "x-filename": bundle.filename,

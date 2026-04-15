@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useCart } from "@/lib/cart/store";
+import { useCart, type CartLine } from "@/lib/cart/store";
 import { money, dateLong } from "@/lib/utils/format";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
@@ -14,14 +14,31 @@ interface Props {
   accountMinimum: number;
   nextDelivery: { deliveryDate: string; cutoffAt: string; pastCutoff: boolean } | null;
   pickupLocations: PickupLocation[];
+  reorder: CartLine[] | null;
 }
 
-export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocations }: Props) {
+export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocations, reorder }: Props) {
   const lines = useCart((s) => s.lines);
   const setQty = useCart((s) => s.setQty);
   const setNotes = useCart((s) => s.setNotes);
   const remove = useCart((s) => s.remove);
   const clear = useCart((s) => s.clear);
+  const bulkSet = useCart((s) => s.bulkSet);
+
+  // If reorder cookie was present, seed the cart once with those lines.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    if (reorder && reorder.length) {
+      const existing = lines;
+      const byId = new Map<string, CartLine>();
+      for (const l of existing) byId.set(l.productId, l);
+      for (const l of reorder) byId.set(l.productId, l); // reorder overrides qty
+      bulkSet(Array.from(byId.values()));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [lines]);
 
   const [deliveryDate, setDeliveryDate] = useState<string>(

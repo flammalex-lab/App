@@ -1,10 +1,12 @@
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { CartClient } from "./CartClient";
 import type { Account, DeliveryZoneRow, PickupLocation } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import type { CartLine } from "@/lib/cart/store";
 
 export const metadata = { title: "Cart — Fingerlakes Farms" };
 
@@ -37,6 +39,20 @@ export default async function CartPage() {
     pickups = (data as PickupLocation[] | null) ?? [];
   }
 
+  // If the user clicked "Reorder last", the API stashed the previous order's
+  // line items in a short-lived cookie. Read, then clear.
+  const cookieStore = cookies();
+  let reorder: CartLine[] | null = null;
+  const reorderCookie = cookieStore.get("flf-reorder")?.value;
+  if (reorderCookie) {
+    try {
+      reorder = JSON.parse(reorderCookie) as CartLine[];
+    } catch {
+      reorder = null;
+    }
+    cookieStore.delete("flf-reorder");
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl mb-4">Cart</h1>
@@ -49,6 +65,7 @@ export default async function CartPage() {
             : null
         }
         pickupLocations={pickups}
+        reorder={reorder}
       />
     </div>
   );

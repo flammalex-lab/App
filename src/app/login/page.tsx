@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { LoginClient } from "./LoginClient";
 
 export const metadata = { title: "Sign in — Fingerlakes Farms" };
+export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (

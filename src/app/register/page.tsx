@@ -1,6 +1,7 @@
 import { RegisterClient } from "./RegisterClient";
 
 export const metadata = { title: "Create account — Fingerlakes Farms" };
+export const dynamic = "force-dynamic";
 
 export default function RegisterPage() {
   return (

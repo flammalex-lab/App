@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Fingerlakes Farms",
   description: "Order fresh NYS farm products — wholesale and direct.",
   manifest: "/manifest.json",
+  icons: { icon: "/favicon.svg" },
   appleWebApp: { capable: true, statusBarStyle: "default", title: "FLF" },
 };
 

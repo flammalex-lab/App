@@ -29,7 +29,12 @@ export async function POST(request: Request) {
     notes: r.notes ?? undefined,
   }));
 
-  // Seed the client-side cart store via a cookie the cart page will honor.
-  cookies().set("flf-reorder", JSON.stringify(lines), { httpOnly: false, path: "/", maxAge: 300 });
+  // The cart page reads this cookie server-side and hydrates the cart.
+  cookies().set("flf-reorder", JSON.stringify(lines), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 300,
+  });
   return NextResponse.redirect(new URL("/cart?reorder=1", request.url), { status: 303 });
 }

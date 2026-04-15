@@ -77,7 +77,11 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
             )}
           </div>
           {unitPrice != null ? (
-            <ProductDetailClient product={p} unitPrice={unitPrice} />
+            <ProductDetailClient
+              product={p}
+              unitPrice={unitPrice}
+              showAddToGuide={me.role === "b2b_buyer"}
+            />
           ) : (
             <p className="mt-4 text-sm text-ink-secondary">Contact your rep for pricing on this item.</p>
           )}

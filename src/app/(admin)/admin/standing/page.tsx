@@ -14,10 +14,13 @@ export default async function AdminStandingPage() {
 
   return (
     <div className="max-w-4xl">
-      <h1 className="text-3xl mb-4">Standing orders</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl">Standing orders</h1>
+        <Link href="/admin/standing/new" className="btn-primary text-sm">New</Link>
+      </div>
       <div className="card divide-y divide-black/5">
         {((data as (StandingOrder & { account: { name: string } })[]) ?? []).map((s) => (
-          <div key={s.id} className="p-3 flex items-center justify-between">
+          <Link key={s.id} href={`/admin/standing/${s.id}`} className="p-3 flex items-center justify-between hover:bg-bg-secondary">
             <div>
               <div className="font-medium">{s.account?.name}</div>
               <div className="text-xs text-ink-secondary">
@@ -26,8 +29,11 @@ export default async function AdminStandingPage() {
               </div>
             </div>
             <span className={s.active ? "badge-green" : "badge-gray"}>{s.active ? "active" : "off"}</span>
-          </div>
+          </Link>
         ))}
+        {!((data as any[]) ?? []).length ? (
+          <div className="p-4 text-sm text-ink-secondary">No standing orders yet.</div>
+        ) : null}
       </div>
     </div>
   );

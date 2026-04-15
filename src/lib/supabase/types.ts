@@ -240,6 +240,18 @@ export interface Notification {
   created_at: string;
 }
 
+export interface Activity {
+  id: string;
+  account_id: string;
+  profile_id: string | null;
+  type: ActivityType;
+  subject: string | null;
+  body: string | null;
+  follow_up_date: string | null;
+  completed: boolean;
+  created_at: string;
+}
+
 export interface QBSetting {
   id: string;
   key: string;
