@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import { normalizePhone } from "@/lib/utils/phone";
+import { signInWithPasswordAction } from "./actions";
 
 type Mode = "phone" | "admin";
 
@@ -36,7 +37,6 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 function PhoneOtpForm() {
   const supabase = createClient();
-  const router = useRouter();
   const nextParam = useSearchParams().get("next");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -63,8 +63,7 @@ function PhoneOtpForm() {
     const { error } = await supabase.auth.verifyOtp({ phone: e164, token: otp, type: "sms" });
     setLoading(false);
     if (error) { setErr(error.message); return; }
-    router.push(nextParam || "/guide");
-    router.refresh();
+    window.location.assign(nextParam || "/guide");
   }
 
   return (
@@ -107,8 +106,6 @@ function PhoneOtpForm() {
 }
 
 function AdminPasswordForm() {
-  const supabase = createClient();
-  const router = useRouter();
   const nextParam = useSearchParams().get("next");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -118,11 +115,9 @@ function AdminPasswordForm() {
   async function submit() {
     setErr(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const result = await signInWithPasswordAction(email, password, nextParam);
     setLoading(false);
-    if (error) { setErr(error.message); return; }
-    router.push(nextParam || "/dashboard");
-    router.refresh();
+    if (result?.error) { setErr(result.error); return; }
   }
 
   return (

@@ -1,6 +1,17 @@
 -- Row Level Security policies
 -- admin: full access. b2b_buyer: own account + own data. dtc_customer: own data only.
 
+-- Table-level grants. Supabase normally sets these via project defaults, but
+-- new "API Key"–style projects don't always inherit them, so we re-assert.
+-- RLS still gates per-row visibility on top of these.
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated, service_role;
+grant select, usage on all sequences in schema public to authenticated, service_role;
+grant select on all tables in schema public to anon;
+alter default privileges in schema public grant select, insert, update, delete on tables to authenticated, service_role;
+alter default privileges in schema public grant select, usage on sequences to authenticated, service_role;
+alter default privileges in schema public grant select on tables to anon;
+
 alter table accounts                 enable row level security;
 alter table profiles                 enable row level security;
 alter table products                 enable row level security;

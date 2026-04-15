@@ -18,8 +18,13 @@ export async function createClient() {
             toSet.forEach(({ name, value, options }: CookieToSet) =>
               cookieStore.set(name, value, options),
             );
-          } catch {
-            // Called from a Server Component; safe to ignore if middleware refreshes the session.
+          } catch (e) {
+            // Setting cookies from a Server Component is fine to ignore (middleware refreshes).
+            // But in a Route Handler / Server Action we *need* the cookies to land — log so we notice.
+            if (process.env.NODE_ENV !== "production") {
+              // eslint-disable-next-line no-console
+              console.warn("[supabase server] cookie set failed:", e);
+            }
           }
         },
       },
