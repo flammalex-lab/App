@@ -581,10 +581,13 @@ create trigger on_auth_user_created
 create or replace function ensure_default_order_guide() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  if new.role = 'b2b_buyer' then
+  if new.role = 'b2b_buyer'
+     and not exists (
+       select 1 from order_guides
+       where profile_id = new.id and is_default = true
+     ) then
     insert into order_guides (profile_id, name, is_default)
-    values (new.id, 'My order guide', true)
-    on conflict do nothing;
+    values (new.id, 'My order guide', true);
   end if;
   return new;
 end; $$;

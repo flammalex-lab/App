@@ -144,12 +144,14 @@ async function main() {
     "PK-CHP-001", "PK-RIB-001", "EG-CSE-001", "DY-BTR-001",
   ];
   for (const [accountName, profileId] of Object.entries(buyerProfileIds)) {
-    const { data: guide } = await sb
+    const { data: guides } = await sb
       .from("order_guides")
       .select("id")
       .eq("profile_id", profileId)
       .eq("is_default", true)
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(1);
+    const guide = guides?.[0];
     if (!guide) {
       console.warn(`  (no default guide for ${accountName}; trigger may not have fired)`);
       continue;
