@@ -1,0 +1,41 @@
+# Universe inclusion/exclusion rules.
+# Philosophy: start from the entire SEC-reporting universe, then carve out
+# categories where mispricings are persistent and our edge is highest.
+
+include:
+  exchanges: [NYSE, NASDAQ, NYSEAMERICAN, OTC]
+  min_market_cap_usd: 20_000_000  # nano-caps included deliberately
+  max_market_cap_usd: 20_000_000_000
+
+exclude:
+  # Sectors where fundamentals don't translate to our playbook
+  sectors:
+    - Financials        # different accounting; use specialist tools
+    - Utilities         # rate-regulated; low variance
+  # Structures that have blown up repeatedly
+  structures:
+    - Chinese VIE       # accounting risk, audit opacity
+    - SPAC pre-merger   # optionality only; not equity
+  # Going-concern / fraud red flags
+  red_flags:
+    - auditor_change_last_12_months: true
+    - late_filing_nt10k_or_nt10q: true
+    - going_concern_warning: true
+    - restatement_last_24_months: true
+
+# Highest-priority sub-universes. Each gets its own signal pipeline.
+priority_sub_universes:
+  - name: post_bankruptcy_emerging
+    age_months_max: 24
+    note: Fresh-start accounting creates orphaned equities.
+  - name: recent_spinoffs
+    age_months_max: 18
+    note: Small spin-offs from mega-cap parents most anomalous.
+  - name: activist_targets
+    note: Stocks where whitelisted activist filed 13D in last 12 months.
+  - name: negative_ev
+    note: Market cap < (cash - total debt). Screen, then per-name 10-K read.
+  - name: sp600_to_sp400_candidates
+    note: Russell / S&P promotion creates forced-buying pressure.
+  - name: japan_governance_reform
+    note: TSE Prime list; P/B < 1.0; forced by METI to address capital efficiency.

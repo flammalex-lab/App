@@ -1,0 +1,58 @@
+edgar:
+  base_url: https://www.sec.gov
+  data_url: https://data.sec.gov
+  efts_url: https://efts.sec.gov/LATEST/search-index
+  rate_limit_rps: 8        # SEC allows 10/s; stay under
+  cache_ttl_hours: 24
+
+signals:
+  spinoffs:
+    enabled: true
+    lookback_days: 120
+    max_parent_mcap_usd: 100_000_000_000
+    min_size_ratio_pct: 2
+    max_size_ratio_pct: 25
+  activist_13d:
+    enabled: true
+    lookback_days: 7
+    whitelist_only: false   # flag all 13Ds, but boost score for whitelist
+  insider_clusters:
+    enabled: true
+    lookback_days: 30
+    min_buyers: 3
+    min_total_usd: 250_000
+    roles_required: [CEO, CFO, Director]   # "cluster" = spread across roles
+  post_bankruptcy:
+    enabled: true
+    lookback_months: 24
+  index_migration:
+    enabled: true
+    indices: [SP500, SP400, SP600, RUSSELL1000, RUSSELL2000]
+  capital_allocator_regime:
+    enabled: true
+    signals_required: 2    # 2 of {new CFO, buyback announcement, insider buying, dividend initiation}
+  supply_chain:
+    enabled: true
+    depth: 2
+  hedging_language:
+    enabled: true
+    percentile_threshold: 90  # flag calls in top 10% of hedging-language density
+  ghost_ships:
+    enabled: true
+
+scoring:
+  weights:
+    asymmetry: 0.30     # expected upside / expected downside
+    time_sensitivity: 0.20  # days to catalyst
+    crowd_cover: 0.20   # inverse analyst coverage
+    insider_alignment: 0.15
+    balance_sheet_safety: 0.15
+
+portfolio:
+  max_position_pct: 10
+  max_position_cost_pct: 8
+  max_sector_pct: 30
+  max_leaps_sleeve_pct: 20
+  max_illiquid_pct: 40
+  dry_powder_floor_pct: 10
+  drawdown_circuit_breaker_pct: 30

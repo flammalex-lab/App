@@ -1,0 +1,134 @@
+# Whitelist of activist investors with documented small/mid-cap track records.
+# A 13D from any of these is a high-priority signal.
+# Sources: 13D Monitor, Insightia, SEC filings (maintain and refine quarterly).
+#
+# `aum_tier`: small (<$500M), mid ($500M-$2B), large (>$2B)
+# `cap_focus`: typical market-cap sweet spot for targets
+# `style`: operational | balance-sheet | strategic-alternatives | governance | hybrid
+
+activists:
+  - name: Engaged Capital
+    cik: "0001567063"
+    aum_tier: mid
+    cap_focus: micro-to-small
+    style: operational
+    notes: Glenn Welling. Strong small-cap operational record.
+
+  - name: JANA Partners
+    cik: "0001159159"
+    aum_tier: large
+    cap_focus: mid-to-large
+    style: strategic-alternatives
+    notes: Barry Rosenstein. Excellent at forcing M&A.
+
+  - name: Starboard Value
+    cik: "0001517137"
+    aum_tier: large
+    cap_focus: mid
+    style: operational
+    notes: Jeff Smith. Best-in-class operational activism.
+
+  - name: Legion Partners
+    cik: "0001615772"
+    aum_tier: small
+    cap_focus: small
+    style: governance
+    notes: Chris Kiper / Ted White. Small-cap governance focus.
+
+  - name: Voss Capital
+    cik: "0001624577"
+    aum_tier: small
+    cap_focus: micro-to-small
+    style: hybrid
+    notes: Travis Cocke. Deep-value small-cap.
+
+  - name: 22NW Fund
+    cik: "0001787577"
+    aum_tier: small
+    cap_focus: micro
+    style: strategic-alternatives
+    notes: Aron English. Specialist in sub-$300M names.
+
+  - name: Ancora Advisors
+    cik: "0001346824"
+    aum_tier: mid
+    cap_focus: small
+    style: hybrid
+    notes: Fred DiSanto.
+
+  - name: Bulldog Investors
+    cik: "0001268544"
+    aum_tier: small
+    cap_focus: closed-end-funds
+    style: balance-sheet
+    notes: Phillip Goldstein. Closed-end fund discount specialist.
+
+  - name: Saba Capital
+    cik: "0001535538"
+    aum_tier: large
+    cap_focus: closed-end-funds
+    style: balance-sheet
+    notes: Boaz Weinstein. Closed-end fund activism.
+
+  - name: Land & Buildings
+    cik: "0001572694"
+    aum_tier: mid
+    cap_focus: reits
+    style: strategic-alternatives
+    notes: Jonathan Litt. REIT specialist.
+
+  - name: Elliott Investment Management
+    cik: "0001791786"
+    aum_tier: large
+    cap_focus: large
+    style: strategic-alternatives
+    notes: Paul Singer. Largest activist. Coattails on mega-cap events.
+
+  - name: Third Point
+    cik: "0001040273"
+    aum_tier: large
+    cap_focus: mid-to-large
+    style: hybrid
+    notes: Dan Loeb.
+
+  - name: Politan Capital
+    cik: "0001895734"
+    aum_tier: mid
+    cap_focus: mid
+    style: governance
+    notes: Quentin Koffey (ex-Elliott / D.E. Shaw).
+
+  - name: Irenic Capital
+    cik: "0001904348"
+    aum_tier: mid
+    cap_focus: mid
+    style: strategic-alternatives
+    notes: Adam Katz / Andy Dodge.
+
+  - name: Blackwells Capital
+    cik: "0001656588"
+    aum_tier: small
+    cap_focus: small
+    style: governance
+    notes: Jason Aintabi.
+
+  - name: Sachem Head Capital
+    cik: "0001562934"
+    aum_tier: mid
+    cap_focus: mid
+    style: hybrid
+    notes: Scott Ferguson.
+
+  - name: Impactive Capital
+    cik: "0001787571"
+    aum_tier: mid
+    cap_focus: small-to-mid
+    style: hybrid
+    notes: Lauren Taylor Wolfe.
+
+  - name: Armistice Capital
+    cik: "0001631596"
+    aum_tier: mid
+    cap_focus: micro
+    style: hybrid
+    notes: Biotech / healthcare small-cap focus.
