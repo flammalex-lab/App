@@ -66,6 +66,31 @@ class ActivistSignal(Signal):
                 base_confidence = min(0.95, base_confidence + 0.1)
                 asymmetry += 0.7
 
+            # Backtest learning (2022-2024, n=27): small-cap activist targets
+            # underperformed unless confirmed by another signal. Check for
+            # co-located confirming signals on the same CIK in the last 90 days.
+            target_size_tier = md.get("target_size_tier") or md.get("size_tier", "")
+            is_small = target_size_tier in ("micro", "small", "micro-to-small")
+            require_stacking = bool(self.cfg.get("small_cap_require_stacking", True))
+            if is_small and require_stacking:
+                with self.store.conn() as c:
+                    confirm = c.execute(
+                        """
+                        SELECT COUNT(*) AS n FROM signals
+                        WHERE cik = ?
+                          AND signal_type IN
+                            ('insider_cluster','capital_allocator_regime',
+                             'post_bankruptcy','spinoff')
+                          AND detected_at >= datetime('now', '-90 days')
+                        """,
+                        (filing.cik,),
+                    ).fetchone()
+                if not confirm or confirm["n"] == 0:
+                    # Downgrade unconfirmed small-cap activist signals — still
+                    # worth surfacing for diligence, but scored lower.
+                    base_confidence = max(0.25, base_confidence - 0.25)
+                    asymmetry = max(1.2, asymmetry - 1.0)
+
             pct_owned = md.get("percent_owned")
             headline_stake = f"{pct_owned}% stake" if pct_owned else "stake"
             headline = f"{filer_name} filed {filing.form} on {filing.company} ({headline_stake})"

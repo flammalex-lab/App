@@ -89,14 +89,31 @@ Digest lands at `data/reports/digest-YYYY-MM-DD.md`.
 
 ## Backtest
 
+Two event studies ship with free data via yfinance:
+
 ```bash
-alpha backtest --prices data/prices.parquet
+pip install -e '.[backtest]'
+
+alpha backtest-spinoffs                     # 27 historical spin-offs
+alpha backtest-activists                    # 28 historical 13D campaigns
+alpha backtest --prices data/prices.parquet # Magic Formula reference
 ```
 
-The prices file needs a MultiIndex `[date, ticker]` with columns
-`adj_close`, `market_cap`, `in_universe`, and optionally `ebit_ev_yield`,
-`return_on_capital`, `piotroski_f`, `altman_z` for the reference Magic
-Formula strategy.
+### Key empirical findings (see `data/backtest/SUMMARY.md`)
+
+**Spin-offs (2015-2024)**: Small spin-offs (<15% of parent mcap) with
+T+21 entry beat IWM by **+29% mean over 18 months**, hit rate **70%**.
+The default signal now enforces a 21-trading-day entry delay.
+
+**Activist 13Ds (2022-2024)**: Large-cap targets beat IWM by +33% over
+24m; small-cap targets underperformed in the weak 2022-24 regime. The
+system now **requires stacking confirmation** for small-cap activist
+signals.
+
+The Magic Formula harness expects a prices parquet/csv with MultiIndex
+`[date, ticker]` and columns `adj_close`, `market_cap`, `in_universe`,
+and optionally `ebit_ev_yield`, `return_on_capital`, `piotroski_f`,
+`altman_z`.
 
 Data sources (cheap/free):
 - **Sharadar SF1/SEP** — ~$50/mo, point-in-time fundamentals.

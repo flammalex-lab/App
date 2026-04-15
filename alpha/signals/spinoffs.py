@@ -26,11 +26,23 @@ from alpha.edgar.forms import FormType
 from alpha.signals.base import Signal, SignalHit
 
 
+def _add_trading_days(d: date, n: int) -> date:
+    """Approximate — weekends only, no holidays. Good enough for a 'ready date'."""
+    cur = d
+    added = 0
+    while added < n:
+        cur += timedelta(days=1)
+        if cur.weekday() < 5:
+            added += 1
+    return cur
+
+
 class SpinoffSignal(Signal):
     name = "spinoff"
 
     def detect(self) -> Iterable[SignalHit]:
         lookback = int(self.cfg.get("lookback_days", 120))
+        entry_delay = int(self.cfg.get("entry_delay_trading_days", 21))
         start = date.today() - timedelta(days=lookback)
 
         for filing in self.edgar.filings_for(
@@ -85,6 +97,10 @@ class SpinoffSignal(Signal):
                     f"(size ratio {size_ratio}%)"
                 )
 
+            # Enforce backtested "wait out forced selling" rule: the signal's
+            # actionable entry date is filed + 21 trading days.
+            ready_date = _add_trading_days(filing.filed, entry_delay)
+
             yield SignalHit(
                 signal_type=self.name,
                 ticker=md.get("newco_ticker"),
@@ -93,10 +109,13 @@ class SpinoffSignal(Signal):
                 rationale=md.get("rationale",
                                   "Form 10 filed — typical spin-off setup. Read the "
                                   "Information Statement; look for size ratio, "
-                                  "management migration, and comp alignment."),
+                                  "management migration, and comp alignment. "
+                                  f"Entry ready date: {ready_date} "
+                                  f"(filing + {entry_delay} trading days, per backtest)."),
                 confidence=confidence,
                 asymmetry=asymmetry,
-                catalyst_date=md.get("distribution_date"),
+                catalyst_date=md.get("distribution_date") or ready_date,
                 accession=filing.accession,
-                metadata=md,
+                metadata={**md, "entry_ready_date": ready_date.isoformat(),
+                          "entry_delay_trading_days": entry_delay},
             )

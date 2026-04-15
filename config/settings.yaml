@@ -12,10 +12,20 @@ signals:
     max_parent_mcap_usd: 100_000_000_000
     min_size_ratio_pct: 2
     max_size_ratio_pct: 25
+    # Backtest finding (2015-2024, n=27): T+21 entry improves 12m hit rate
+    # from 65% to 73% and mean return from 22.7% to 27.0% in small spins.
+    # Default signal's "ready_date" = filing_date + entry_delay_trading_days.
+    entry_delay_trading_days: 21
   activist_13d:
     enabled: true
     lookback_days: 7
     whitelist_only: false   # flag all 13Ds, but boost score for whitelist
+    # Backtest finding (2022-2024, n=27): small-cap activist targets in a
+    # weak small-cap environment underperformed. Require stacking
+    # (insider cluster, capital-allocator regime, or 13D/A escalation)
+    # for high-confidence small-cap activist signals.
+    small_cap_require_stacking: true
+    # Large-cap activist coattails remained robust; keep at full weight.
   insider_clusters:
     enabled: true
     lookback_days: 30

@@ -20,6 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.5"]
+backtest = ["yfinance>=0.2", "tabulate>=0.9"]
 
 [project.scripts]
 alpha = "alpha.cli:app"

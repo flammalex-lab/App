@@ -160,5 +160,43 @@ def backtest(prices_path: Path = typer.Option(..., "--prices")) -> None:
     console.print(res.summary())
 
 
+@app.command("backtest-spinoffs")
+def backtest_spinoffs(
+    csv_path: Path = typer.Option(
+        DATA_DIR / "historical_spinoffs.csv", "--csv",
+    ),
+    delay_days: int = typer.Option(21, "--delay",
+                                    help="Trading-day entry delay after ex-date."),
+) -> None:
+    """Historical spin-off event study (free yfinance data)."""
+    from alpha.backtest.spinoff_study import run_study, summarize
+    df = run_study(csv_path, entry_offset_days=delay_days)
+    if df.empty:
+        console.print("[yellow]No events completed.[/yellow]")
+        return
+    sm = summarize(df)
+    for k, v in sm.items():
+        console.print(f"[cyan]-- {k} --[/cyan]")
+        console.print(v.round(4).to_string(index=False))
+
+
+@app.command("backtest-activists")
+def backtest_activists(
+    csv_path: Path = typer.Option(
+        DATA_DIR / "historical_activist_campaigns.csv", "--csv"
+    ),
+) -> None:
+    """Historical activist 13D coattails study."""
+    from alpha.backtest.activist_study import run_study, summarize
+    df = run_study(csv_path)
+    if df.empty:
+        console.print("[yellow]No events completed.[/yellow]")
+        return
+    sm = summarize(df)
+    for k, v in sm.items():
+        console.print(f"[cyan]-- {k} --[/cyan]")
+        console.print(v.round(4).to_string(index=False))
+
+
 if __name__ == "__main__":
     app()

@@ -1,0 +1,28 @@
+parent_ticker,newco_ticker,spin_year,spin_month,size_tier,notes
+HPQ,HPE,2015,11,large,HP Enterprise from HP Inc
+CAG,LW,2016,11,small,Lamb Weston from ConAgra
+JCI,ADNT,2016,10,small,Adient seating from Johnson Controls
+HLT,PK,2017,1,small,Park Hotels from Hilton
+HLT,HGV,2017,1,small,Hilton Grand Vacations from Hilton
+XRX,CNDT,2017,1,large,Conduent from Xerox
+DWDP,DOW,2019,4,large,Dow from DowDuPont
+DWDP,CTVA,2019,6,large,Corteva Agriscience from DowDuPont
+MSG,MSGE,2020,4,small,MSG Entertainment from MSG Sports
+RTX,CARR,2020,4,small,Carrier from United Technologies
+RTX,OTIS,2020,4,small,Otis from United Technologies
+ARNC,HWM,2020,4,large,Howmet Aerospace from Arconic
+FTV,VNT,2020,10,small,Vontier from Fortive
+MRK,OGN,2021,6,small,Organon from Merck
+XPO,GXO,2021,8,small,GXO Logistics from XPO
+IP,SLVM,2021,10,small,Sylvamo papers from International Paper
+IBM,KD,2021,11,small,Kyndryl from IBM
+T,WBD,2022,4,large,WBD Discovery combination with AT&T spin
+BDX,EMBC,2022,4,small,Embecta diabetes care from Becton Dickinson
+CFX,ESAB,2022,4,small,ESAB welding from Colfax
+XPO,RXO,2022,11,small,RXO brokered transport from XPO
+GE,GEHC,2023,1,small,GE HealthCare from GE
+BWA,PHIN,2023,7,small,PHINIA from BorgWarner
+JNJ,KVUE,2023,8,small,Kenvue consumer from Johnson & Johnson
+DHR,VLTO,2023,9,small,Veralto water/quality from Danaher
+MMM,SOLV,2024,4,small,Solventum healthcare from 3M
+GE,GEV,2024,4,small,GE Vernova energy from GE
