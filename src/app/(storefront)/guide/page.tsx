@@ -7,15 +7,13 @@ import type {
   Account,
   AccountPricing,
   Category,
-  DeliveryZoneRow,
   OrderGuide,
   OrderGuideItem,
   Product,
 } from "@/lib/supabase/types";
 import { GuideClient } from "./GuideClient";
 import { resolvePrice } from "@/lib/utils/pricing";
-import { nextDeliveryForZone } from "@/lib/utils/cutoff";
-import { countdown, money } from "@/lib/utils/format";
+import { money } from "@/lib/utils/format";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
 
@@ -34,14 +32,6 @@ export default async function GuidePage() {
     ? await db.from("accounts").select("*").eq("id", me.account_id).maybeSingle()
     : { data: null as Account | null };
   const account = accountRow as Account | null;
-
-  // Delivery zone for the hero band
-  let zone: DeliveryZoneRow | null = null;
-  if (account?.delivery_zone) {
-    const { data: z } = await db.from("delivery_zones").select("*").eq("zone", account.delivery_zone).maybeSingle();
-    zone = z as DeliveryZoneRow | null;
-  }
-  const nextDel = zone ? nextDeliveryForZone(zone) : null;
 
   // Default order guide
   const { data: guideRow } = await db
@@ -127,37 +117,13 @@ export default async function GuidePage() {
 
   return (
     <div className="max-w-3xl mx-auto pb-8">
-      {/* Personal greeting + delivery/cutoff hero */}
+      {/* Personal greeting */}
       <section className="px-4 md:px-0 pt-4 pb-3">
         <h1 className="display text-3xl sm:text-4xl tracking-tight">
           {greeting}, {firstName}.
         </h1>
         {account ? (
           <p className="text-ink-secondary text-sm mt-0.5">{account.name}</p>
-        ) : null}
-
-        {/* Delivery date + cutoff countdown */}
-        {nextDel ? (
-          <div className="mt-3 rounded-xl bg-brand-blue-tint border border-brand-blue/10 px-4 py-3">
-            <div className="grid grid-cols-2 gap-3 text-center text-sm">
-              <div>
-                <div className="text-[11px] text-ink-secondary uppercase tracking-wide">Next delivery</div>
-                <div className="font-semibold text-brand-blue-dark mt-0.5">
-                  {nextDel.deliveryDayName},{" "}
-                  {nextDel.deliveryDate.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </div>
-              </div>
-              <div className="border-l border-brand-blue/10">
-                <div className="text-[11px] text-ink-secondary uppercase tracking-wide">Cutoff</div>
-                <div className="mono font-semibold text-brand-blue-dark mt-0.5">
-                  {countdown(nextDel.cutoffAt.getTime() - Date.now())}
-                </div>
-              </div>
-            </div>
-          </div>
         ) : null}
       </section>
 
