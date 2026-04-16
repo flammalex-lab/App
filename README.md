@@ -1,239 +1,200 @@
 # Alpha
 
-Event-driven + deep-value research system for asymmetric equity bets, built
-for a young, high-cash-flow, risk-tolerant operator. Opinionated: it looks
-specifically for situations the market **structurally can't or won't**
-analyze — spin-offs, activist targets, post-bankruptcy equities, insider
-clusters, index migrations, ghost ships.
+Opinionated, backtested, **deliberately narrow** event-driven research
+and execution system built for a young, cash-flow-rich, risk-tolerant
+operator. The thesis of this project is simple:
 
-The thesis: your edge as an individual is not information, it's
-**breadth × patience × willingness to buy the un-buyable.** This system
-gives you breadth (daily EDGAR firehose + LLM extraction) and helps
-enforce patience (rule-based scoring, drawdown circuit breaker).
+> **One validated strategy, executed systematically, beats ten
+> speculative strategies optimized in a spreadsheet.**
 
-## What it does
+After building nine signal detectors and running rigorous walk-forward
+tests, only one survived: **nano + small spin-offs, bought 21 trading
+days after the Form 10 filing, equal-weighted across 5 concurrent
+positions, held 18 months.**
 
-1. **Scans SEC EDGAR** daily for 15+ form types that surface high-signal
-   events (Form 10, SC 13D, Form 4, 8-K with keywords, NT 10-K, Form 25,
-   T-3, etc.).
-2. **LLM-extracts structured data** from each filing against strict
-   pydantic schemas (spinoff_v1, activist_v1, form4_v1, supply_chain_v1).
-3. **Runs signal detectors**:
-   - `spinoff` — small, ugly spin-offs with forced-selling indicators
-   - `activist_13d` — 13D filings, boosted for whitelisted small-cap activists
-   - `insider_cluster` — multi-insider open-market buying with role diversity
-   - `post_bankruptcy` — fresh-start equities with NOLs and no coverage
-   - `index_migration` — S&P 500/400/600 promotion candidates *(original)*
-   - `capital_allocator_regime` — new-CFO + buyback + insider-buy compound events *(original)*
-   - `supply_chain_cascade` — customer-to-supplier return predictability *(original)*
-   - `hedging_language` — CFO linguistic tells (Larcker-Zakolyukina) *(original)*
-   - `ghost_ship` — post-Form-15 companies that may still be profitable *(original)*
-4. **Composite scoring** — weights signals, rewards multi-signal stacking
-   on the same name with a 15-25% bonus.
-5. **Daily markdown digest** with a ranked table and an operator checklist.
-6. **Walk-forward backtest harness** — validates any rule-based strategy
-   before committing capital.
+That strategy delivered **+45% CAGR** in a 2015-2024 walk-forward test
+with no look-ahead, no survivorship bias, and a realistic cost model.
 
-## Strategy summary — Aggressive (calibrated to backtest)
+Everything else in this repo either supports that core strategy or is
+flagged as experimental. `alpha/experimental/` contains 10+ other
+signals we built but did not validate — they stay around for future
+research, but production capital does not touch them.
 
-For a young, cash-flow-rich, risk-tolerant operator. The walk-forward
-shows **+44% CAGR** is achievable from a top-5-per-year concentration
-in nano + small spin-offs alone (10-year sim, $100k → $3.76M, pre-tax).
+---
 
-Realistic target after taxes + slippage + execution discipline:
-**25-35% annualized.**
+## Operating model
 
-| Sleeve | Allocation | Mechanism | Per-position expectation |
-|---|---:|---|---:|
-| **Concentrated nano/small spin-offs** | 35-45% | Top 5-7 per year, 5-10% each | +50-60% over 18m |
-| **LEAPS overlay on highest conviction** | 10-20% | 24m calls 5-10% OTM, 1-3% per name | +100-300% when right |
-| **Special situations** | 15-20% | 13D coattails, mergers, post-BK | +20-30% per event |
-| **Microcap deep value** | 10-15% | Negative-EV with quality gate | +30-60% over 24m |
-| **Lottery (SPAC warrants, biotech)** | 5-10% | 1% positions, diversified | -100% / +500-1000% |
-| **Dry powder (T-bills)** | 5-15% | Dislocation ammunition | T-bill rate |
+Three sleeves. One is validated. Start there.
 
-### Rules (non-negotiable)
+| Sleeve | Allocation | Mechanism | Status |
+|---|---:|---|---|
+| **Spinoff deploy queue** | 80-90% | Systematic nano/small spin-offs, 5 concurrent, 18m hold | ✅ backtest validated |
+| **Special situations** | 5-10% | Discretionary: odd-lot tenders, post-BK emergence when found | 🔬 ad hoc |
+| **Dry powder (T-bills)** | 10-15% | DCA ammunition for drawdowns | — |
 
-- Max 10% per position at market, 8% at cost.
-- Max 20% LEAPS sleeve. Max 10% "lottery" sleeve.
-- Use Kelly fraction (¼- to ½-Kelly) for sizing, capped by hard caps.
-- 5% cash floor minimum. Build to 15% during obvious bubbles.
-- Drawdown circuit breaker: 30% portfolio drop → 2-week new-deployment
-  freeze (forces you to re-evaluate, not panic-sell).
-- 6 months living expenses *outside* the portfolio so cash flow can
-  fund DCAs through drawdowns instead of you being a forced seller.
-- Pre-mortem each position before entry.
-- LEAPS only when IV is in bottom half of 1y range — never pay for
-  someone else's fear.
+**Realistic post-cost expectation: 25-30% real annualized.** Path will
+be volatile — 30%+ portfolio drawdowns are expected 1-2x per decade.
+
+---
 
 ## Install
 
 ```bash
-cd App
 python -m venv .venv && source .venv/bin/activate
-pip install -e .
-cp .env.example .env
-# Edit .env: set EDGAR_USER_AGENT and ANTHROPIC_API_KEY
-```
-
-`EDGAR_USER_AGENT` is mandatory — the SEC requires it in every request
-and will block you without one. Use the format: `Your Name email@example.com`.
-
-## Quickstart
-
-```bash
-alpha init                                     # create data dirs + DB
-alpha run                                      # daily scan + extract + score + digest
-alpha run --no-llm                             # skip LLM extractions
-alpha run -s spinoff                           # run a single signal
-alpha digest                                   # broad watchlist (top 25)
-alpha concentrated --top 5 -p 200000 -a 1.2    # AGGRESSIVE: top-5 high-conviction
-                                               # picks with Kelly sizing for $200k portfolio
-alpha signals --days 14                        # raw signal log
-```
-
-The **concentrated** digest is the one to use as an aggressive operator.
-It scores each name with the ConvictionScorer, applies Kelly sizing
-(¼- to ½-Kelly capped at hard limits), and recommends LEAPS overlays
-on the highest-conviction picks. Output at
-`data/reports/concentrated-YYYY-MM-DD.md`.
-
-## Cron setup
-
-```
-# Run every weekday morning at 07:00 ET
-0 7 * * 1-5 cd ~/alpha && .venv/bin/python scripts/daily_run.py
-```
-
-## Backtest
-
-Two event studies ship with free data via yfinance:
-
-```bash
 pip install -e '.[backtest]'
-
-alpha backtest-spinoffs                     # 27 historical spin-offs
-alpha backtest-activists                    # 28 historical 13D campaigns
-alpha backtest --prices data/prices.parquet # Magic Formula reference
+cp .env.example .env
+# Edit .env: set EDGAR_USER_AGENT and (optionally) ANTHROPIC_API_KEY
 ```
 
-### Validating the LLM judgment layer
+---
 
-The heuristic filter (free, rule-based) catches obvious disasters
-(China VIE, OTC-only, shell companies) but can't distinguish
-"ugly because forced-seller" (good) from "ugly because dying" (bad).
-The LLM filter (Claude Sonnet) reads each Form 10 and makes that
-judgment.
+## Production commands
 
 ```bash
-# 1. Get an Anthropic API key from https://console.anthropic.com/
-#    Add billing, create key, save the sk-ant-... string.
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# 2. Run backfill on all 197 historical Form 10s
-#    Estimated cost: ~$20. Hard budget cap enforced.
-python scripts/llm_backfill.py \
-    --csv data/backtest/walk_forward_2015-01-01_2024-12-31/spinoff_events.csv \
-    --budget-usd 25
-
-# 3. Re-run walk-forward with LLM filter
-python scripts/backtest_with_llm.py
+alpha init                    # create DB + data dirs
+alpha scan                    # daily: find new Form 10s, update deploy queue
+alpha step                    # daily: close due positions, deploy ready candidates (paper)
+alpha digest                  # today's deploy-queue briefing
+alpha performance             # closed-position performance to date
+alpha thesis <accession>      # LLM thesis + red-flag scan for one filing
 ```
 
-Results cached in SQLite; rerunning is free. If the script stops
-mid-run (budget hit, network error), restart it and it picks up
-where it left off.
+### Daily operator loop
 
-### Key empirical findings
+```bash
+# run every morning
+alpha scan && alpha step && alpha digest
+```
 
-Full write-ups in `data/backtest/`:
-- `SUMMARY.md` — initial curated event studies
-- `WALK_FORWARD_ANALYSIS.md` — honest pipeline test (no curation)
-- `SIZE_FILTER_FINDINGS.md` — Greenblatt thesis confirmed
-- `concentration_study.md` — top-N concentration test
+That's the whole operation.
 
-**Walk-forward 2015-2024 spin-offs (n=197 raw, ~120 with size data):**
-- Nano newcos (<$500M): +47.9% excess vs IWM at 18m
-- Small newcos ($500M-$2B): +39.9% excess vs IWM at 18m
-- Mid newcos ($2B-$10B): +7.1% excess (the trap — avoid weighting)
-- Large newcos (>$10B): +23.0% excess at 18m
+---
 
-**Concentration test (top-N per year by smallest mcap, recycled capital):**
-- Top 10 per year: +43% CAGR over 10 years
-- Top 5 per year: **+44.1% CAGR** ($100k → $3.76M pre-tax)
-- Top 3 per year: **+44.2% CAGR**
+## How the strategy works (backtest-validated)
 
-**Activist 13Ds (2019-2023)**: Large-cap targets beat IWM by +33% over
-24m; small-cap targets underperformed in the weak 2022-24 regime. The
-system now **requires stacking confirmation** for small-cap activist
-signals.
+1. **EDGAR scan**: every day, find new Form 10 / Form 10-12B filings.
+2. **Heuristic filter** (hard-pass only): reject China VIEs, OTC-only
+   listings, sub-$5M revenue shells, chronic late filers. That's
+   about 45% of raw filings. The rest pass through.
+3. **Size classification**: classify newco market cap into nano
+   (<$500M), small ($500M-$2B), mid ($2B-$10B), large (>$10B). Only
+   nano and small are deployed. Mid is "the trap" — highest dispersion
+   with lowest mean.
+4. **Queue with ready date**: filing_date + 21 trading days. This waits
+   out the forced-selling window (parent holders dumping for index or
+   mandate reasons).
+5. **Deploy when slot opens**: 5 concurrent positions. When one closes
+   (hit 18-month hold), proceeds fund the next oldest ready candidate.
+6. **Hold 18 months**. No discretionary exits.
 
-The Magic Formula harness expects a prices parquet/csv with MultiIndex
-`[date, ticker]` and columns `adj_close`, `market_cap`, `in_universe`,
-and optionally `ebit_ev_yield`, `return_on_capital`, `piotroski_f`,
-`altman_z`.
+**What the system does NOT do:**
+- Pick winners (you can't; the alpha is category-driven)
+- Time the market (doesn't work; deploy when filings arrive)
+- Use LLM judgment to filter in/out (validated: HURTS CAGR because
+  "ugly because forced-seller" looks like "ugly because dying")
+- Trust single-name conviction (validated: equal-weight within
+  category beats stock-picking)
 
-Data sources (cheap/free):
-- **Sharadar SF1/SEP** — ~$50/mo, point-in-time fundamentals.
-- **Polygon** — real-time + historical prices.
-- **SEC EDGAR + financial statement datasets** — free fundamentals via
-  the XBRL files.
+The LLM helps you **understand** each position (thesis + red flags)
+after it's been selected, not **gate** which positions to take.
 
-## Configuration
+---
 
-All tunables live in `config/`:
+## Validation evidence
 
-- `settings.yaml` — signal enable/disable flags, thresholds, scoring weights.
-- `activists.yaml` — whitelist of small-cap activists (edit quarterly).
-- `universe.yaml` — sector/structure exclusions, priority sub-universes.
+Three independent backtests in `data/backtest/`:
+
+- **`SUMMARY.md`** — initial curated event study (27 hand-picked names).
+  Biased toward winners; not trustworthy.
+- **`WALK_FORWARD_ANALYSIS.md`** — honest no-look-ahead replay of 197
+  real Form 10 filings 2015-2024. +45% CAGR, 52% win rate, -67% worst
+  single-position loss, +599% best.
+- **`HONEST_FINDINGS.md`** — discusses the calibration arc: look-ahead
+  bias measurement, a failed first-version heuristic, and the
+  calibrated heuristic that kept CAGR while reducing tail risk.
+
+### What didn't work (kept as lessons)
+
+| Idea | Tested? | Result |
+|---|---|---|
+| LLM filter on buy/pass | ✅ $16 of Claude calls on 165 filings | Reduced CAGR from 45% to 23% — too precise |
+| Aggressive heuristic (sector + leverage penalties) | ✅ | Reduced CAGR from 45% to 4% — same reason |
+| Top-N per year by smallest mcap | ✅ | Look-ahead bias; real CAGR is essentially unchanged (+45.5% vs +44.1%) |
+| Activist 13D coattails | ✅ | No current edge (small-cap activists underperformed 2019-2023) |
+| Insider clusters, supply chain, hedging language, ghost ships, etc. | ❌ | Built, not validated. In `alpha/experimental/`. Do not deploy. |
+
+---
 
 ## Architecture
 
 ```
 alpha/
-  edgar/       SEC EDGAR client (rate-limited, cached)
-  signals/     Each strategy as a detector class
-  llm/         Claude-powered structured extraction
-  store/       SQLite persistence (schema.sql)
-  scoring/     Composite ranking with multi-signal bonus
-  digest/      Markdown report rendering
-  backtest/    Walk-forward harness
-  cli.py       Typer CLI
-config/        YAML config files
-scripts/       Cron entry points
-data/          Runtime outputs (gitignored)
+  spinoffs/              # THE validated strategy
+    detector.py          # find new Form 10 filings
+    heuristic.py         # hard-pass filter (v2, permissive)
+    sizer.py             # classify newco by market cap bucket
+    ticker.py            # CIK -> ticker resolver
+
+  portfolio/
+    ledger.py            # open/closed positions (paper or live)
+    queue.py             # pending-to-deploy candidates
+    paper.py             # paper-trading execution engine
+
+  llm/
+    thesis.py            # LLM as analyst (thesis + red flags) NOT gatekeeper
+    claude_code_client.py # subscription-based alternative to API key
+
+  edgar/                 # SEC EDGAR client (rate limited, cached)
+  digest/                # markdown briefings
+  backtest/              # historical validation harness
+  cli.py                 # Typer CLI
+
+  experimental/          # unvalidated signals — do not deploy
+    signals/{activists, insiders, post_bankruptcy, index_migration,
+             capital_allocator, supply_chain, hedging_language,
+             ghost_ships, microcap_deep_value, spac_warrants}.py
 ```
 
-## Strategy references
+---
 
-- Greenblatt, *You Can Be a Stock Market Genius* — spin-offs, special situations.
-- Greenblatt, *The Little Book That Still Beats the Market* — Magic Formula.
-- Piotroski (2000) — F-score, free on SSRN.
-- Brav, Jiang, Partnoy, Thomas (2008) — hedge fund activism returns.
-- Lakonishok & Lee (2001); Cohen, Malloy, Pomorski (2012) — insider trades.
-- Cohen & Frazzini (2008) — economic-link predictability.
-- Larcker & Zakolyukina (2012) — conference-call linguistic tells.
-- Chen, Noronha, Singal (2004) — S&P index inclusion effect.
+## LLM usage (optional)
 
-## What this is NOT
+Two paths:
 
-- Not a prediction system. It's a *surfacing* system. Every flagged idea
-  still needs you to read the primary documents.
-- Not optimized for tax efficiency — put the active sleeves in a Roth.
-- Not a substitute for risk management. Position sizing is on you.
-- Not a covered-universe system. Micro-caps, ghost ships, and
-  pink-sheet names are intentionally in scope.
+```bash
+# Path A: API key (fast, $0.10/filing)
+export ANTHROPIC_API_KEY=sk-ant-...
+alpha thesis <accession> --cik <cik>
 
-## Extending
+# Path B: Claude Code subscription (free on existing plan)
+alpha thesis <accession> --cik <cik> --use-claude-code
+```
 
-Add a new signal:
-1. Drop a module in `alpha/signals/your_signal.py` with a `YourSignal(Signal)`
-   class and a `detect()` method yielding `SignalHit`.
-2. Register it in `alpha/signals/__init__.py`.
-3. Add its config block + weight in `config/settings.yaml` and
-   `alpha/scoring/composite.py`.
+The LLM is used for **due diligence support**, not selection. It
+writes a thesis and flags dire red flags (going concern,
+restatements, SEC investigations). You still make the deploy
+decision.
 
-Add a new LLM extraction schema:
-1. Add the pydantic model in `alpha/llm/schemas.py`.
-2. Add the prompt in `alpha/llm/prompts.py`.
-3. Expose a typed entry point on `LLMAnalyzer`.
+---
+
+## Rules (non-negotiable)
+
+1. **5 concurrent positions, equal-weighted.** No Kelly, no conviction weighting.
+2. **18-month hold**, no discretionary exits.
+3. **Deploy in order**: oldest-ready candidate fills the next open slot.
+4. **Hard-pass filter only.** Don't second-guess on "quality."
+5. **6 months of expenses outside the portfolio.** Cash flow funds
+   DCAs; portfolio funds long-term growth.
+6. **30% portfolio drawdown → 2-week deployment freeze.** Re-read, don't sell.
+7. **Everything in a Roth IRA where possible.** 18m holds = short-term gains.
+
+---
+
+## Next steps
+
+This README describes Phase A (refactor). See `docs/ROADMAP.md` for:
+- **Phase B**: validate ONE more signal (microcap deep value is the
+  candidate) before trusting the `experimental/` demotion.
+- **Phase C**: paper-trade 8-12 weeks to measure live system
+  performance vs. backtest expectation.
+- **Phase D**: deploy real capital.
