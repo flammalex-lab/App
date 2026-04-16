@@ -66,21 +66,18 @@ function TopHeader({
 
 function BottomTabs({ isB2B }: { isB2B: boolean }) {
   return (
-    <>
-      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe">
-        <div className="mx-auto max-w-3xl grid grid-cols-4 text-[11px]">
-          {isB2B ? (
-            <Tab href="/guide" label="Guide" icon={<GuideIcon />} />
-          ) : (
-            <Tab href="/catalog" label="Shop" icon={<CatalogIcon />} />
-          )}
-          <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
-          <Tab href="/orders" label="Orders" icon={<OrdersIcon />} />
-          <Tab href="/chat" label="Chat" icon={<ChatIcon />} />
-        </div>
-      </nav>
-      <div className="h-[68px]" />
-    </>
+    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe">
+      <div className="mx-auto max-w-3xl grid grid-cols-4 text-[11px]">
+        {isB2B ? (
+          <Tab href="/guide" label="Guide" icon={<GuideIcon />} />
+        ) : (
+          <Tab href="/catalog" label="Shop" icon={<CatalogIcon />} />
+        )}
+        <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
+        <Tab href="/orders" label="Orders" icon={<OrdersIcon />} />
+        <Tab href="/chat" label="Chat" icon={<ChatIcon />} />
+      </div>
+    </nav>
   );
 }
 
