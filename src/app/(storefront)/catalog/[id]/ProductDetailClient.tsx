@@ -2,19 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PackOption, Product } from "@/lib/supabase/types";
+import type { Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { money } from "@/lib/utils/format";
+import type { PackRow } from "./packs";
 
-export interface PackRow {
-  /** null for the product's built-in default variant */
-  variantKey: string | null;
-  label: string;      // "Case" / "Each" / "Half case"
-  unit: string;       // "case" / "each"
-  packSize: string | null;
-  sku: string | null; // variant SKU or product SKU
-  unitPrice: number;
-}
+export type { PackRow } from "./packs";
 
 export function ProductDetailClient({
   product,
@@ -153,28 +146,3 @@ export function ProductDetailClient({
   );
 }
 
-export function defaultPackRow(product: Product, unitPrice: number): PackRow {
-  return {
-    variantKey: null,
-    label: titleCase(product.unit) + (product.pack_size ? ` — ${product.pack_size}` : ""),
-    unit: product.unit,
-    packSize: product.pack_size,
-    sku: product.sku,
-    unitPrice,
-  };
-}
-
-export function optionPackRow(product: Product, opt: PackOption, unitPrice: number): PackRow {
-  return {
-    variantKey: opt.key,
-    label: opt.label,
-    unit: opt.unit,
-    packSize: opt.pack_size,
-    sku: opt.sku ?? product.sku,
-    unitPrice,
-  };
-}
-
-function titleCase(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}

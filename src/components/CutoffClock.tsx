@@ -10,8 +10,8 @@ interface SerializedNextDelivery {
 }
 
 /**
- * Compact two-fact persistent bar shown at the top of every B2B buyer page:
- * Delivery date · Cutoff countdown.
+ * Thin persistent top strip: delivery + cutoff on a single line. Always
+ * present, minimal footprint — sits above the main nav.
  */
 export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
   const [now, setNow] = useState<number>(() => Date.now());
@@ -23,7 +23,7 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
 
   if (!next) {
     return (
-      <div className="rounded-xl bg-bg-secondary px-3 py-2 text-xs text-ink-secondary text-center">
+      <div className="bg-bg-secondary text-[11px] text-ink-secondary text-center py-1 px-3 border-b border-black/5">
         Delivery zone not set — ask your rep to assign one.
       </div>
     );
@@ -36,24 +36,21 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
 
   return (
     <div
-      className={`rounded-xl border px-3 py-2 grid grid-cols-2 text-center text-xs ${
+      className={`text-[11px] leading-none py-1.5 px-3 flex items-center justify-center gap-3 border-b ${
         past
-          ? "bg-feedback-error/10 border-feedback-error/20 text-feedback-error"
-          : "bg-brand-blue-tint border-brand-blue/10"
+          ? "bg-feedback-error/10 text-feedback-error border-feedback-error/20"
+          : "bg-brand-blue-tint text-brand-blue-dark border-brand-blue/10"
       }`}
     >
-      <div>
-        <div className="text-[10px] text-ink-secondary uppercase tracking-wide">Next delivery</div>
-        <div className={`font-semibold mt-0.5 ${past ? "" : "text-brand-blue-dark"}`}>
-          {deliveryStr}
-        </div>
-      </div>
-      <div className="border-l border-brand-blue/10">
-        <div className="text-[10px] text-ink-secondary uppercase tracking-wide">Cutoff</div>
-        <div className={`mono font-semibold mt-0.5 ${past ? "" : "text-brand-blue-dark"}`}>
-          {past ? "passed" : countdown(ms)}
-        </div>
-      </div>
+      <span>
+        <span className="text-ink-secondary uppercase tracking-wide mr-1">Delivery</span>
+        <span className="font-semibold">{deliveryStr}</span>
+      </span>
+      <span className="opacity-50">·</span>
+      <span>
+        <span className="text-ink-secondary uppercase tracking-wide mr-1">Cutoff</span>
+        <span className="mono font-semibold">{past ? "passed" : countdown(ms)}</span>
+      </span>
     </div>
   );
 }

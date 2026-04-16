@@ -152,6 +152,16 @@ export default async function CatalogPage({
       featured = priceProducts(featRows as Product[] | null, overrides, account, isB2B);
     }
 
+    // Product-name + producer suggestions for the search autocomplete
+    const { data: suggestRows } = await db
+      .from("products")
+      .select("name, producer")
+      .eq("is_active", true)
+      .eq(isB2B ? "available_b2b" : "available_dtc", true)
+      .in("product_group", allowed)
+      .order("name", { ascending: true });
+    const suggestions = buildSuggestions(suggestRows);
+
     // Group counts for the fallback tile grid
     const { data: counts } = await db
       .from("products")
@@ -180,7 +190,14 @@ export default async function CatalogPage({
               name="q"
               placeholder="Search by name or farm…"
               className="input"
+              list="catalog-suggest"
+              autoComplete="off"
             />
+            <datalist id="catalog-suggest">
+              {suggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </form>
         </div>
 
@@ -280,6 +297,16 @@ export default async function CatalogPage({
 
   const { data: products } = await query;
 
+  // Suggestions for the list-view search (same pool the user sees below)
+  const { data: suggestRowsList } = await db
+    .from("products")
+    .select("name, producer")
+    .eq("is_active", true)
+    .eq(isB2B ? "available_b2b" : "available_dtc", true)
+    .in("product_group", allowed)
+    .order("name", { ascending: true });
+  const suggestionsList = buildSuggestions(suggestRowsList);
+
   const { data: overrides } = account
     ? await db.from("account_pricing").select("*").eq("account_id", account.id)
     : { data: [] as AccountPricing[] };
@@ -318,7 +345,14 @@ export default async function CatalogPage({
             defaultValue={q}
             placeholder="Search name or farm"
             className="input flex-1"
+            list="catalog-suggest-list"
+            autoComplete="off"
           />
+          <datalist id="catalog-suggest-list">
+            {suggestionsList.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
           {groupFilter ? <input type="hidden" name="group" value={groupFilter} /> : null}
           <button className="btn-secondary text-sm">Search</button>
         </form>
@@ -340,4 +374,19 @@ export default async function CatalogPage({
       )}
     </div>
   );
+}
+
+/**
+ * Dedupe product names + producer names for datalist autocomplete.
+ * Keeps the list under ~500 entries so the rendered datalist stays snappy.
+ */
+function buildSuggestions(
+  rows: { name: string | null; producer: string | null }[] | null,
+): string[] {
+  const set = new Set<string>();
+  for (const r of rows ?? []) {
+    if (r.name) set.add(r.name);
+    if (r.producer) set.add(r.producer);
+  }
+  return Array.from(set).slice(0, 500);
 }

@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import type { Product } from "@/lib/supabase/types";
+import { useCart } from "@/lib/cart/store";
 import { productImage } from "@/lib/utils/product-image";
 import { money } from "@/lib/utils/format";
 
@@ -13,9 +16,8 @@ function isRecent(iso: string | null | undefined): boolean {
 }
 
 /**
- * Horizontal-scroll strip of product cards. Tap a card → product detail.
- * Keeps card chrome minimal so multiple strips can stack on the landing
- * without becoming visually noisy.
+ * Horizontal-scroll strip of product cards with a one-tap add button
+ * (matches CatalogGrid behavior). Tap the card body → product detail.
  */
 export function ScrollStrip({
   title,
@@ -57,41 +59,96 @@ export function ScrollStrip({
 }
 
 function StripCard({ product }: { product: PricedProduct }) {
+  const add = useCart((s) => s.add);
+  const setQty = useCart((s) => s.setQty);
+  const cartQty = useCart(
+    (s) =>
+      s.lines.find((l) => l.productId === product.id && l.variantKey === null)?.quantity ?? 0,
+  );
+  const available = product.available_this_week && product.unitPrice != null;
+
+  function addOne() {
+    if (!available) return;
+    add({
+      productId: product.id,
+      variantKey: null,
+      variantSku: null,
+      sku: product.sku,
+      name: product.name,
+      packSize: product.pack_size,
+      unit: product.unit,
+      unitPrice: product.unitPrice!,
+      priceByWeight: Boolean(product.price_by_weight),
+      quantity: 1,
+    });
+  }
+  function sub() {
+    setQty(product.id, Math.max(0, cartQty - 1), null);
+  }
+
   return (
-    <Link
-      href={`/catalog/${product.id}`}
-      className="shrink-0 w-[150px] snap-start card overflow-hidden hover:shadow-lg transition"
-    >
-      <div className="relative aspect-square bg-bg-secondary">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={productImage(product)}
-          alt={product.name}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        {!product.available_this_week ? (
-          <span className="absolute top-1.5 right-1.5 badge-gray text-[9px] bg-white/90">
-            limited
-          </span>
-        ) : null}
-        {isRecent(product.created_at) ? (
-          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
-            New
-          </span>
-        ) : null}
-      </div>
-      <div className="p-2">
-        <div className="text-[12px] font-medium leading-tight line-clamp-2">{product.name}</div>
-        {product.producer ? (
-          <div className="text-[10px] text-ink-tertiary line-clamp-1 mt-0.5">
-            {product.producer}
-          </div>
-        ) : null}
-        <div className="mono text-[12px] mt-1">
-          {product.unitPrice != null ? money(product.unitPrice) : "—"}
-          <span className="text-ink-tertiary text-[10px]"> / {product.unit}</span>
+    <div className="shrink-0 w-[150px] snap-start card overflow-hidden relative hover:shadow-lg transition">
+      <Link href={`/catalog/${product.id}`} className="block">
+        <div className="relative aspect-square bg-bg-secondary">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={productImage(product)}
+            alt={product.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {!product.available_this_week ? (
+            <span className="absolute top-1.5 right-1.5 badge-gray text-[9px] bg-white/90">
+              limited
+            </span>
+          ) : null}
+          {isRecent(product.created_at) ? (
+            <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
+              New
+            </span>
+          ) : null}
         </div>
-      </div>
-    </Link>
+        <div className="p-2 pr-9">
+          <div className="text-[12px] font-medium leading-tight line-clamp-2">{product.name}</div>
+          {product.producer ? (
+            <div className="text-[10px] text-ink-tertiary line-clamp-1 mt-0.5">
+              {product.producer}
+            </div>
+          ) : null}
+          <div className="mono text-[12px] mt-1">
+            {product.unitPrice != null ? money(product.unitPrice) : "—"}
+            <span className="text-ink-tertiary text-[10px]"> / {product.unit}</span>
+          </div>
+        </div>
+      </Link>
+      {available ? (
+        cartQty > 0 ? (
+          <div className="absolute bottom-2 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-card border border-black/5 px-1 py-0.5">
+            <button
+              onClick={sub}
+              className="h-6 w-6 rounded-full flex items-center justify-center text-sm hover:bg-bg-secondary"
+              aria-label="Remove one"
+            >
+              {cartQty === 1 ? "🗑" : "−"}
+            </button>
+            <span className="mono font-semibold text-xs w-4 text-center">{cartQty}</span>
+            <button
+              onClick={addOne}
+              className="h-6 w-6 rounded-full bg-brand-green text-white flex items-center justify-center text-sm hover:bg-brand-green-dark transition"
+              aria-label="Add one"
+            >
+              +
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={addOne}
+            className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-brand-green text-white text-lg flex items-center justify-center hover:bg-brand-green-dark shadow-card transition"
+            aria-label="Add to cart"
+          >
+            +
+          </button>
+        )
+      ) : null}
+    </div>
   );
 }

@@ -60,16 +60,12 @@ export default async function StorefrontLayout({ children }: { children: React.R
           </form>
         </div>
       ) : null}
+      {effective.role === "b2b_buyer" ? <CutoffClock next={serialized} /> : null}
       <StoreNav
         profile={effective}
         activeAccount={activeAccount}
         memberships={memberships}
       />
-      {effective.role === "b2b_buyer" ? (
-        <div className="px-4 md:px-6 pt-3 max-w-3xl w-full mx-auto">
-          <CutoffClock next={serialized} />
-        </div>
-      ) : null}
       <main className="flex-1 px-4 md:px-6 py-6 pb-24">{children}</main>
       <ViewOrderBar />
       <footer className="hidden md:block px-6 py-8 text-xs text-ink-secondary border-t border-black/5">

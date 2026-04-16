@@ -8,12 +8,8 @@ import { resolvePrice } from "@/lib/utils/pricing";
 import { CATEGORY_LABELS, GROUP_LABELS, type ProductGroup } from "@/lib/constants";
 import { productImage } from "@/lib/utils/product-image";
 import { dateShort, money } from "@/lib/utils/format";
-import {
-  ProductDetailClient,
-  defaultPackRow,
-  optionPackRow,
-  type PackRow,
-} from "./ProductDetailClient";
+import { ProductDetailClient } from "./ProductDetailClient";
+import { defaultPackRow, optionPackRow, type PackRow } from "./packs";
 
 const NEW_PRODUCT_DAYS = 60;
 

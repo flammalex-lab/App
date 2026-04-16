@@ -104,18 +104,18 @@ export default async function ProfileSheetPage() {
       <Section title="Support">
         <div className="text-sm space-y-2">
           <a
-            href="sms:+13152570063"
+            href="sms:+16178660763"
             className="flex items-center justify-between py-2 hover:text-brand-blue"
           >
             <span>Text your rep</span>
-            <span className="text-ink-secondary">(315) 257-0063 →</span>
+            <span className="text-ink-secondary">(617) 866-0763 →</span>
           </a>
           <a
-            href="mailto:hello@ilovenyfarms.com"
+            href="mailto:alex@ilovenyfarms.com"
             className="flex items-center justify-between py-2 hover:text-brand-blue"
           >
             <span>Email us</span>
-            <span className="text-ink-secondary">hello@ilovenyfarms.com →</span>
+            <span className="text-ink-secondary">alex@ilovenyfarms.com →</span>
           </a>
           <a
             href="https://ilovenyfarms.com"

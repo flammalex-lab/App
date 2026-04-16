@@ -6,9 +6,9 @@ import { useCart } from "@/lib/cart/store";
 import { money } from "@/lib/utils/format";
 
 /**
- * Sticky "View Order | $X.XX" bar — Pepper-style. Renders only when the
- * cart has items AND the user isn't already on /cart (the cart page has
- * its own checkout CTA). Sits above the bottom tabs.
+ * Sticky "View Order · N items · $TOTAL" bar — Pepper-style, flush against
+ * the bottom tab bar. Renders only when the cart has items and the user
+ * isn't already on /cart (the cart page has its own checkout CTA).
  */
 export function ViewOrderBar() {
   const pathname = usePathname();
@@ -25,12 +25,13 @@ export function ViewOrderBar() {
 
   if (hide) return null;
 
+  // bottom-[68px] sits flush above the tab bar (which is 68px tall incl. safe-area).
   return (
-    <div className="fixed bottom-[68px] inset-x-0 z-20 px-0 pointer-events-none pb-safe">
+    <div className="fixed bottom-[68px] inset-x-0 z-20 pointer-events-none">
       <div className="max-w-3xl mx-auto pointer-events-auto">
         <Link
           href="/cart"
-          className="block bg-ink-primary text-white text-sm font-medium py-3.5 px-5 flex items-center justify-between hover:bg-black transition"
+          className="flex items-center justify-between bg-brand-blue-dark text-white text-sm font-medium px-5 py-3.5 hover:bg-brand-blue transition"
         >
           <span>
             View Order
