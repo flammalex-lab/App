@@ -1,70 +1,121 @@
 import Link from "next/link";
-import { CartBadge } from "./CartBadge";
+import { CartIconWithBadge } from "./CartIconWithBadge";
+import { BrandLogo, BrandWordmark } from "@/components/Brand";
 
-export function StoreNav({ role }: { role: "b2b_buyer" | "dtc_customer" }) {
+interface StoreNavProps {
+  role: "b2b_buyer" | "dtc_customer";
+}
+
+/**
+ * Top header (logo + actions) — shared mobile + desktop.
+ * Bottom tab bar — mobile only (4 destinations).
+ * Desktop sidebar — wider screens get a left rail.
+ */
+export function StoreNav({ role }: StoreNavProps) {
   const isB2B = role === "b2b_buyer";
+  const home = isB2B ? "/guide" : "/catalog";
   return (
     <>
-      <nav className="hidden md:flex items-center justify-between px-6 py-4 border-b border-black/5 bg-white/80 backdrop-blur sticky top-0 z-20">
-        <Link href={isB2B ? "/guide" : "/catalog"} className="font-serif text-xl">
-          Fingerlakes Farms
+      <TopHeader home={home} />
+      <BottomTabs isB2B={isB2B} />
+    </>
+  );
+}
+
+function TopHeader({ home }: { home: string }) {
+  return (
+    <header className="sticky top-0 z-30 bg-bg-primary/90 backdrop-blur border-b border-black/5">
+      <div className="flex items-center justify-between px-4 md:px-6 py-3">
+        <Link href={home} className="flex items-center gap-2.5 group">
+          <BrandLogo size={32} />
+          <BrandWordmark size="md" href={null} className="hidden sm:inline" />
         </Link>
-        <div className="flex items-center gap-1 text-sm">
-          {isB2B ? <NavLink href="/guide">Order guide</NavLink> : null}
-          <NavLink href="/catalog">Catalog</NavLink>
-          <NavLink href="/orders">Orders</NavLink>
-          {isB2B ? <NavLink href="/standing">Standing</NavLink> : null}
-          {isB2B ? <NavLink href="/messages">Messages</NavLink> : null}
-          <NavLink href="/account">Account</NavLink>
-          <Link href="/cart" className="ml-2 btn-primary px-3 py-1.5 text-sm">
-            Cart <CartBadge />
+        <div className="flex items-center gap-1">
+          <Link
+            href="/catalog"
+            aria-label="Search catalog"
+            className="h-10 w-10 inline-flex items-center justify-center rounded-full hover:bg-bg-secondary transition"
+          >
+            <SearchIcon />
           </Link>
-          <form action="/auth/signout" method="post">
-            <button className="ml-1 btn-ghost px-2 py-1 text-sm">Sign out</button>
-          </form>
+          <CartIconWithBadge />
         </div>
-      </nav>
-      <MobileNav isB2B={isB2B} />
-    </>
+      </div>
+    </header>
   );
 }
 
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link href={href} className="px-3 py-1.5 rounded hover:bg-bg-secondary transition">
-      {children}
-    </Link>
-  );
-}
-
-function MobileNav({ isB2B }: { isB2B: boolean }) {
+function BottomTabs({ isB2B }: { isB2B: boolean }) {
   return (
     <>
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-black/5 bg-white/90 sticky top-0 z-20">
-        <Link href={isB2B ? "/guide" : "/catalog"} className="font-serif text-lg">
-          Fingerlakes Farms
-        </Link>
-        <Link href="/cart" className="btn-primary px-3 py-1.5 text-sm">
-          Cart <CartBadge />
-        </Link>
-      </div>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 border-t border-black/10 bg-white text-xs">
-        {isB2B ? <Tab href="/guide" label="Guide" icon="★" /> : <Tab href="/catalog" label="Shop" icon="✦" />}
-        <Tab href="/catalog" label="Catalog" icon="≡" />
-        <Tab href="/orders" label="Orders" icon="◱" />
-        {isB2B ? <Tab href="/messages" label="Chat" icon="◎" /> : <Tab href="/orders" label="Track" icon="◎" />}
-        <Tab href="/account" label="Account" icon="◉" />
+      {/* Mobile bottom tab bar */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 bg-white border-t border-black/10 text-[11px] pb-safe shadow-sticky">
+        {isB2B ? (
+          <Tab href="/guide" label="Guide" icon={<GuideIcon />} />
+        ) : (
+          <Tab href="/catalog" label="Shop" icon={<CatalogIcon />} />
+        )}
+        <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
+        <Tab href="/activity" label="Activity" icon={<ActivityIcon />} />
+        <Tab href="/account" label="Account" icon={<AccountIcon />} />
       </nav>
-      <div className="md:hidden h-16" />
+      {/* Spacer so content doesn't sit under the tab bar */}
+      <div className="md:hidden h-[68px]" />
     </>
   );
 }
 
-function Tab({ href, label, icon }: { href: string; label: string; icon: string }) {
+function Tab({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
   return (
-    <Link href={href} className="flex flex-col items-center justify-center py-2 active:bg-bg-secondary">
-      <span className="text-base">{icon}</span>
-      <span>{label}</span>
+    <Link
+      href={href}
+      className="flex flex-col items-center justify-center gap-0.5 pt-2 pb-2 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition"
+    >
+      <span className="h-5 w-5">{icon}</span>
+      <span className="leading-none">{label}</span>
     </Link>
+  );
+}
+
+/* — Icons (inline SVG, 24x24) — */
+function GuideIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4Z" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </svg>
+  );
+}
+function CatalogIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+function ActivityIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.6 4.5 8.4 8.4 0 0 1-4-1L3 21l2-5.6A8.5 8.5 0 1 1 21 11.5Z" />
+    </svg>
+  );
+}
+function AccountIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+function SearchIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
   );
 }

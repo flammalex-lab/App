@@ -4,45 +4,88 @@
 
 @layer base {
   :root {
-    --bg-primary: #fdfbf7;
-    --bg-secondary: #f3ede3;
-    --ink-primary: #1a1a1a;
-    --ink-secondary: #6b6b6b;
-    --brand-green: #2d5016;
+    --bg-primary: #FBFAF6;
+    --bg-secondary: #F1EFE8;
+    --ink-primary: #161616;
+    --ink-secondary: #5E5E5E;
+    --brand-blue: #1763B5;
+    --brand-green: #2A9B46;
   }
-  html, body { background: var(--bg-primary); color: var(--ink-primary); }
+  html, body {
+    background: var(--bg-primary);
+    color: var(--ink-primary);
+  }
   body {
-    font-family: "DM Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
-  h1, h2, h3, h4 { font-family: "DM Serif Display", Georgia, serif; letter-spacing: -0.01em; }
-  .mono, .tabular { font-variant-numeric: tabular-nums; font-family: "JetBrains Mono", ui-monospace, monospace; }
-  input, select, textarea { background: #fff; }
+  h1, h2, h3, h4 {
+    font-family: "Bricolage Grotesque", Georgia, serif;
+    letter-spacing: -0.015em;
+    font-weight: 700;
+  }
+  .display {
+    font-family: "Bricolage Grotesque", Georgia, serif;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+  }
+  .mono, .tabular {
+    font-variant-numeric: tabular-nums;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  input, select, textarea {
+    background: #fff;
+  }
+
+  /* iOS-safe-area aware bottom nav padding */
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+  }
 }
 
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
   }
-  .btn-primary { @apply btn bg-brand-green text-white hover:bg-[#1f3b0e]; }
-  .btn-secondary { @apply btn bg-bg-secondary text-ink-primary hover:bg-[#e9e1d1]; }
-  .btn-ghost { @apply btn bg-transparent text-ink-primary hover:bg-bg-secondary; }
-  .btn-danger { @apply btn bg-feedback-error text-white hover:bg-[#a22a1f]; }
+  .btn-primary {
+    @apply btn bg-brand-blue text-white hover:bg-brand-blue-dark;
+  }
+  .btn-secondary {
+    @apply btn bg-bg-secondary text-ink-primary hover:bg-[#e6e2d5];
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink-primary hover:bg-bg-secondary;
+  }
+  .btn-success {
+    @apply btn bg-brand-green text-white hover:bg-brand-green-dark;
+  }
+  .btn-danger {
+    @apply btn bg-feedback-error text-white hover:bg-[#a22a1f];
+  }
 
   .input {
-    @apply w-full rounded-md border border-black/10 px-3 py-2 outline-none focus:ring-2 focus:ring-brand-sage/60 focus:border-brand-sage;
+    @apply w-full rounded-md border border-black/10 px-3 py-2 outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue;
   }
-  .label { @apply block text-sm font-medium text-ink-primary mb-1; }
-  .card { @apply rounded-lg bg-white shadow-card border border-black/5; }
-  .divider { @apply border-t border-black/5 my-4; }
+  .label {
+    @apply block text-sm font-medium text-ink-primary mb-1;
+  }
+  .card {
+    @apply rounded-xl bg-white shadow-card border border-black/[0.04];
+  }
+  .divider {
+    @apply border-t border-black/5 my-4;
+  }
 
   .badge {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
   }
-  .badge-green   { @apply badge bg-brand-green/10 text-brand-green; }
-  .badge-sage    { @apply badge bg-brand-sage/15 text-[#465d3a]; }
-  .badge-gold    { @apply badge bg-accent-gold/15 text-[#8a690f]; }
-  .badge-rust    { @apply badge bg-accent-rust/15 text-[#7a3b1f]; }
-  .badge-red     { @apply badge bg-feedback-error/10 text-feedback-error; }
-  .badge-gray    { @apply badge bg-black/5 text-ink-secondary; }
+  .badge-blue   { @apply badge bg-brand-blue/10 text-brand-blue; }
+  .badge-green  { @apply badge bg-brand-green/15 text-brand-green-dark; }
+  .badge-gold   { @apply badge bg-accent-gold/15 text-[#8a690f]; }
+  .badge-rust   { @apply badge bg-accent-rust/15 text-[#7a3b1f]; }
+  .badge-red    { @apply badge bg-feedback-error/10 text-feedback-error; }
+  .badge-gray   { @apply badge bg-black/5 text-ink-secondary; }
+  /* sage = legacy alias, points to brand-green */
+  .badge-sage   { @apply badge bg-brand-green/15 text-brand-green-dark; }
 }
