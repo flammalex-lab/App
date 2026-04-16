@@ -9,9 +9,12 @@ export const BRAND_LABELS: Record<Brand, string> = {
 export const CATEGORY_LABELS: Record<Category, string> = {
   beef: "Beef",
   pork: "Pork",
+  lamb: "Lamb",
   eggs: "Eggs",
   dairy: "Dairy",
   produce: "Produce",
+  pantry: "Pantry",
+  beverages: "Beverages",
 };
 
 export const ZONE_LABELS: Record<DeliveryZone, string> = {
