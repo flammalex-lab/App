@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import type { Order, OrderItem, Product } from "@/lib/supabase/types";
+import type { Order, OrderItem, Product, Profile } from "@/lib/supabase/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, dateLong, money } from "@/lib/utils/format";
 import Link from "next/link";
@@ -13,14 +13,14 @@ export default async function OrderDetail({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ placed?: string }>;
+  searchParams: Promise<{ placed?: string; q?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
   const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
   const db = impersonating ? createServiceClient() : await createClient();
   const { id } = await params;
-  const { placed } = await searchParams;
+  const { placed, q } = await searchParams;
 
   const { data: order } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (!order) notFound();
@@ -32,7 +32,6 @@ export default async function OrderDetail({
   const o = order as Order;
   const rows = (items as (OrderItem & { product: Product })[] | null) ?? [];
 
-  // Hero confirmation moment — shown once after placing
   if (placed === "1") {
     return (
       <OrderPlacedHero
@@ -44,58 +43,141 @@ export default async function OrderDetail({
     );
   }
 
+  // Placed-by metadata: either the buyer themself, or the rep if admin-submitted
+  let placedBy: Profile | null = null;
+  if (o.placed_by_id) {
+    const { data: pb } = await db.from("profiles").select("*").eq("id", o.placed_by_id).maybeSingle();
+    placedBy = (pb as Profile | null) ?? null;
+  }
+  if (!placedBy) {
+    const { data: own } = await db.from("profiles").select("*").eq("id", o.profile_id).maybeSingle();
+    placedBy = (own as Profile | null) ?? null;
+  }
+
+  const deliveryIso = o.requested_delivery_date ?? o.pickup_date ?? null;
+  const qTerm = (q ?? "").trim().toLowerCase();
+  const filteredRows = qTerm
+    ? rows.filter(
+        (r) =>
+          r.product.name.toLowerCase().includes(qTerm) ||
+          (r.product.sku ?? "").toLowerCase().includes(qTerm) ||
+          (r.pack_variant_sku ?? "").toLowerCase().includes(qTerm),
+      )
+    : rows;
+
+  const totalUnits = rows.reduce((s, r) => s + Number(r.quantity), 0);
+
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-0 pt-4">
-      <Link href="/activity" className="text-sm text-ink-secondary hover:underline">
-        ← Activity
-      </Link>
-      <div className="mt-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl mono">{o.order_number}</h1>
-          <div className="text-ink-secondary text-sm">{dateLong(o.created_at)}</div>
-        </div>
-        <StatusBadge status={o.status} />
+    <div className="max-w-3xl mx-auto px-4 md:px-0 pt-3 pb-24">
+      <div className="flex items-center justify-between mb-3">
+        <Link href="/orders" className="text-sm text-ink-secondary hover:underline">
+          ← Orders
+        </Link>
+        <span className="text-sm text-ink-secondary mono">{o.order_number}</span>
       </div>
 
-      <div className="card mt-4 divide-y divide-black/5 overflow-hidden">
-        {rows.map((r) => (
+      {/* Big delivery / pickup headline, Pepper-style */}
+      <h1 className="display text-3xl tracking-tight">
+        {o.pickup_date ? "PICKUP" : "DELIVERY"}
+        {deliveryIso ? (
+          <span className="font-semibold"> on {dateShort(deliveryIso)}</span>
+        ) : null}
+      </h1>
+
+      <div className="mt-2 flex items-center gap-2 text-sm">
+        <StatusBadge status={o.status} />
+        {placedBy ? (
+          <span className="text-ink-secondary">
+            Placed by {placedBy.first_name ?? "—"} on {dateLong(o.created_at)}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Find-in-order */}
+      {rows.length > 3 ? (
+        <form action="" className="mt-4">
+          <input
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Find in this order"
+            className="input"
+          />
+        </form>
+      ) : null}
+
+      <div className="mt-4 flex items-center justify-between text-sm">
+        <span className="font-medium">
+          {totalUnits} {totalUnits === 1 ? "unit" : "units"}
+        </span>
+        <span className="mono font-semibold">{money(o.total)}</span>
+      </div>
+
+      <div className="card mt-3 divide-y divide-black/5 overflow-hidden">
+        {filteredRows.map((r) => (
           <div key={r.id} className="p-3 flex items-center gap-3">
-            <div className="flex-1">
-              <div className="font-medium">{r.product.name}</div>
-              <div className="text-xs text-ink-secondary">
-                {r.product.pack_size ? `${r.product.pack_size} · ` : ""}
-                {r.quantity} × {money(r.unit_price)} / {r.product.unit}
+            <div className="h-8 w-8 shrink-0 rounded-md bg-bg-secondary text-ink-secondary flex items-center justify-center mono text-xs font-semibold">
+              {Number(r.quantity)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm">{r.product.name}</div>
+              <div className="text-xs text-ink-secondary mono">
+                {r.pack_variant_sku ?? r.product.sku ?? "—"}
+                {r.pack_variant_key ? ` · ${r.pack_variant_key}` : ""}
+                <span className="block uppercase text-[10px] tracking-wide text-ink-tertiary">
+                  {r.product.pack_size ?? r.product.unit}
+                </span>
+                <span className="block">
+                  {money(r.unit_price)} / {r.product.unit}
+                </span>
               </div>
               {r.notes ? (
-                <div className="text-xs text-ink-secondary italic mt-1">“{r.notes}”</div>
+                <div className="text-xs text-ink-secondary italic mt-1">&ldquo;{r.notes}&rdquo;</div>
               ) : null}
             </div>
             <div className="mono text-sm font-semibold">{money(r.line_total)}</div>
           </div>
         ))}
+        {filteredRows.length === 0 ? (
+          <div className="p-6 text-center text-sm text-ink-secondary">
+            Nothing matches &ldquo;{qTerm}&rdquo;.
+          </div>
+        ) : null}
       </div>
 
       <div className="card mt-4 p-4 space-y-1 text-sm">
         <Row label="Subtotal" value={money(o.subtotal)} />
-        {o.delivery_fee ? <Row label="Delivery" value={money(o.delivery_fee)} /> : null}
+        {o.delivery_fee ? <Row label="Delivery fee" value={money(o.delivery_fee)} /> : null}
         {o.tax ? <Row label="Tax" value={money(o.tax)} /> : null}
         <Row label="Total" value={money(o.total)} strong />
-        <div className="divider" />
-        <Row label="Payment" value={`${o.payment_method} · ${o.payment_status}`} />
-        {o.requested_delivery_date ? (
-          <Row label="Delivery date" value={dateShort(o.requested_delivery_date)} />
+        {o.customer_notes ? (
+          <>
+            <div className="divider" />
+            <Row label="Your notes" value={o.customer_notes} />
+          </>
         ) : null}
-        {o.pickup_date ? <Row label="Pickup date" value={dateShort(o.pickup_date)} /> : null}
-        {o.customer_notes ? <Row label="Your notes" value={o.customer_notes} /> : null}
       </div>
+
+      {/* Prominent Reorder CTA */}
+      <form action={`/api/orders/reorder?orderId=${o.id}`} method="post" className="mt-5">
+        <button
+          type="submit"
+          className="w-full bg-ink-primary text-white py-3.5 rounded-lg font-semibold hover:bg-black transition"
+        >
+          Reorder these items
+        </button>
+      </form>
+      <p className="mt-2 text-[11px] text-center text-ink-tertiary">
+        Copies every line into your cart — adjust qtys before submitting.
+      </p>
     </div>
   );
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className={`flex justify-between ${strong ? "font-semibold" : ""}`}>
-      <span className="text-ink-secondary">{label}</span>
+    <div className={`flex justify-between ${strong ? "font-semibold text-base pt-1" : ""}`}>
+      <span className={strong ? "" : "text-ink-secondary"}>{label}</span>
       <span className="mono">{value}</span>
     </div>
   );

@@ -3,11 +3,19 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
+import type { Account, AccountPricing, PackOption, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { CATEGORY_LABELS, GROUP_LABELS, type ProductGroup } from "@/lib/constants";
 import { productImage } from "@/lib/utils/product-image";
-import { ProductDetailClient } from "./ProductDetailClient";
+import { dateShort, money } from "@/lib/utils/format";
+import {
+  ProductDetailClient,
+  defaultPackRow,
+  optionPackRow,
+  type PackRow,
+} from "./ProductDetailClient";
+
+const NEW_PRODUCT_DAYS = 60;
 
 export default async function ProductDetail({
   params,
@@ -29,11 +37,13 @@ export default async function ProductDetail({
   const { from } = await searchParams;
   const { data: product } = await db.from("products").select("*").eq("id", id).maybeSingle();
   if (!product) notFound();
+  const p = product as Product;
 
   const { data: acctRow } = me.account_id
     ? await db.from("accounts").select("*").eq("id", me.account_id).maybeSingle()
     : { data: null as Account | null };
   const account = acctRow as Account | null;
+  const isB2B = me.role === "b2b_buyer";
 
   const { data: override } = account
     ? await db
@@ -43,16 +53,70 @@ export default async function ProductDetail({
         .eq("product_id", id)
         .maybeSingle()
     : { data: null as AccountPricing | null };
+  const customPrice = override as AccountPricing | null;
 
-  const unitPrice = resolvePrice(product as Product, {
-    account,
-    customPrice: override as AccountPricing | null,
-    isB2B: me.role === "b2b_buyer",
-  });
+  const defaultPrice = resolvePrice(p, { account, customPrice, isB2B });
 
-  const p = product as Product;
-  // Back link → the group (or Explore/Best) the user came from. Falls back
-  // to the product's own group if no "from" is given.
+  // Build the packs list: default option first, then any pack_options the
+  // product defines. Each option is priced using the same tier/override
+  // logic as the default.
+  const packs: PackRow[] = [];
+  if (defaultPrice != null) packs.push(defaultPackRow(p, defaultPrice));
+  const options = (p.pack_options as PackOption[] | null) ?? [];
+  for (const opt of options) {
+    const price = resolvePrice(
+      { wholesale_price: opt.wholesale_price, retail_price: opt.retail_price },
+      { account, customPrice, isB2B },
+    );
+    if (price != null) packs.push(optionPackRow(p, opt, price));
+  }
+
+  // Is this product already saved to the buyer's order guide?
+  let inGuide = false;
+  if (isB2B) {
+    const { data: guideRows } = await db
+      .from("order_guides")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("is_default", true);
+    const guideId = (guideRows as { id: string }[] | null)?.[0]?.id;
+    if (guideId) {
+      const { data: existing } = await db
+        .from("order_guide_items")
+        .select("id")
+        .eq("order_guide_id", guideId)
+        .eq("product_id", id)
+        .maybeSingle();
+      inGuide = Boolean(existing);
+    }
+  }
+
+  // Fulfillment history — this buyer's past orders containing this product
+  const { data: historyRaw } = await db
+    .from("order_items")
+    .select(
+      "id, quantity, unit_price, line_total, orders!inner(id, order_number, created_at, requested_delivery_date, pickup_date, status, profile_id)",
+    )
+    .eq("product_id", id)
+    .eq("orders.profile_id", profileId)
+    .order("created_at", { ascending: false, referencedTable: "orders" })
+    .limit(10);
+  const history = ((historyRaw as any[]) ?? []).map((r) => ({
+    id: r.id as string,
+    orderId: r.orders?.id as string,
+    orderNumber: r.orders?.order_number as string,
+    date: (r.orders?.requested_delivery_date ?? r.orders?.pickup_date ?? r.orders?.created_at) as string,
+    qty: Number(r.quantity),
+    unitPrice: Number(r.unit_price),
+    total: Number(r.line_total),
+  }));
+
+  // NEW badge: product created within the last N days
+  const createdMs = new Date(p.created_at).getTime();
+  const isNew = Number.isFinite(createdMs)
+    ? Date.now() - createdMs < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000
+    : false;
+
   const fromIsSpecial = from === "explore" || from === "best";
   const backHref = from
     ? fromIsSpecial
@@ -77,9 +141,14 @@ export default async function ProductDetail({
         ← {backLabel}
       </Link>
       <div className="grid md:grid-cols-2 gap-6 mt-3">
-        <div className="aspect-square bg-bg-secondary rounded-xl overflow-hidden">
+        <div className="relative aspect-square bg-bg-secondary rounded-xl overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={productImage(p)} alt={p.name} className="w-full h-full object-cover" />
+          {isNew ? (
+            <span className="absolute top-3 left-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-card">
+              New
+            </span>
+          ) : null}
         </div>
         <div>
           <div className="text-sm text-ink-secondary">{CATEGORY_LABELS[p.category]}</div>
@@ -125,21 +194,13 @@ export default async function ProductDetail({
               </>
             ) : null}
           </dl>
-          <div className="mt-4 text-2xl mono">
-            {unitPrice != null ? (
-              <>
-                ${unitPrice.toFixed(2)}
-                <span className="text-sm text-ink-secondary"> / {p.unit}</span>
-              </>
-            ) : (
-              <span className="text-ink-secondary text-base">Price on request</span>
-            )}
-          </div>
-          {unitPrice != null ? (
+
+          {packs.length > 0 ? (
             <ProductDetailClient
               product={p}
-              unitPrice={unitPrice}
-              showAddToGuide={me.role === "b2b_buyer"}
+              packs={packs}
+              showAddToGuide={isB2B}
+              inGuideInitial={inGuide}
             />
           ) : (
             <p className="mt-4 text-sm text-ink-secondary">
@@ -148,6 +209,29 @@ export default async function ProductDetail({
           )}
         </div>
       </div>
+
+      {history.length > 0 ? (
+        <section className="mt-8">
+          <h2 className="display text-xl mb-2">Your order history</h2>
+          <div className="card divide-y divide-black/5 overflow-hidden">
+            {history.map((h) => (
+              <Link
+                key={h.id}
+                href={`/orders/${h.orderId}`}
+                className="flex items-center px-4 py-3 hover:bg-bg-secondary"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">{dateShort(h.date)}</div>
+                  <div className="text-xs text-ink-secondary mono">
+                    {h.orderNumber} · {h.qty} × {money(h.unitPrice)}
+                  </div>
+                </div>
+                <div className="mono text-sm">{money(h.total)}</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

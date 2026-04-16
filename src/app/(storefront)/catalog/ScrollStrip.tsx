@@ -5,6 +5,13 @@ import { money } from "@/lib/utils/format";
 
 type PricedProduct = Product & { unitPrice: number | null };
 
+const NEW_DAYS = 60;
+function isRecent(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && Date.now() - t < NEW_DAYS * 24 * 60 * 60 * 1000;
+}
+
 /**
  * Horizontal-scroll strip of product cards. Tap a card → product detail.
  * Keeps card chrome minimal so multiple strips can stack on the landing
@@ -65,6 +72,11 @@ function StripCard({ product }: { product: PricedProduct }) {
         {!product.available_this_week ? (
           <span className="absolute top-1.5 right-1.5 badge-gray text-[9px] bg-white/90">
             limited
+          </span>
+        ) : null}
+        {isRecent(product.created_at) ? (
+          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
+            New
           </span>
         ) : null}
       </div>

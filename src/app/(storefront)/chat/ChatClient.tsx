@@ -103,11 +103,15 @@ export function ChatClient({
 }
 
 function SystemBubble({ message }: { message: Message }) {
-  // Attempt to parse structured order-summary payload from body.
-  // Format: "📦 Order FLF-123 placed · N items · $TTT · deliver DAY MON D"
-  const parsed = parseOrderSummary(message.body);
-
-  if (parsed && message.related_order_id) {
+  // Structured payload is the source of truth for system messages. If no
+  // payload or unknown kind, render a plain dashed bubble.
+  const payload = message.payload;
+  if (payload && payload.kind === "order_placed" && message.related_order_id) {
+    const items = Number((payload as any).items ?? 0);
+    const deliverIso = ((payload as any).delivery_date ?? (payload as any).pickup_date ?? null) as
+      | string
+      | null;
+    const deliver = deliverIso ? formatShortDeliverDate(deliverIso) : null;
     return (
       <div className="flex flex-col items-start w-full">
         <Link
@@ -116,12 +120,23 @@ function SystemBubble({ message }: { message: Message }) {
         >
           <div className="px-4 pt-3 pb-2">
             <div className="display text-xl leading-tight">Order</div>
-            <div className="text-xs text-ink-secondary mono">{parsed.orderNumber}</div>
+            <div className="text-xs text-ink-secondary mono">
+              {String((payload as any).order_number ?? "")}
+            </div>
           </div>
           <div className="border-t border-black/10">
             <Row label="Order status" value={<StatusDot label="Pending" />} />
-            {parsed.deliver ? <Row label="Requested delivery" value={<span className="font-medium">{parsed.deliver}</span>} /> : null}
-            <Row label="Ordered products" value={<span className="font-medium">{parsed.items} {parsed.items === 1 ? "product" : "products"}</span>} />
+            {deliver ? (
+              <Row label="Requested delivery" value={<span className="font-medium">{deliver}</span>} />
+            ) : null}
+            <Row
+              label="Ordered products"
+              value={
+                <span className="font-medium">
+                  {items} {items === 1 ? "product" : "products"}
+                </span>
+              }
+            />
           </div>
           <div className="px-4 py-2.5 text-center text-sm font-semibold text-brand-blue uppercase tracking-wide">
             View details
@@ -132,7 +147,8 @@ function SystemBubble({ message }: { message: Message }) {
     );
   }
 
-  // Fallback: plain dashed bubble for non-order system posts
+  // Fallback: plain dashed bubble (non-order system posts, or legacy
+  // messages that predate the payload column).
   const inner = (
     <div className="max-w-[85%] mx-auto rounded-lg border border-dashed border-black/15 bg-bg-secondary px-3 py-2 text-xs text-ink-secondary">
       <div className="whitespace-pre-wrap">{message.body}</div>
@@ -170,16 +186,7 @@ function StatusDot({ label }: { label: string }) {
   );
 }
 
-function parseOrderSummary(
-  body: string,
-): { orderNumber: string; items: number; deliver: string | null } | null {
-  // Matches the format produced by /api/orders/create after insert.
-  const m = body.match(/Order\s+(\S+)\s+placed\s+·\s+(\d+)\s+items?/i);
-  if (!m) return null;
-  const deliverM = body.match(/(?:deliver|pickup)\s+([A-Za-z]{3}\s+[A-Za-z]{3}\s+\d+)/);
-  return {
-    orderNumber: m[1],
-    items: Number(m[2]),
-    deliver: deliverM ? deliverM[1] : null,
-  };
+function formatShortDeliverDate(iso: string): string {
+  const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso);
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }

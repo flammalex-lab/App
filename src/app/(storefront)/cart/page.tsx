@@ -62,6 +62,7 @@ export default async function CartPage() {
       <CartClient
         isB2B={isB2B}
         accountMinimum={account?.order_minimum ?? zone?.order_minimum ?? 0}
+        deliveryFee={zone?.delivery_fee ?? 0}
         nextDelivery={
           nextDel
             ? {

@@ -62,14 +62,21 @@ export function GuideClient({ items, categories }: Props) {
       .filter((r) => (draft[r.product_id] ?? 0) > 0 && r.unitPrice != null)
       .map((r) => ({
         productId: r.product_id,
+        variantKey: null,
+        variantSku: null,
         sku: r.product.sku,
         name: r.product.name,
         packSize: r.product.pack_size,
         unit: r.product.unit,
         unitPrice: r.unitPrice!,
+        priceByWeight: Boolean(r.product.price_by_weight),
         quantity: draft[r.product_id]!,
       }));
-    const kept = cartLines.filter((l) => !newLines.find((x) => x.productId === l.productId));
+    // Only replace the default-variant line for these products; keep any
+    // non-default variants the buyer added elsewhere.
+    const kept = cartLines.filter(
+      (l) => !newLines.find((x) => x.productId === l.productId) || l.variantKey !== null,
+    );
     bulkSet([...kept, ...newLines]);
     router.push("/cart");
   }

@@ -84,6 +84,17 @@ export interface Account {
   updated_at: string;
 }
 
+export interface PackOption {
+  key: string;            // "case" | "each" | "half_case" | "bag" | ...
+  label: string;          // "Case", "Each", "Half case"
+  unit: string;           // "case", "each", "lb", "dozen"
+  pack_size: string | null;
+  sku: string | null;
+  wholesale_price: number | null;
+  retail_price: number | null;
+  avg_weight_lbs: number | null;
+}
+
 export interface Product {
   id: string;
   sku: string | null;
@@ -108,6 +119,8 @@ export interface Product {
   image_url: string | null;
   producer: string | null;
   product_group: string | null;
+  pack_options: PackOption[] | null;
+  price_by_weight: boolean;
   qb_income_account: string | null;
   sort_order: number;
   created_at: string;
@@ -127,6 +140,7 @@ export interface DeliveryZoneRow {
   zone: DeliveryZone;
   label: string;
   order_minimum: number;
+  delivery_fee: number;
   cutoff_hours_before_delivery: number;
   delivery_days: string[];
   active: boolean;
@@ -199,6 +213,8 @@ export interface OrderItem {
   unit_price: number;
   line_total: number;
   notes: string | null;
+  pack_variant_key: string | null;
+  pack_variant_sku: string | null;
 }
 
 export interface StandingOrder {
@@ -239,8 +255,32 @@ export interface Message {
   read_at: string | null;
   is_system: boolean;
   related_order_id: string | null;
+  payload: MessagePayload | null;
   created_at: string;
 }
+
+/**
+ * Structured payload for system-authored chat messages. The `kind`
+ * discriminator tells the chat UI which card to render.
+ */
+export type MessagePayload =
+  | {
+      kind: "order_placed";
+      order_id: string;
+      order_number: string;
+      items: number;
+      subtotal: number;
+      total: number;
+      delivery_date: string | null;
+      pickup_date: string | null;
+    }
+  | {
+      kind: "order_status";
+      order_id: string;
+      order_number: string;
+      status: string;
+    }
+  | { kind: string; [key: string]: unknown };
 
 export interface Notification {
   id: string;

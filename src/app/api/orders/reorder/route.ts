@@ -19,11 +19,14 @@ export async function POST(request: Request) {
 
   const lines = ((items as any[]) ?? []).map((r) => ({
     productId: r.product_id,
-    sku: r.product?.sku,
+    variantKey: r.pack_variant_key ?? null,
+    variantSku: r.pack_variant_sku ?? null,
+    sku: r.product?.sku ?? null,
     name: r.product?.name,
     packSize: r.product?.pack_size,
     unit: r.product?.unit,
     unitPrice: Number(r.unit_price),
+    priceByWeight: Boolean(r.product?.price_by_weight),
     quantity: Number(r.quantity),
     notes: r.notes ?? undefined,
   }));

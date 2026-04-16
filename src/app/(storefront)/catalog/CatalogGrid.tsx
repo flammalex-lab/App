@@ -8,6 +8,13 @@ import { money } from "@/lib/utils/format";
 
 type PricedProduct = Product & { unitPrice: number | null };
 
+const NEW_DAYS = 60;
+function isRecent(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && Date.now() - t < NEW_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export function CatalogGrid({
   products,
   fromGroup,
@@ -35,7 +42,12 @@ function ProductCard({
   // "draft qty" — cart is the source of truth.
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
-  const cartQty = useCart((s) => s.lines.find((l) => l.productId === product.id)?.quantity ?? 0);
+  // Catalog cards only add the DEFAULT variant. Non-default picks happen
+  // on the product detail page.
+  const cartQty = useCart(
+    (s) =>
+      s.lines.find((l) => l.productId === product.id && l.variantKey === null)?.quantity ?? 0,
+  );
   const available = product.available_this_week && product.unitPrice != null;
 
   const detailHref = fromGroup
@@ -46,17 +58,20 @@ function ProductCard({
     if (!available) return;
     add({
       productId: product.id,
+      variantKey: null,
+      variantSku: null,
       sku: product.sku,
       name: product.name,
       packSize: product.pack_size,
       unit: product.unit,
       unitPrice: product.unitPrice!,
+      priceByWeight: Boolean(product.price_by_weight),
       quantity: 1,
     });
   }
 
   function decrement() {
-    setQty(product.id, Math.max(0, cartQty - 1));
+    setQty(product.id, Math.max(0, cartQty - 1), null);
   }
 
   return (
@@ -84,6 +99,11 @@ function ProductCard({
         </div>
         {!product.available_this_week ? (
           <span className="absolute top-2 right-2 badge-gray bg-white/90">limited</span>
+        ) : null}
+        {isRecent(product.created_at) ? (
+          <span className="absolute top-2 left-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
+            New
+          </span>
         ) : null}
       </Link>
 

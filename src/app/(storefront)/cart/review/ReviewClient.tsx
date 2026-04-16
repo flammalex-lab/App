@@ -57,6 +57,8 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
           quantity: l.quantity,
           unitPrice: l.unitPrice,
           notes: l.notes ?? null,
+          variantKey: l.variantKey ?? null,
+          variantSku: l.variantSku ?? null,
         })),
       }),
     });

@@ -19,12 +19,13 @@ interface NextDelivery {
 interface Props {
   isB2B: boolean;
   accountMinimum: number;
+  deliveryFee: number;
   nextDelivery: NextDelivery | null;
   pickupLocations: PickupLocation[];
   reorder: CartLine[] | null;
 }
 
-export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocations, reorder }: Props) {
+export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, pickupLocations, reorder }: Props) {
   const lines = useCart((s) => s.lines);
   const setQty = useCart((s) => s.setQty);
   const remove = useCart((s) => s.remove);
@@ -63,6 +64,21 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [lines]);
   const underMinimum = isB2B && accountMinimum > 0 && subtotal < accountMinimum;
+  const effectiveDeliveryFee = isB2B && subtotal > 0 ? deliveryFee : 0;
+  const total = subtotal + effectiveDeliveryFee;
+  const hasCatchWeight = lines.some((l) => l.priceByWeight);
+
+  const [search, setSearch] = useState("");
+  const visibleLines = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return lines;
+    return lines.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        (l.sku ?? "").toLowerCase().includes(q) ||
+        (l.variantSku ?? "").toLowerCase().includes(q),
+    );
+  }, [lines, search]);
 
   const [noteOpen, setNoteOpen] = useState(Boolean(orderNote));
   const [dateOpen, setDateOpen] = useState(false);
@@ -120,14 +136,26 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
             Remove all
           </button>
         </div>
+        {lines.length > 3 ? (
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Find in this cart"
+            className="input mb-2"
+          />
+        ) : null}
         <ul className="card divide-y divide-black/5 overflow-hidden">
-          {lines.map((l) => (
-            <li key={l.productId} className="p-3 flex items-center gap-3">
+          {visibleLines.map((l) => (
+            <li key={`${l.productId}:${l.variantKey ?? ""}`} className="p-3 flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm">{l.name}</div>
                 <div className="text-xs text-ink-secondary">
                   {l.packSize ? `${l.packSize} · ` : ""}
                   <span className="mono">{money(l.unitPrice)} / {l.unit}</span>
+                  {l.priceByWeight ? (
+                    <span className="ml-1 text-accent-gold">· est.</span>
+                  ) : null}
                 </div>
                 {l.notes ? (
                   <div className="text-[11px] text-ink-tertiary italic mt-1">“{l.notes}”</div>
@@ -135,7 +163,7 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
               </div>
               <div className="shrink-0 flex items-center gap-1">
                 <button
-                  onClick={() => setQty(l.productId, l.quantity - 1)}
+                  onClick={() => setQty(l.productId, l.quantity - 1, l.variantKey)}
                   className="h-9 w-9 rounded-full border border-black/10 flex items-center justify-center hover:bg-bg-secondary"
                 >
                   −
@@ -147,7 +175,7 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
                   </span>
                 </div>
                 <button
-                  onClick={() => setQty(l.productId, l.quantity + 1)}
+                  onClick={() => setQty(l.productId, l.quantity + 1, l.variantKey)}
                   className="h-9 w-9 rounded-full bg-brand-blue text-white flex items-center justify-center hover:bg-brand-blue-dark"
                 >
                   +
@@ -155,7 +183,24 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
               </div>
             </li>
           ))}
+          {visibleLines.length === 0 ? (
+            <li className="p-6 text-center text-sm text-ink-secondary">
+              Nothing matches &ldquo;{search}&rdquo;.
+            </li>
+          ) : null}
         </ul>
+      </div>
+
+      {/* Totals */}
+      <div className="card p-4 space-y-1 text-sm">
+        <Row label="Subtotal" value={money(subtotal)} />
+        {effectiveDeliveryFee > 0 ? <Row label="Delivery fee" value={money(effectiveDeliveryFee)} /> : null}
+        <Row label="Estimated total" value={money(total)} strong />
+        {hasCatchWeight ? (
+          <p className="text-[11px] text-ink-tertiary pt-1">
+            Final price confirmed by distributor — weight-priced items settle at delivery.
+          </p>
+        ) : null}
       </div>
 
       {/* Minimum warning */}
@@ -175,7 +220,7 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
             className="w-full shadow-sticky"
           >
             <span className="flex-1 text-left">Total</span>
-            <span className="mono">{money(subtotal)}</span>
+            <span className="mono">{money(total)}</span>
             <span className="ml-2">Review →</span>
           </Button>
         </div>
@@ -187,6 +232,15 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
 }
 
 /* ---------- Delivery row + sheet ---------- */
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className={`flex justify-between ${strong ? "font-semibold text-base pt-1" : ""}`}>
+      <span className={strong ? "" : "text-ink-secondary"}>{label}</span>
+      <span className="mono">{value}</span>
+    </div>
+  );
+}
 
 function DeliveryRow({
   isB2B,
