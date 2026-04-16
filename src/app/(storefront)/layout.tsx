@@ -51,12 +51,12 @@ export default async function StorefrontLayout({ children }: { children: React.R
   return (
     <div className="min-h-screen flex flex-col">
       {impersonating ? (
-        <div className="bg-accent-gold/20 text-[#6a4d06] text-sm px-4 py-2 flex items-center justify-between">
+        <div className="bg-accent-gold/25 text-[#6a4d06] text-[11px] px-3 py-0.5 flex items-center justify-center gap-2 border-b border-accent-gold/30">
           <span>
-            Admin view — acting as {effective.first_name} {effective.last_name}
+            Admin view · acting as {effective.first_name} {effective.last_name}
           </span>
           <form action="/api/admin/impersonate/stop" method="post">
-            <button className="underline">Stop</button>
+            <button className="underline font-semibold">Stop</button>
           </form>
         </div>
       ) : null}
@@ -66,7 +66,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
         activeAccount={activeAccount}
         memberships={memberships}
       />
-      <main className="flex-1 px-4 md:px-6 py-6 pb-24">{children}</main>
+      <main className="flex-1 px-4 md:px-6 py-5 pb-36">{children}</main>
       <ViewOrderBar />
       <footer className="hidden md:block px-6 py-8 text-xs text-ink-secondary border-t border-black/5">
         © Fingerlakes Farms — ilovenyfarms.com

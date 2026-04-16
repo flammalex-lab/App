@@ -179,16 +179,13 @@ export default async function CatalogPage({
 
     return (
       <div className="max-w-3xl mx-auto pb-8">
-        <div className="px-4 md:px-0 pt-4">
-          <h1 className="display text-3xl sm:text-4xl mb-1">Catalog</h1>
-          <p className="text-sm text-ink-secondary mb-4">
-            {account ? `Available for ${account.name}` : "Shop the full product list"}
-          </p>
+        <div className="px-4 md:px-0 pt-1">
+          <h1 className="display text-2xl mb-3">Catalog</h1>
           <form action="/catalog" className="mb-5">
             <input
               type="search"
               name="q"
-              placeholder="Search by name or farm…"
+              placeholder="Search products or farms…"
               className="input"
               list="catalog-suggest"
               autoComplete="off"
@@ -330,11 +327,11 @@ export default async function CatalogPage({
 
   return (
     <div className="max-w-3xl mx-auto pb-8">
-      <div className="px-4 md:px-0 pt-4">
+      <div className="px-4 md:px-0 pt-1">
         <Link href="/catalog" className="text-sm text-ink-secondary hover:underline">
           ← Catalog
         </Link>
-        <h1 className="display text-3xl sm:text-4xl mt-1 mb-3">{headerTitle}</h1>
+        <h1 className="display text-2xl mt-1 mb-3">{headerTitle}</h1>
         {producerFilter ? (
           <p className="text-sm text-ink-secondary mb-3">All items from {producerFilter}</p>
         ) : null}

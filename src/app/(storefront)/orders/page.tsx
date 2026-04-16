@@ -51,10 +51,7 @@ export default async function OrdersPage({
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="display text-3xl mb-1">Orders</h1>
-      {active ? (
-        <p className="text-sm text-ink-secondary mb-4">{active.name}</p>
-      ) : null}
+      <h1 className="display text-2xl mb-3">Orders</h1>
 
       <div className="flex border-b border-black/10 mb-3">
         <TabLink label={`Upcoming${upcoming.length ? ` · ${upcoming.length}` : ""}`} href="/orders" active={tab === "upcoming"} />

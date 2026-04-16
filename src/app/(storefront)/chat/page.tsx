@@ -31,8 +31,8 @@ export default async function ChatPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="display text-3xl mb-1">Chat</h1>
-      <p className="text-sm text-ink-secondary mb-4">
+      <h1 className="display text-2xl mb-1">Chat</h1>
+      <p className="text-xs text-ink-secondary mb-3">
         Messages go to your rep as a text too — reply from either side.
       </p>
       <ChatClient

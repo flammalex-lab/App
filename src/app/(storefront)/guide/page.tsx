@@ -118,13 +118,10 @@ export default async function GuidePage() {
   return (
     <div className="max-w-3xl mx-auto pb-8">
       {/* Personal greeting */}
-      <section className="px-4 md:px-0 pt-4 pb-3">
-        <h1 className="display text-3xl sm:text-4xl tracking-tight">
+      <section className="px-4 md:px-0 pt-1 pb-3">
+        <h1 className="display text-2xl tracking-tight">
           {greeting}, {firstName}.
         </h1>
-        {account ? (
-          <p className="text-ink-secondary text-sm mt-0.5">{account.name}</p>
-        ) : null}
       </section>
 
       {/* Reorder-last card */}

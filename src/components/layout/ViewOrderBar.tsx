@@ -31,7 +31,7 @@ export function ViewOrderBar() {
       <div className="max-w-3xl mx-auto pointer-events-auto">
         <Link
           href="/cart"
-          className="flex items-center justify-between bg-brand-blue-dark text-white text-sm font-medium px-5 py-3.5 hover:bg-brand-blue transition"
+          className="flex items-center justify-between bg-brand-blue-dark text-white text-sm font-medium px-5 py-3 shadow-sticky hover:bg-brand-blue transition"
         >
           <span>
             View Order
