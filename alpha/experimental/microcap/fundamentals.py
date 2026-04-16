@@ -163,20 +163,30 @@ def _parse_date(s: str) -> date | None:
         return None
 
 
+# In-memory negative cache: remember CIKs that returned 404 or failed
+# so we don't re-request them within the same process.
+_NEGATIVE_CACHE: set[str] = set()
+
+
 def fetch_fundamentals(edgar, cik: str) -> FundamentalsTS | None:
     """Pull the Company Facts JSON for a CIK and parse into a
     FundamentalsTS. Uses EDGAR client's on-disk cache so subsequent
-    calls are free."""
+    calls are free. Negative results (404s) are cached in-memory so
+    the same bad CIK isn't re-requested."""
     cik10 = str(cik).zfill(10)
+    if cik10 in _NEGATIVE_CACHE:
+        return None
     url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik10}.json"
     try:
         raw = edgar._get(url, host="data.sec.gov", use_cache=True)
     except Exception as e:  # noqa: BLE001
         log.debug("companyfacts fetch failed for %s: %s", cik10, e)
+        _NEGATIVE_CACHE.add(cik10)
         return None
     try:
         facts = json.loads(raw)
     except json.JSONDecodeError:
+        _NEGATIVE_CACHE.add(cik10)
         return None
 
     gaap = facts.get("facts", {}).get("us-gaap", {})

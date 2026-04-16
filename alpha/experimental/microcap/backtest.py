@@ -166,23 +166,42 @@ def run_walk_forward(
             log.info("  ...%d/%d CIKs scanned, %d hits so far",
                       i, len(universe), len(hits))
 
+        # Fetch fundamentals ONCE per CIK (not per screen date)
+        try:
+            fund = fetch_fundamentals(edgar, entry.cik)
+        except Exception:  # noqa: BLE001
+            fund = None
+        if fund is None:
+            continue
+
+        # Fetch price history ONCE per ticker
+        if entry.ticker not in price_cache:
+            price_cache[entry.ticker] = _fetch_history(
+                entry.ticker, date(2014, 1, 1), date(2025, 6, 30),
+            )
+        px = price_cache.get(entry.ticker)
+        if px is None or px.empty:
+            continue
+
+        # Now screen across all dates using the in-memory data
         for as_of in screen_dates:
-            try:
-                res = screen_cik_at_date(
-                    edgar, entry.cik, entry.ticker, as_of, price_cache,
-                )
-            except Exception as e:  # noqa: BLE001
-                log.debug("screen failed %s @ %s: %s", entry.cik, as_of, e)
+            shares_pt = fund.latest_before("shares_outstanding", as_of,
+                                             max_age_days=400)
+            if shares_pt is None or shares_pt.value <= 0:
                 continue
-            if res is None or not res.pass_filter:
+            p = _price_near_date(px, as_of)
+            if p is None or p <= 0:
+                continue
+            market_cap = shares_pt.value * p
+
+            from alpha.experimental.microcap.screener import screen_at_date
+            res = screen_at_date(fund, as_of, market_cap)
+            if not res.pass_filter:
                 continue
 
-            # Record hit with forward returns
-            px = price_cache.get(entry.ticker)
-            frets = _forward_returns_from(px, as_of) if px is not None else {}
+            frets = _forward_returns_from(px, as_of)
             brets = (_forward_returns_from(iwm_hist, as_of)
                      if iwm_hist is not None else {})
-
             hits.append(ScreenHit(
                 cik=entry.cik, ticker=entry.ticker, name=entry.name,
                 as_of=as_of, market_cap_usd=res.market_cap_usd,
