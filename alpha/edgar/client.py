@@ -147,6 +147,9 @@ class EdgarClient:
         if r.status_code in (429, 503):
             # transient — let tenacity retry
             raise httpx.HTTPStatusError("throttled", request=r.request, response=r)
+        if r.status_code == 404:
+            # not-found is permanent — raise ValueError to bypass retry
+            raise ValueError(f"404 Not Found: {url}")
         r.raise_for_status()
         data = r.content
         if use_cache:
