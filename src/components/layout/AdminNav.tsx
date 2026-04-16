@@ -12,6 +12,7 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/admin/availability", label: "Weekly availability" },
   { href: "/admin/qb",       label: "QuickBooks" },
   { href: "/admin/import",   label: "Import customers" },
+  { href: "/admin/items-import", label: "Import items (QB)" },
   { href: "/admin/settings", label: "Settings" },
 ];
 
