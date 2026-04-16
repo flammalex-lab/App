@@ -138,10 +138,17 @@ async function main() {
   }
 
   // Order guide: add ~8 items to each buyer's default guide
+  // SKUs from the real FLF catalog (seed-real-catalog-*.sql)
   const { data: products } = await sb.from("products").select("*").eq("is_active", true).eq("available_b2b", true);
   const pickSkus = [
-    "BF-STR-001", "BF-TOP-001", "BF-SHO-001", "BF-GRD-001",
-    "PK-CHP-001", "PK-RIB-001", "EG-CSE-001", "DY-BTR-001",
+    "BF-STL-001", // Strip Loin Whole Bnls
+    "BF-GRD-080", // Ground beef
+    "BF-BSR-001", // Bone-In Short Ribs
+    "PK-CHP-002", // Pork Bone-In Chops 1.5"
+    "PK-STL-001", // St. Louis Ribs
+    "EG-LBC-001", // Large Brown Eggs — Carton
+    "DY-MWG-001", // Ithaca Milk Whole — Gallon
+    "DY-BTR-002", // Sweet Acres Butter — 1 lb
   ];
   for (const [accountName, profileId] of Object.entries(buyerProfileIds)) {
     const { data: guides } = await sb
@@ -206,8 +213,8 @@ async function main() {
     }
     if (soId) {
       await sb.from("standing_order_items").delete().eq("standing_order_id", soId);
-      const strip = products?.find((p: any) => p.sku === "BF-STR-001");
-      const ground = products?.find((p: any) => p.sku === "BF-GRD-001");
+      const strip = products?.find((p: any) => p.sku === "BF-STL-001");
+      const ground = products?.find((p: any) => p.sku === "BF-GRD-080");
       if (strip && ground) {
         await sb.from("standing_order_items").insert([
           { standing_order_id: soId, product_id: (strip as any).id, quantity: 4 },
