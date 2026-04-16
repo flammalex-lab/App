@@ -6,15 +6,17 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, AccountPricing, Category, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { categoryTileImage, productImage } from "@/lib/utils/product-image";
-import { money } from "@/lib/utils/format";
+import { categoryTileImage } from "@/lib/utils/product-image";
+import { CatalogGrid } from "./CatalogGrid";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
+
+type Sort = "name" | "price_asc" | "price_desc" | "best";
 
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; sort?: string; producer?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -32,12 +34,16 @@ export default async function CatalogPage({
   const account = acctRow as Account | null;
 
   const enabled: Category[] =
-    (account?.enabled_categories as Category[]) ?? ["beef", "pork", "eggs", "dairy", "produce"];
+    (account?.enabled_categories as Category[]) ?? ["beef", "pork", "lamb", "eggs", "dairy", "produce", "pantry", "beverages"];
   const sp = await searchParams;
   const catFilter =
     sp.category && enabled.includes(sp.category as Category) ? (sp.category as Category) : null;
   const q = sp.q?.trim() ?? "";
-  const isSearching = q.length > 0;
+  const sort: Sort = (["name", "price_asc", "price_desc", "best"].includes(sp.sort ?? "")
+    ? (sp.sort as Sort)
+    : "name");
+  const producerFilter = sp.producer?.trim() ?? "";
+  const isSearching = q.length > 0 || producerFilter.length > 0;
 
   // Category landing: show tiles with counts
   if (!catFilter && !isSearching) {
@@ -51,7 +57,7 @@ export default async function CatalogPage({
     const categoryCounts = enabled.map((c) => ({
       category: c,
       count: ((counts as any[]) ?? []).filter((p) => p.category === c).length,
-    }));
+    })).filter(c => c.count > 0);
 
     return (
       <div className="max-w-3xl mx-auto pb-8">
@@ -64,7 +70,7 @@ export default async function CatalogPage({
             <input
               type="search"
               name="q"
-              placeholder="Search by name, SKU, brand…"
+              placeholder="Search by name, brand, or farm…"
               className="input"
             />
           </form>
@@ -83,7 +89,7 @@ export default async function CatalogPage({
                 alt={CATEGORY_LABELS[category]}
                 className="absolute inset-0 w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-3 text-white">
                 <div className="display text-2xl tracking-tight leading-none">
                   {CATEGORY_LABELS[category]}
@@ -100,11 +106,22 @@ export default async function CatalogPage({
   }
 
   // Category or search results view
-  let query = db.from("products").select("*").eq("is_active", true).order("sort_order");
+  let query = db.from("products").select("*").eq("is_active", true);
   if (isB2B) query = query.eq("available_b2b", true);
   else query = query.eq("available_dtc", true);
   query = query.in("category", catFilter ? [catFilter] : enabled);
-  if (q) query = query.ilike("name", `%${q}%`);
+  if (q) {
+    // search name OR producer
+    query = query.or(`name.ilike.%${q}%,producer.ilike.%${q}%`);
+  }
+  if (producerFilter) query = query.eq("producer", producerFilter);
+
+  // Sort
+  if (sort === "price_asc") query = query.order("wholesale_price", { ascending: true, nullsFirst: false });
+  else if (sort === "price_desc") query = query.order("wholesale_price", { ascending: false, nullsFirst: false });
+  else if (sort === "best") query = query.order("sort_order", { ascending: true });
+  else query = query.order("name", { ascending: true });
+
   const { data: products } = await query;
 
   const { data: overrides } = account
@@ -119,64 +136,79 @@ export default async function CatalogPage({
     };
   });
 
+  const headerTitle = producerFilter
+    ? producerFilter
+    : catFilter
+    ? CATEGORY_LABELS[catFilter]
+    : `Search “${q}”`;
+
   return (
     <div className="max-w-3xl mx-auto pb-8">
       <div className="px-4 md:px-0 pt-4">
         <Link href="/catalog" className="text-sm text-ink-secondary hover:underline">
           ← Catalog
         </Link>
-        <h1 className="display text-3xl sm:text-4xl mt-1 mb-3">
-          {catFilter ? CATEGORY_LABELS[catFilter] : `Search “${q}”`}
-        </h1>
-        <form action="/catalog" className="mb-4 flex gap-2">
+        <h1 className="display text-3xl sm:text-4xl mt-1 mb-3">{headerTitle}</h1>
+        {producerFilter ? (
+          <p className="text-sm text-ink-secondary mb-3">All items from {producerFilter}</p>
+        ) : null}
+        <form action="/catalog" className="mb-3 flex gap-2">
           <input
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search catalog"
+            placeholder="Search name or farm"
             className="input flex-1"
           />
           {catFilter ? <input type="hidden" name="category" value={catFilter} /> : null}
           <button className="btn-secondary text-sm">Search</button>
         </form>
+
+        {/* Sort */}
+        <div className="flex items-center gap-2 mb-4 text-xs">
+          <span className="text-ink-secondary uppercase tracking-wide">Sort</span>
+          <SortLink sp={sp} sort="name"       label="A–Z" active={sort === "name"} />
+          <SortLink sp={sp} sort="price_asc"  label="Price ↑" active={sort === "price_asc"} />
+          <SortLink sp={sp} sort="price_desc" label="Price ↓" active={sort === "price_desc"} />
+          <SortLink sp={sp} sort="best"       label="Popular" active={sort === "best"} />
+        </div>
       </div>
 
       {priced.length === 0 ? (
         <p className="text-ink-secondary px-4 md:px-0">No products match.</p>
       ) : (
-        <ul className="divide-y divide-black/5 border-y border-black/5 bg-white md:border md:rounded-xl md:shadow-card md:border-black/5">
-          {priced.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={`/catalog/${p.id}`}
-                className="p-3 flex items-center gap-3 hover:bg-bg-secondary/60 transition"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={productImage(p)}
-                  alt={p.name}
-                  className="h-16 w-16 rounded-md object-cover bg-bg-secondary shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm leading-tight">{p.name}</div>
-                  <div className="text-xs text-ink-secondary mt-0.5">
-                    {p.pack_size ?? p.cut_type ?? ""}
-                  </div>
-                  {!p.available_this_week ? (
-                    <span className="badge-gray mt-1 inline-block">limited this week</span>
-                  ) : null}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="mono text-sm font-semibold">
-                    {p.unitPrice != null ? money(p.unitPrice) : "—"}
-                  </div>
-                  <div className="text-[10px] text-ink-secondary uppercase">/ {p.unit}</div>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <CatalogGrid products={priced} fromCategory={catFilter} />
       )}
     </div>
+  );
+}
+
+function SortLink({
+  sp,
+  sort,
+  label,
+  active,
+}: {
+  sp: { category?: string; q?: string; producer?: string };
+  sort: string;
+  label: string;
+  active: boolean;
+}) {
+  const params = new URLSearchParams();
+  if (sp.category) params.set("category", sp.category);
+  if (sp.q) params.set("q", sp.q);
+  if (sp.producer) params.set("producer", sp.producer);
+  params.set("sort", sort);
+  return (
+    <Link
+      href={`/catalog?${params.toString()}`}
+      className={`px-2.5 py-1 rounded-full border ${
+        active
+          ? "bg-brand-blue text-white border-brand-blue"
+          : "bg-white border-black/10 hover:bg-bg-secondary"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }

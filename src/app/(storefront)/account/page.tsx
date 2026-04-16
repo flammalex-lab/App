@@ -4,7 +4,6 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account } from "@/lib/supabase/types";
 import { prettyPhone } from "@/lib/utils/phone";
-import { ZONE_LABELS } from "@/lib/constants";
 
 export const metadata = { title: "Account — Fingerlakes Farms" };
 
@@ -34,11 +33,12 @@ export default async function AccountPage() {
       {account ? (
         <div className="card p-5 mt-4 space-y-2">
           <h2 className="font-serif text-lg mb-1">{account.name}</h2>
-          <Row label="Type" value={account.type.replace("_", " ")} />
-          <Row label="Tier" value={account.pricing_tier} />
-          {account.delivery_zone ? <Row label="Delivery zone" value={ZONE_LABELS[account.delivery_zone]} /> : null}
-          {account.delivery_day ? <Row label="Delivery days" value={account.delivery_day} /> : null}
-          {account.order_minimum ? <Row label="Minimum" value={`$${Number(account.order_minimum).toFixed(2)}`} /> : null}
+          {account.delivery_day ? (
+            <Row label="Delivery days" value={account.delivery_day} />
+          ) : null}
+          {account.order_minimum ? (
+            <Row label="Minimum" value={`$${Number(account.order_minimum).toFixed(2)}`} />
+          ) : null}
         </div>
       ) : null}
 

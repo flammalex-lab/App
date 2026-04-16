@@ -56,8 +56,11 @@ export default async function StorefrontLayout({ children }: { children: React.R
       ) : null}
       <StoreNav role={effective.role === "dtc_customer" ? "dtc_customer" : "b2b_buyer"} />
       {effective.role === "b2b_buyer" ? (
-        <div className="px-4 md:px-6 pt-4">
-          <CutoffClock next={serialized} />
+        <div className="px-4 md:px-6 pt-3 max-w-3xl w-full mx-auto">
+          <CutoffClock
+            next={serialized}
+            minimum={account?.order_minimum ?? zone?.order_minimum ?? null}
+          />
         </div>
       ) : null}
       <main className="flex-1 px-4 md:px-6 py-6 pb-24">{children}</main>

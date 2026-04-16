@@ -89,6 +89,7 @@ export interface Product {
   available_this_week: boolean;
   is_active: boolean;
   image_url: string | null;
+  producer: string | null;
   qb_income_account: string | null;
   sort_order: number;
   created_at: string;

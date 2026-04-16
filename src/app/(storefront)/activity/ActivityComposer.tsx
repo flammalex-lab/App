@@ -24,6 +24,9 @@ export function ActivityComposer() {
       setBody("");
       setOpen(false);
       router.refresh();
+    } else {
+      const { error } = await res.json().catch(() => ({ error: "Send failed" }));
+      alert(error ?? "Send failed");
     }
   }
 

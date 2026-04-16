@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { countdown, dateLong } from "@/lib/utils/format";
-import type { NextDelivery } from "@/lib/utils/cutoff";
+import { countdown } from "@/lib/utils/format";
 
 interface SerializedNextDelivery {
   deliveryDate: string;
@@ -10,7 +9,17 @@ interface SerializedNextDelivery {
   deliveryDayName: string;
 }
 
-export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
+/**
+ * Compact three-fact bar shown at the top of every B2B buyer page:
+ * Delivery date · Cutoff countdown · Order minimum.
+ */
+export function CutoffClock({
+  next,
+  minimum,
+}: {
+  next: SerializedNextDelivery | null;
+  minimum: number | null;
+}) {
   const [now, setNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
@@ -20,7 +29,7 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
 
   if (!next) {
     return (
-      <div className="rounded-md bg-bg-secondary px-3 py-2 text-sm text-ink-secondary">
+      <div className="rounded-md bg-bg-secondary px-3 py-2 text-sm text-ink-secondary text-center">
         Delivery zone not set — ask your rep to assign one.
       </div>
     );
@@ -29,19 +38,33 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
   const ms = new Date(next.cutoffAt).getTime() - now;
   const past = ms <= 0;
   const deliveryDate = new Date(next.deliveryDate);
+  const deliveryStr = `${next.deliveryDayName.slice(0, 3)} ${deliveryDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 
   return (
     <div
-      className={`rounded-md px-3 py-2 text-sm flex items-center justify-between gap-3 ${
-        past ? "bg-feedback-error/10 text-feedback-error" : "bg-brand-green/5 text-brand-green"
+      className={`rounded-xl border px-3 py-2 grid grid-cols-3 text-center text-xs ${
+        past
+          ? "bg-feedback-error/10 border-feedback-error/20 text-feedback-error"
+          : "bg-brand-blue-tint border-brand-blue/10"
       }`}
     >
       <div>
-        <span className="font-medium">Next delivery</span>{" "}
-        {dateLong(deliveryDate)}
+        <div className="text-[10px] text-ink-secondary uppercase tracking-wide">Delivery</div>
+        <div className={`font-semibold mt-0.5 ${past ? "" : "text-brand-blue-dark"}`}>
+          {deliveryStr}
+        </div>
       </div>
-      <div className="mono text-xs">
-        {past ? "cutoff passed" : `cutoff in ${countdown(ms)}`}
+      <div className="border-x border-brand-blue/10">
+        <div className="text-[10px] text-ink-secondary uppercase tracking-wide">Cutoff</div>
+        <div className={`mono font-semibold mt-0.5 ${past ? "" : "text-brand-blue-dark"}`}>
+          {past ? "passed" : countdown(ms)}
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] text-ink-secondary uppercase tracking-wide">Minimum</div>
+        <div className={`mono font-semibold mt-0.5 ${past ? "" : "text-brand-blue-dark"}`}>
+          {minimum ? `$${minimum}` : "None"}
+        </div>
       </div>
     </div>
   );

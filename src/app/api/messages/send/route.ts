@@ -1,29 +1,66 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getImpersonation } from "@/lib/auth/impersonation";
 import { sendSms } from "@/lib/twilio/client";
 
-/** Buyer sends a message — posts to their account thread and forwards to rep via SMS. */
+/**
+ * Buyer sends a message — posts to their account thread and forwards to rep
+ * via SMS. Respects admin impersonation: if an admin is acting as a buyer,
+ * the message is attributed to the buyer, not the admin.
+ */
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!session.profile.account_id) return NextResponse.json({ error: "no account" }, { status: 400 });
   const { body } = (await request.json()) as { body: string };
   if (!body?.trim()) return NextResponse.json({ error: "empty" }, { status: 400 });
 
+  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
   const svc = createServiceClient();
-  const { data: account } = await svc.from("accounts").select("salesperson_id,name").eq("id", session.profile.account_id).maybeSingle();
-  let toProfileId: string | null = (account as any)?.salesperson_id ?? null;
 
-  await svc.from("messages").insert({
-    account_id: session.profile.account_id,
-    from_profile_id: session.userId,
+  // Resolve effective buyer (the profile we're sending the message AS)
+  let fromProfileId = session.userId;
+  let fromFirstName = session.profile.first_name ?? "";
+  let fromPhone = session.profile.phone;
+  let accountId = session.profile.account_id;
+
+  if (impersonating) {
+    const { data: target } = await svc
+      .from("profiles")
+      .select("id, first_name, phone, account_id")
+      .eq("id", impersonating)
+      .maybeSingle();
+    if (target) {
+      fromProfileId = (target as any).id;
+      fromFirstName = (target as any).first_name ?? "";
+      fromPhone = (target as any).phone;
+      accountId = (target as any).account_id;
+    }
+  }
+
+  if (!accountId) {
+    return NextResponse.json({ error: "no account for this profile" }, { status: 400 });
+  }
+
+  const { data: account } = await svc
+    .from("accounts")
+    .select("salesperson_id, name")
+    .eq("id", accountId)
+    .maybeSingle();
+  const toProfileId: string | null = (account as any)?.salesperson_id ?? null;
+
+  const { error: insertErr } = await svc.from("messages").insert({
+    account_id: accountId,
+    from_profile_id: fromProfileId,
     to_profile_id: toProfileId,
     body,
     channel: "app",
     direction: "outbound",
-    from_phone: session.profile.phone,
+    from_phone: fromPhone,
   });
+  if (insertErr) {
+    return NextResponse.json({ error: insertErr.message }, { status: 500 });
+  }
 
   // Forward to salesperson via SMS if they have a phone on file
   if (toProfileId) {
@@ -32,7 +69,7 @@ export async function POST(request: Request) {
     if (phone) {
       await sendSms({
         to: phone,
-        body: `[${(account as any)?.name}] ${session.profile.first_name ?? ""}: ${body}`,
+        body: `[${(account as any)?.name}] ${fromFirstName}: ${body}`,
       });
     }
   }

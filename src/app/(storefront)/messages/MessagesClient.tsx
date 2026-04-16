@@ -43,13 +43,18 @@ export function MessagesClient({
   async function send() {
     if (!body.trim()) return;
     setSending(true);
-    await fetch("/api/messages/send", {
+    const res = await fetch("/api/messages/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body }),
     });
-    setBody("");
     setSending(false);
+    if (res.ok) {
+      setBody("");
+    } else {
+      const { error } = await res.json().catch(() => ({ error: "Send failed" }));
+      alert(error ?? "Send failed");
+    }
   }
 
   return (
