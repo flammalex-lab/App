@@ -1,34 +1,64 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import type { OrderGuideItem, Product } from "@/lib/supabase/types";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Category } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
-import { money } from "@/lib/utils/format";
-import { Button } from "@/components/ui/Button";
+import { money, dateShort } from "@/lib/utils/format";
 import { CATEGORY_LABELS, DAY_SHORT } from "@/lib/constants";
+import { productImage } from "@/lib/utils/product-image";
+import { Button } from "@/components/ui/Button";
+import type { GuideRow } from "./page";
 
-type Row = OrderGuideItem & { product: Product; unitPrice: number | null };
+interface Props {
+  items: GuideRow[];
+  categories: Category[];
+}
 
-export function GuideClient({ items }: { items: Row[] }) {
+export function GuideClient({ items, categories }: Props) {
+  const router = useRouter();
+  const [filter, setFilter] = useState<Category | null>(null);
+  const [search, setSearch] = useState("");
+
+  // Seed draft qty from today's par level, falling back to suggested qty
+  const todayKey =
+    DAY_SHORT[
+      new Date().toLocaleDateString("en-US", { weekday: "long" }) as keyof typeof DAY_SHORT
+    ] ?? "mon";
   const [draft, setDraft] = useState<Record<string, number>>(() => {
-    const today = DAY_SHORT[new Date().toLocaleDateString("en-US", { weekday: "long" }) as keyof typeof DAY_SHORT] ?? "mon";
     const out: Record<string, number> = {};
-    for (const row of items) {
-      const par = row.par_levels?.[today] ?? row.suggested_qty ?? 0;
-      out[row.product_id] = Number(par) || 0;
+    for (const r of items) {
+      const par =
+        (r.par_levels as Record<string, number> | null)?.[todayKey] ?? r.suggested_qty ?? 0;
+      out[r.product_id] = Number(par) || 0;
     }
     return out;
   });
-  const addMany = useCart((s) => s.bulkSet);
+
+  const bulkSet = useCart((s) => s.bulkSet);
   const cartLines = useCart((s) => s.lines);
+
+  const visible = useMemo(() => {
+    return items.filter((r) => {
+      if (filter && r.product.category !== filter) return false;
+      if (search && !r.product.name.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [items, filter, search]);
+
+  const totalInCart = Object.entries(draft).reduce((s, [pid, q]) => {
+    const row = items.find((r) => r.product_id === pid);
+    return row?.unitPrice && q > 0 ? s + row.unitPrice * q : s;
+  }, 0);
+  const itemsInCart = Object.values(draft).filter((q) => q > 0).length;
 
   function setQty(productId: string, qty: number) {
     setDraft((d) => ({ ...d, [productId]: Math.max(0, qty) }));
   }
 
   function addToCart() {
-    const lines = items
+    const newLines = items
       .filter((r) => (draft[r.product_id] ?? 0) > 0 && r.unitPrice != null)
       .map((r) => ({
         productId: r.product_id,
@@ -39,80 +69,166 @@ export function GuideClient({ items }: { items: Row[] }) {
         unitPrice: r.unitPrice!,
         quantity: draft[r.product_id]!,
       }));
-    // merge with any existing cart items not in guide
-    const kept = cartLines.filter((l) => !lines.find((x) => x.productId === l.productId));
-    addMany([...kept, ...lines]);
-    window.location.href = "/cart";
+    const kept = cartLines.filter((l) => !newLines.find((x) => x.productId === l.productId));
+    bulkSet([...kept, ...newLines]);
+    router.push("/cart");
   }
 
-  const grouped = group(items);
-
   return (
-    <div className="space-y-6">
-      {Object.entries(grouped).map(([cat, rows]) => (
-        <section key={cat}>
-          <h2 className="text-lg font-serif mb-2">{CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] ?? cat}</h2>
-          <div className="card divide-y divide-black/5">
-            {rows.map((row) => (
-              <GuideRow
-                key={row.id}
-                row={row}
-                qty={draft[row.product_id] ?? 0}
-                onQty={(q) => setQty(row.product_id, q)}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
-      <div className="sticky bottom-16 md:bottom-4 flex justify-end">
-        <Button onClick={addToCart} size="lg" className="shadow-card">
-          Add to cart · {money(Object.entries(draft).reduce((s, [pid, q]) => {
-            const row = items.find((r) => r.product_id === pid);
-            return row?.unitPrice ? s + row.unitPrice * q : s;
-          }, 0))}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function GuideRow({ row, qty, onQty }: { row: Row; qty: number; onQty: (q: number) => void }) {
-  const { product, unitPrice } = row;
-  return (
-    <div className="flex items-center gap-3 p-3">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <Link href={`/catalog/${product.id}`} className="font-medium hover:underline">
-            {product.name}
-          </Link>
-          {product.pack_size ? <span className="text-xs text-ink-secondary">{product.pack_size}</span> : null}
-        </div>
-        <div className="text-xs text-ink-secondary">
-          {product.sku ? <span className="mono mr-2">{product.sku}</span> : null}
-          {unitPrice != null ? <span className="mono">{money(unitPrice)}/{product.unit}</span> : <span>price TBD</span>}
-          {!product.available_this_week ? <span className="ml-2 badge-gray">unavail this week</span> : null}
-        </div>
-      </div>
-      <div className="flex items-center gap-1">
-        <button onClick={() => onQty(qty - 1)} className="h-8 w-8 rounded border border-black/10">−</button>
+    <>
+      <div className="px-4 md:px-0 mb-3 space-y-2">
         <input
-          type="number"
-          inputMode="numeric"
-          className="input w-16 text-center"
-          value={qty}
-          onChange={(e) => onQty(Number(e.target.value) || 0)}
+          type="search"
+          placeholder="Search your guide"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="input"
         />
-        <button onClick={() => onQty(qty + 1)} className="h-8 w-8 rounded border border-black/10">+</button>
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 pb-1">
+          <FilterChip active={filter === null} onClick={() => setFilter(null)}>
+            All ({items.length})
+          </FilterChip>
+          {categories.map((c) => {
+            const count = items.filter((r) => r.product.category === c).length;
+            return (
+              <FilterChip key={c} active={filter === c} onClick={() => setFilter(c)}>
+                {CATEGORY_LABELS[c]} ({count})
+              </FilterChip>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      <ul className="divide-y divide-black/5 border-y border-black/5 bg-white md:border md:rounded-xl md:shadow-card md:border-black/5">
+        {visible.map((r) => (
+          <GuideLineItem
+            key={r.id}
+            row={r}
+            qty={draft[r.product_id] ?? 0}
+            onQty={(q) => setQty(r.product_id, q)}
+          />
+        ))}
+        {visible.length === 0 ? (
+          <li className="p-6 text-center text-sm text-ink-secondary">
+            No items match that filter.
+          </li>
+        ) : null}
+      </ul>
+
+      {itemsInCart > 0 ? (
+        <div className="fixed bottom-[80px] md:bottom-6 inset-x-0 px-4 md:px-6 z-20 pointer-events-none">
+          <div className="max-w-3xl mx-auto pointer-events-auto">
+            <Button
+              onClick={addToCart}
+              size="lg"
+              className="w-full shadow-sticky animate-slide-up"
+            >
+              <span className="flex-1 text-left">
+                {itemsInCart} {itemsInCart === 1 ? "item" : "items"}
+              </span>
+              <span className="mono">{money(totalInCart)}</span>
+              <span className="ml-2">Review →</span>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
-function group(items: Row[]): Record<string, Row[]> {
-  const out: Record<string, Row[]> = {};
-  for (const r of items) {
-    const key = r.product.category;
-    (out[key] ??= []).push(r);
-  }
-  return out;
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`shrink-0 px-3 py-1.5 rounded-full border text-sm transition ${
+        active
+          ? "bg-brand-blue text-white border-brand-blue"
+          : "bg-white border-black/10 hover:bg-bg-secondary"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function GuideLineItem({
+  row,
+  qty,
+  onQty,
+}: {
+  row: GuideRow;
+  qty: number;
+  onQty: (q: number) => void;
+}) {
+  const { product, unitPrice, lastOrderedAt } = row;
+  const image = productImage(product);
+  const available = product.available_this_week;
+
+  return (
+    <li className="p-3 flex items-center gap-3">
+      <Link href={`/catalog/${product.id}`} className="shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt={product.name}
+          className="h-16 w-16 rounded-md object-cover bg-bg-secondary"
+        />
+      </Link>
+      <div className="flex-1 min-w-0">
+        <Link href={`/catalog/${product.id}`} className="block">
+          <div className="font-medium text-sm leading-tight">{product.name}</div>
+        </Link>
+        <div className="text-xs text-ink-secondary mt-0.5">
+          {unitPrice != null ? (
+            <span className="mono">
+              {money(unitPrice)} / {product.unit}
+            </span>
+          ) : (
+            <span>Price on request</span>
+          )}
+          {product.pack_size ? <span> · {product.pack_size}</span> : null}
+        </div>
+        <div className="text-[11px] text-ink-tertiary mt-0.5">
+          {lastOrderedAt ? (
+            <>Last ordered {dateShort(lastOrderedAt)}</>
+          ) : (
+            <span className="text-ink-tertiary">Never ordered</span>
+          )}
+          {!available ? <span className="ml-2 badge-gray">limited</span> : null}
+        </div>
+      </div>
+      <div className="shrink-0 flex items-center gap-1">
+        <button
+          aria-label="Decrement"
+          onClick={() => onQty(qty - 1)}
+          disabled={qty <= 0}
+          className="h-9 w-9 rounded-full border border-black/10 flex items-center justify-center disabled:opacity-40 hover:bg-bg-secondary transition"
+        >
+          −
+        </button>
+        <div className="min-w-[56px] px-2 py-1.5 text-center border border-black/10 rounded-md bg-white">
+          <span className="mono text-sm font-semibold block leading-none">{qty}</span>
+          <span className="text-[10px] text-ink-secondary uppercase tracking-wide">
+            {product.unit}
+          </span>
+        </div>
+        <button
+          aria-label="Increment"
+          onClick={() => onQty(qty + 1)}
+          disabled={!available}
+          className="h-9 w-9 rounded-full bg-brand-blue text-white flex items-center justify-center disabled:opacity-40 hover:bg-brand-blue-dark transition"
+        >
+          +
+        </button>
+      </div>
+    </li>
+  );
 }

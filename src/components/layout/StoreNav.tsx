@@ -26,8 +26,8 @@ function TopHeader({ home }: { home: string }) {
   return (
     <header className="sticky top-0 z-30 bg-bg-primary/90 backdrop-blur border-b border-black/5">
       <div className="flex items-center justify-between px-4 md:px-6 py-3">
-        <Link href={home} className="flex items-center gap-2.5 group">
-          <BrandLogo size={32} />
+        <Link href={home} className="flex items-center gap-2 group">
+          <BrandLogo size={36} />
           <BrandWordmark size="md" href={null} className="hidden sm:inline" />
         </Link>
         <div className="flex items-center gap-1">
@@ -48,19 +48,22 @@ function TopHeader({ home }: { home: string }) {
 function BottomTabs({ isB2B }: { isB2B: boolean }) {
   return (
     <>
-      {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 bg-white border-t border-black/10 text-[11px] pb-safe shadow-sticky">
-        {isB2B ? (
-          <Tab href="/guide" label="Guide" icon={<GuideIcon />} />
-        ) : (
-          <Tab href="/catalog" label="Shop" icon={<CatalogIcon />} />
-        )}
-        <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
-        <Tab href="/activity" label="Activity" icon={<ActivityIcon />} />
-        <Tab href="/account" label="Account" icon={<AccountIcon />} />
+      {/* Tab bar — visible on all screen sizes. On desktop it sits inside the
+          max-width column so it doesn't feel like a phone bar on a wide monitor. */}
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe">
+        <div className="mx-auto max-w-3xl grid grid-cols-4 text-[11px]">
+          {isB2B ? (
+            <Tab href="/guide" label="Guide" icon={<GuideIcon />} />
+          ) : (
+            <Tab href="/catalog" label="Shop" icon={<CatalogIcon />} />
+          )}
+          <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
+          <Tab href="/activity" label="Activity" icon={<ActivityIcon />} />
+          <Tab href="/account" label="Account" icon={<AccountIcon />} />
+        </div>
       </nav>
       {/* Spacer so content doesn't sit under the tab bar */}
-      <div className="md:hidden h-[68px]" />
+      <div className="h-[68px]" />
     </>
   );
 }

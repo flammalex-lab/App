@@ -1,10 +1,39 @@
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils/cn";
 
 /**
- * Wordmark version of the FLF identity. Used in the app header.
- * Drop a real logo SVG/PNG at /public/images/flf-logo.svg and update
- * BrandLogo to render <img> instead.
+ * Circular brand mark using the actual FLF logo.
+ * The PNG lives at /public/images/flf-logo.png.
+ */
+export function BrandLogo({
+  size = 36,
+  className,
+}: {
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn("inline-flex shrink-0", className)}
+      style={{ width: size, height: size }}
+      aria-label="Fingerlakes Farms"
+    >
+      <Image
+        src="/images/flf-logo.png"
+        alt="Fingerlakes Farms"
+        width={size}
+        height={size}
+        priority
+        className="rounded-full"
+      />
+    </span>
+  );
+}
+
+/**
+ * Text wordmark — used alongside the logo on desktop, hidden on mobile
+ * where the circular logo is enough.
  */
 export function BrandWordmark({
   size = "md",
@@ -16,36 +45,22 @@ export function BrandWordmark({
   className?: string;
 }) {
   const sizeClass = {
-    sm: "text-base",
-    md: "text-lg",
-    lg: "text-2xl",
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-xl",
   }[size];
 
   const inner = (
-    <span className={cn("display tracking-tighter text-brand-blue leading-none", sizeClass, className)}>
-      Fingerlakes <span className="text-brand-green">Farms</span>
+    <span
+      className={cn(
+        "display tracking-tight text-brand-blue leading-none",
+        sizeClass,
+        className,
+      )}
+    >
+      Fingerlakes Farms
     </span>
   );
   if (!href) return inner;
   return <Link href={href}>{inner}</Link>;
-}
-
-/**
- * Compact circular brand mark. Stand-in for the actual logo until you
- * drop the real PNG/SVG at /public/images/flf-logo.svg.
- *
- * Replace this component with:
- *    <img src="/images/flf-logo.svg" alt="FLF" />
- * once the asset is in place.
- */
-export function BrandLogo({ size = 32 }: { size?: number }) {
-  return (
-    <span
-      className="inline-flex items-center justify-center rounded-full bg-brand-blue text-white font-bold display"
-      style={{ width: size, height: size, fontSize: size * 0.42 }}
-      aria-label="Fingerlakes Farms"
-    >
-      F
-    </span>
-  );
 }

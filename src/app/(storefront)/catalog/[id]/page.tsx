@@ -5,6 +5,7 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { CATEGORY_LABELS, BRAND_LABELS } from "@/lib/constants";
+import { productImage } from "@/lib/utils/product-image";
 import { ProductDetailClient } from "./ProductDetailClient";
 import Link from "next/link";
 
@@ -44,20 +45,16 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
 
   const p = product as Product;
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto px-4 md:px-0 pt-4">
       <Link href="/catalog" className="text-sm text-ink-secondary hover:underline">← Catalog</Link>
       <div className="grid md:grid-cols-2 gap-6 mt-3">
-        <div className="aspect-square bg-bg-secondary rounded overflow-hidden flex items-center justify-center text-ink-secondary">
-          {p.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-          ) : (
-            <span>{CATEGORY_LABELS[p.category]}</span>
-          )}
+        <div className="aspect-square bg-bg-secondary rounded-xl overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={productImage(p)} alt={p.name} className="w-full h-full object-cover" />
         </div>
         <div>
           <div className="text-sm text-ink-secondary">{BRAND_LABELS[p.brand]} · {CATEGORY_LABELS[p.category]}</div>
-          <h1 className="text-3xl mt-1">{p.name}</h1>
+          <h1 className="display text-3xl mt-1 tracking-tight">{p.name}</h1>
           {p.description ? <p className="text-ink-secondary mt-2">{p.description}</p> : null}
           <dl className="grid grid-cols-2 gap-y-1 gap-x-4 mt-4 text-sm">
             {p.sku ? <><dt className="text-ink-secondary">SKU</dt><dd className="mono">{p.sku}</dd></> : null}

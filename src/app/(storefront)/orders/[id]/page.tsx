@@ -4,15 +4,23 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Order, OrderItem, Product } from "@/lib/supabase/types";
 import { StatusBadge } from "@/components/ui/Badge";
-import { dateShort, money } from "@/lib/utils/format";
+import { dateShort, dateLong, money } from "@/lib/utils/format";
 import Link from "next/link";
+import { OrderPlacedHero } from "./OrderPlacedHero";
 
-export default async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ placed?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
   const db = impersonating ? createServiceClient() : await createClient();
   const { id } = await params;
+  const { placed } = await searchParams;
 
   const { data: order } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (!order) notFound();
@@ -24,18 +32,32 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const o = order as Order;
   const rows = (items as (OrderItem & { product: Product })[] | null) ?? [];
 
+  // Hero confirmation moment — shown once after placing
+  if (placed === "1") {
+    return (
+      <OrderPlacedHero
+        orderNumber={o.order_number}
+        deliveryDate={o.requested_delivery_date ?? o.pickup_date ?? null}
+        total={o.total}
+        orderId={o.id}
+      />
+    );
+  }
+
   return (
-    <div className="max-w-3xl mx-auto">
-      <Link href="/orders" className="text-sm text-ink-secondary hover:underline">← Orders</Link>
+    <div className="max-w-3xl mx-auto px-4 md:px-0 pt-4">
+      <Link href="/activity" className="text-sm text-ink-secondary hover:underline">
+        ← Activity
+      </Link>
       <div className="mt-3 flex items-center justify-between">
         <div>
           <h1 className="text-2xl mono">{o.order_number}</h1>
-          <div className="text-ink-secondary text-sm">{dateShort(o.created_at)}</div>
+          <div className="text-ink-secondary text-sm">{dateLong(o.created_at)}</div>
         </div>
         <StatusBadge status={o.status} />
       </div>
 
-      <div className="card mt-4 divide-y divide-black/5">
+      <div className="card mt-4 divide-y divide-black/5 overflow-hidden">
         {rows.map((r) => (
           <div key={r.id} className="p-3 flex items-center gap-3">
             <div className="flex-1">
@@ -44,9 +66,11 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                 {r.product.pack_size ? `${r.product.pack_size} · ` : ""}
                 {r.quantity} × {money(r.unit_price)} / {r.product.unit}
               </div>
-              {r.notes ? <div className="text-xs text-ink-secondary italic mt-1">{r.notes}</div> : null}
+              {r.notes ? (
+                <div className="text-xs text-ink-secondary italic mt-1">“{r.notes}”</div>
+              ) : null}
             </div>
-            <div className="mono text-sm">{money(r.line_total)}</div>
+            <div className="mono text-sm font-semibold">{money(r.line_total)}</div>
           </div>
         ))}
       </div>
@@ -58,7 +82,9 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
         <Row label="Total" value={money(o.total)} strong />
         <div className="divider" />
         <Row label="Payment" value={`${o.payment_method} · ${o.payment_status}`} />
-        {o.requested_delivery_date ? <Row label="Delivery date" value={dateShort(o.requested_delivery_date)} /> : null}
+        {o.requested_delivery_date ? (
+          <Row label="Delivery date" value={dateShort(o.requested_delivery_date)} />
+        ) : null}
         {o.pickup_date ? <Row label="Pickup date" value={dateShort(o.pickup_date)} /> : null}
         {o.customer_notes ? <Row label="Your notes" value={o.customer_notes} /> : null}
       </div>

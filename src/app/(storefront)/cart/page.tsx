@@ -55,13 +55,21 @@ export default async function CartPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-3xl mb-4">Cart</h1>
+      <h1 className="display text-3xl mb-1 px-4 md:px-0 pt-4">Your cart</h1>
+      {account ? (
+        <p className="text-sm text-ink-secondary mb-4 px-4 md:px-0">{account.name}</p>
+      ) : null}
       <CartClient
         isB2B={isB2B}
         accountMinimum={account?.order_minimum ?? zone?.order_minimum ?? 0}
         nextDelivery={
           nextDel
-            ? { deliveryDate: nextDel.deliveryDate.toISOString(), cutoffAt: nextDel.cutoffAt.toISOString(), pastCutoff: nextDel.pastCutoff }
+            ? {
+                deliveryDate: nextDel.deliveryDate.toISOString(),
+                cutoffAt: nextDel.cutoffAt.toISOString(),
+                pastCutoff: nextDel.pastCutoff,
+                deliveryDayName: nextDel.deliveryDayName,
+              }
             : null
         }
         pickupLocations={pickups}

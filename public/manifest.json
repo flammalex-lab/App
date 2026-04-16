@@ -6,15 +6,15 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FDFBF7",
-  "theme_color": "#2D5016",
+  "background_color": "#FBFAF6",
+  "theme_color": "#1763B5",
   "categories": ["food", "business", "shopping"],
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/images/flf-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/images/flf-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ],
   "shortcuts": [
-    { "name": "Order guide", "url": "/guide", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Orders", "url": "/orders" }
+    { "name": "Order guide", "url": "/guide" },
+    { "name": "Activity", "url": "/activity" }
   ]
 }
