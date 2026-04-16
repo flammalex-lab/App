@@ -3,6 +3,7 @@ import { CartIconWithBadge } from "./CartIconWithBadge";
 import { BrandLogo } from "@/components/Brand";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { ViewOrderBar } from "./ViewOrderBar";
 import type { Account, Profile } from "@/lib/supabase/types";
 
 interface StoreNavProps {
@@ -66,8 +67,9 @@ function TopHeader({
 
 function BottomTabs({ isB2B }: { isB2B: boolean }) {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe">
-      <div className="mx-auto max-w-3xl grid grid-cols-4 text-[11px]">
+    <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe">
+      <ViewOrderBar />
+      <nav className="mx-auto max-w-3xl grid grid-cols-4 text-[11px]">
         {isB2B ? (
           <Tab href="/guide" label="Guide" icon={<GuideIcon />} />
         ) : (
@@ -76,8 +78,8 @@ function BottomTabs({ isB2B }: { isB2B: boolean }) {
         <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
         <Tab href="/orders" label="Orders" icon={<OrdersIcon />} />
         <Tab href="/chat" label="Chat" icon={<ChatIcon />} />
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }
 

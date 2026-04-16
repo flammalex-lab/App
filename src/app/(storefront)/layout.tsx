@@ -4,7 +4,6 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { StoreNav } from "@/components/layout/StoreNav";
-import { ViewOrderBar } from "@/components/layout/ViewOrderBar";
 import { CutoffClock } from "@/components/CutoffClock";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import type { DeliveryZoneRow, Profile } from "@/lib/supabase/types";
@@ -67,7 +66,6 @@ export default async function StorefrontLayout({ children }: { children: React.R
         memberships={memberships}
       />
       <main className="flex-1 px-4 md:px-6 py-5 pb-36">{children}</main>
-      <ViewOrderBar />
       <footer className="hidden md:block px-6 py-8 text-xs text-ink-secondary border-t border-black/5">
         © Fingerlakes Farms — ilovenyfarms.com
       </footer>
