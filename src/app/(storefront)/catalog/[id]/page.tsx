@@ -3,9 +3,9 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import type { Account, AccountPricing, Category, Product } from "@/lib/supabase/types";
+import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, GROUP_LABELS, type ProductGroup } from "@/lib/constants";
 import { productImage } from "@/lib/utils/product-image";
 import { ProductDetailClient } from "./ProductDetailClient";
 
@@ -51,11 +51,25 @@ export default async function ProductDetail({
   });
 
   const p = product as Product;
-  // Back link points to the category the user came from, falls back to main catalog
+  // Back link → the group (or Explore/Best) the user came from. Falls back
+  // to the product's own group if no "from" is given.
+  const fromIsSpecial = from === "explore" || from === "best";
   const backHref = from
-    ? `/catalog?category=${encodeURIComponent(from)}`
-    : `/catalog?category=${encodeURIComponent(p.category)}`;
-  const backLabel = from ? CATEGORY_LABELS[from as Category] ?? "Catalog" : CATEGORY_LABELS[p.category];
+    ? fromIsSpecial
+      ? `/catalog?group=${from}`
+      : `/catalog?group=${encodeURIComponent(from)}`
+    : p.product_group
+    ? `/catalog?group=${p.product_group}`
+    : "/catalog";
+  const backLabel = from
+    ? from === "explore"
+      ? "Explore"
+      : from === "best"
+      ? "Best sellers"
+      : GROUP_LABELS[from as ProductGroup] ?? "Catalog"
+    : p.product_group
+    ? GROUP_LABELS[p.product_group as ProductGroup] ?? "Catalog"
+    : "Catalog";
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-0 pt-4">

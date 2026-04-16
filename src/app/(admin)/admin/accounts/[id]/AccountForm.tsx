@@ -6,10 +6,11 @@ import type { Account, AccountType, AccountStatus, Category, Channel, DeliveryZo
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { CATEGORY_LABELS, ZONE_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, ZONE_LABELS, BUYER_TYPE_LABELS, type BuyerType } from "@/lib/constants";
 
 const CAT_LIST: Category[] = ["beef", "pork", "eggs", "dairy", "produce"];
 const ZONE_LIST: DeliveryZone[] = ["finger_lakes", "nyc_metro", "hudson_valley", "long_island", "nj_pa_ct"];
+const BUYER_TYPES: BuyerType[] = ["gm_restaurant", "gm_retail", "meat_buyer", "produce_buyer", "dairy_buyer", "cheese_buyer", "grocery_buyer"];
 
 export function AccountForm({ account }: { account: Account | null }) {
   const router = useRouter();
@@ -20,6 +21,7 @@ export function AccountForm({ account }: { account: Account | null }) {
     pricing_tier: (account?.pricing_tier ?? "standard") as PricingTier,
     status: (account?.status ?? "prospect") as AccountStatus,
     enabled_categories: (account?.enabled_categories ?? CAT_LIST) as Category[],
+    buyer_type: (account?.buyer_type ?? "gm_restaurant") as BuyerType,
     primary_contact_name: account?.primary_contact_name ?? "",
     primary_contact_email: account?.primary_contact_email ?? "",
     primary_contact_phone: account?.primary_contact_phone ?? "",
@@ -115,7 +117,19 @@ export function AccountForm({ account }: { account: Account | null }) {
           </select>
         </Field>
       </div>
-      <Field label="Buying profile" hint="Categories this account is allowed to order">
+      <Field label="Buyer type" hint="Which sections this person sees on the catalog — GMs see everything, specialists see only their area">
+        <select
+          className="input"
+          value={form.buyer_type}
+          onChange={(e) => setForm({ ...form, buyer_type: e.target.value as BuyerType })}
+        >
+          {BUYER_TYPES.map((t) => (
+            <option key={t} value={t}>{BUYER_TYPE_LABELS[t]}</option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Buying profile (legacy)" hint="Fine-grained category access, separate from buyer type">
         <div className="flex flex-wrap gap-2 pt-1">
           {CAT_LIST.map((c) => (
             <label key={c} className={`px-3 py-1.5 rounded-full border cursor-pointer text-sm ${form.enabled_categories.includes(c) ? "bg-brand-green text-white border-brand-green" : "bg-white border-black/10"}`}>

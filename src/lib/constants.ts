@@ -17,6 +17,59 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   beverages: "Beverages",
 };
 
+// ---- Buyer-facing product groups ----
+export type ProductGroup = "meat" | "grocery" | "produce" | "dairy" | "cheese";
+
+export const GROUP_LABELS: Record<ProductGroup, string> = {
+  meat: "Meat",
+  grocery: "Grocery",
+  produce: "Produce",
+  dairy: "Dairy",
+  cheese: "Cheese",
+};
+
+export const ALL_GROUPS: ProductGroup[] = ["meat", "grocery", "produce", "dairy", "cheese"];
+
+// ---- Buyer types (drives which groups a buyer sees on the catalog) ----
+export type BuyerType =
+  | "gm_restaurant"
+  | "gm_retail"
+  | "meat_buyer"
+  | "produce_buyer"
+  | "dairy_buyer"
+  | "cheese_buyer"
+  | "grocery_buyer";
+
+export const BUYER_TYPE_LABELS: Record<BuyerType, string> = {
+  gm_restaurant: "General Manager — Restaurant",
+  gm_retail: "General Manager — Retail",
+  meat_buyer: "Meat Buyer",
+  produce_buyer: "Produce Buyer",
+  dairy_buyer: "Dairy Buyer",
+  cheese_buyer: "Cheese Buyer",
+  grocery_buyer: "Grocery Buyer",
+};
+
+export function allowedGroupsFor(buyerType: string | null | undefined): ProductGroup[] {
+  switch (buyerType) {
+    case "gm_retail":
+    case "gm_restaurant":
+      return [...ALL_GROUPS];
+    case "meat_buyer":
+      return ["meat"];
+    case "produce_buyer":
+      return ["produce"];
+    case "dairy_buyer":
+      return ["dairy"];
+    case "cheese_buyer":
+      return ["cheese"];
+    case "grocery_buyer":
+      return ["grocery"];
+    default:
+      return [...ALL_GROUPS]; // default: see everything
+  }
+}
+
 export const ZONE_LABELS: Record<DeliveryZone, string> = {
   finger_lakes: "Finger Lakes",
   nyc_metro: "NYC Metro",

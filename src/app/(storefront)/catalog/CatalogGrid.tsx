@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { Category, Product } from "@/lib/supabase/types";
+import type { Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { productImage } from "@/lib/utils/product-image";
 import { money } from "@/lib/utils/format";
@@ -11,15 +11,15 @@ type PricedProduct = Product & { unitPrice: number | null };
 
 export function CatalogGrid({
   products,
-  fromCategory,
+  fromGroup,
 }: {
   products: PricedProduct[];
-  fromCategory: Category | null;
+  fromGroup: string | null;
 }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 px-4 md:px-0">
       {products.map((p) => (
-        <ProductCard key={p.id} product={p} fromCategory={fromCategory} />
+        <ProductCard key={p.id} product={p} fromGroup={fromGroup} />
       ))}
     </div>
   );
@@ -27,10 +27,10 @@ export function CatalogGrid({
 
 function ProductCard({
   product,
-  fromCategory,
+  fromGroup,
 }: {
   product: PricedProduct;
-  fromCategory: Category | null;
+  fromGroup: string | null;
 }) {
   const [qty, setQty] = useState(0);
   const [justAdded, setJustAdded] = useState(false);
@@ -40,8 +40,8 @@ function ProductCard({
   );
   const available = product.available_this_week && product.unitPrice != null;
 
-  const detailHref = fromCategory
-    ? `/catalog/${product.id}?from=${fromCategory}`
+  const detailHref = fromGroup
+    ? `/catalog/${product.id}?from=${fromGroup}`
     : `/catalog/${product.id}`;
 
   function doAdd(n: number) {

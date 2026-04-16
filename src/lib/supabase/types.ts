@@ -60,6 +60,7 @@ export interface Account {
   salesperson_id: string | null;
   source: string | null;
   notes: string | null;
+  buyer_type: string | null;
   qb_customer_name: string | null;
   qb_terms: string | null;
   qb_synced_at: string | null;
@@ -90,6 +91,7 @@ export interface Product {
   is_active: boolean;
   image_url: string | null;
   producer: string | null;
+  product_group: string | null;
   qb_income_account: string | null;
   sort_order: number;
   created_at: string;

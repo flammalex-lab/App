@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -29,12 +28,18 @@ export async function POST(request: Request) {
     notes: r.notes ?? undefined,
   }));
 
-  // The cart page reads this cookie server-side and hydrates the cart.
-  cookies().set("flf-reorder", JSON.stringify(lines), {
+  // Build the redirect response and set the cookie directly on it.
+  // (Using cookies() from next/headers inside a route handler that also
+  // returns NextResponse.redirect() can fail — Next 14 treats the store
+  // as immutable in that path. Setting on the response is always OK.)
+  const response = NextResponse.redirect(new URL("/cart?reorder=1", request.url), {
+    status: 303,
+  });
+  response.cookies.set("flf-reorder", JSON.stringify(lines), {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
     maxAge: 300,
   });
-  return NextResponse.redirect(new URL("/cart?reorder=1", request.url), { status: 303 });
+  return response;
 }
