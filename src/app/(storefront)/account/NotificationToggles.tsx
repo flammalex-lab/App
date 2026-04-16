@@ -17,8 +17,22 @@ const SECTION_LABELS: Record<"push" | "email" | "sms", string> = {
   email: "EMAIL",
 };
 
-export function NotificationToggles({ initial }: { initial: NotificationPrefs }) {
-  const [prefs, setPrefs] = useState<NotificationPrefs>(initial);
+const DEFAULTS: NotificationPrefs = {
+  push_order_tracking: true,
+  email_order_confirmation: true,
+  email_new_chat: true,
+  email_payments: false,
+  sms_cutoff_warning: true,
+};
+
+export function NotificationToggles({ initial }: { initial: NotificationPrefs | null | undefined }) {
+  // Migration 0007 backfills profile rows with defaults, but a buyer hitting
+  // this page before the migration has been applied (or via a stale-shape
+  // query) would otherwise crash on `prefs.<key>`. Fall back gracefully.
+  const [prefs, setPrefs] = useState<NotificationPrefs>(() => ({
+    ...DEFAULTS,
+    ...(initial ?? {}),
+  }));
   const [, start] = useTransition();
 
   function toggle(key: keyof NotificationPrefs) {
