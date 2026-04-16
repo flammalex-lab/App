@@ -49,7 +49,7 @@ export function OrderPlacedHero({
             Order {orderNumber}
           </p>
           <h1 className="display text-5xl sm:text-6xl md:text-7xl leading-[0.95] uppercase tracking-tighter">
-            Your order<br />is in.
+            Sent.<br />We&apos;ve got it.
           </h1>
           <div className="mt-8 space-y-2">
             {deliveryDate ? (
@@ -64,7 +64,7 @@ export function OrderPlacedHero({
             </div>
           </div>
           <p className="mt-4 text-xs opacity-70">
-            We&apos;ll text you when it ships. Prices may be subject to change based on final weight.
+            We&apos;ll text you when it&apos;s on the way. Final invoice may adjust for actual weight.
           </p>
         </div>
 

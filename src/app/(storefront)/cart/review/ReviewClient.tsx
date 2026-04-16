@@ -80,7 +80,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
         ← Back to cart
       </Link>
       <h1 className="display text-3xl uppercase tracking-tight text-brand-blue mt-2 mb-6">
-        Review order
+        Looking good — ready?
       </h1>
 
       {accountName ? (

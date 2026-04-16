@@ -20,6 +20,10 @@ export const ZONE_LABELS: Record<DeliveryZone, string> = {
   hudson_valley: "Hudson Valley",
   long_island: "Long Island",
   nj_pa_ct: "NJ / PA / CT",
+  buffalo: "Buffalo",
+  rochester: "Rochester",
+  syracuse: "Syracuse",
+  ithaca: "Ithaca",
 };
 
 export const TIER_MULTIPLIERS = {

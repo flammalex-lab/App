@@ -79,10 +79,10 @@ export function CartClient({ isB2B, accountMinimum, nextDelivery, pickupLocation
   if (lines.length === 0) {
     return (
       <div className="card p-8 text-center mx-4 md:mx-0">
-        <div className="text-5xl mb-3 opacity-40">🛒</div>
-        <p className="text-ink-secondary mb-4">Your cart is empty.</p>
+        <div className="text-5xl mb-3 opacity-30">🛒</div>
+        <p className="text-ink-secondary mb-4">Nothing here yet — head to your guide to start building an order.</p>
         <Link href={isB2B ? "/guide" : "/catalog"} className="btn-primary text-sm">
-          {isB2B ? "Open your guide" : "Browse catalog"}
+          {isB2B ? "Back to your guide" : "Browse the catalog"}
         </Link>
       </div>
     );

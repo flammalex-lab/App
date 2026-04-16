@@ -72,7 +72,7 @@ export default async function ActivityPage() {
     <div className="max-w-2xl mx-auto">
       <h1 className="display text-3xl mb-1">Activity</h1>
       <p className="text-ink-secondary text-sm mb-4">
-        Your orders and conversations with Fingerlakes Farms — newest first.
+        Orders, updates, and messages between you and your rep — newest first.
       </p>
 
       {accountId ? (
@@ -83,7 +83,8 @@ export default async function ActivityPage() {
 
       {events.length === 0 ? (
         <div className="card p-8 text-center">
-          <p className="text-ink-secondary">Nothing yet — place an order or send a message to your rep.</p>
+          <div className="text-5xl mb-3 opacity-30">💬</div>
+          <p className="text-ink-secondary">No activity yet. Once you place an order or message your rep, it&apos;ll show up here.</p>
         </div>
       ) : (
         <ul className="space-y-2">

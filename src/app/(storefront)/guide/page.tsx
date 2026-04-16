@@ -15,7 +15,7 @@ import type {
 import { GuideClient } from "./GuideClient";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
-import { countdown } from "@/lib/utils/format";
+import { countdown, money } from "@/lib/utils/format";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
 
@@ -97,47 +97,65 @@ export default async function GuidePage() {
     });
   }
 
-  // Latest order to power "reorder last"
-  const { data: lastOrder } = await db
+  // Latest order to power "reorder last" card
+  const { data: lastOrderRow } = await db
     .from("orders")
-    .select("id, order_number, created_at")
+    .select("id, order_number, total, created_at")
     .eq("profile_id", profileId)
+    .neq("status", "cancelled")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  let lastOrder: { id: string; order_number: string; total: number; item_count: number; created_at: string } | null = null;
+  if (lastOrderRow) {
+    const { count } = await db
+      .from("order_items")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", (lastOrderRow as any).id);
+    lastOrder = {
+      ...(lastOrderRow as any),
+      item_count: count ?? 0,
+    };
+  }
 
   const categories = Array.from(new Set(items.map((r) => r.product.category))) as Category[];
 
+  // Time-of-day greeting
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const firstName = me.first_name ?? "Chef";
+
   return (
     <div className="max-w-3xl mx-auto pb-8">
-      {/* Supplier-identity + cutoff hero */}
-      <section className="px-4 md:px-0 pt-4 pb-5">
-        <div className="flex items-baseline justify-between gap-3 mb-1">
-          <h1 className="display text-3xl sm:text-4xl">Your order guide</h1>
-          {lastOrder ? (
-            <form action={`/api/orders/reorder?orderId=${lastOrder.id}`} method="post" className="shrink-0">
-              <button className="btn-secondary text-xs py-1.5 px-3">
-                Reorder last
-              </button>
-            </form>
-          ) : null}
-        </div>
+      {/* Personal greeting + cutoff hero */}
+      <section className="px-4 md:px-0 pt-4 pb-3">
+        <h1 className="display text-3xl sm:text-4xl tracking-tight">
+          {greeting}, {firstName}.
+        </h1>
         {account ? (
-          <p className="text-ink-secondary text-sm">{account.name}</p>
+          <p className="text-ink-secondary text-sm mt-0.5">{account.name}</p>
         ) : null}
+
+        {/* Three-fact band: delivery date, cutoff, minimum */}
         {nextDel ? (
-          <div className="mt-3 rounded-xl bg-brand-blue-tint border border-brand-blue/10 px-4 py-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
+          <div className="mt-3 rounded-xl bg-brand-blue-tint border border-brand-blue/10 px-4 py-3">
+            <div className="grid grid-cols-3 gap-3 text-center text-sm">
               <div>
-                <div className="text-ink-secondary">Next delivery</div>
+                <div className="text-[11px] text-ink-secondary uppercase tracking-wide">Delivery</div>
                 <div className="font-semibold text-brand-blue-dark mt-0.5">
-                  {nextDel.deliveryDayName}, {nextDel.deliveryDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  {nextDel.deliveryDayName.slice(0, 3)}, {nextDel.deliveryDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-ink-secondary">Cutoff</div>
+              <div>
+                <div className="text-[11px] text-ink-secondary uppercase tracking-wide">Cutoff</div>
                 <div className="mono font-semibold text-brand-blue-dark mt-0.5">
                   {countdown(nextDel.cutoffAt.getTime() - Date.now())}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-ink-secondary uppercase tracking-wide">Minimum</div>
+                <div className="mono font-semibold text-brand-blue-dark mt-0.5">
+                  {zone?.order_minimum ? `$${zone.order_minimum}` : "None"}
                 </div>
               </div>
             </div>
@@ -145,15 +163,38 @@ export default async function GuidePage() {
         ) : null}
       </section>
 
+      {/* Reorder-last card */}
+      {lastOrder ? (
+        <section className="px-4 md:px-0 mb-4">
+          <form action={`/api/orders/reorder?orderId=${lastOrder.id}`} method="post">
+            <button
+              type="submit"
+              className="w-full card p-4 flex items-center gap-4 hover:shadow-lg transition text-left active:scale-[0.99]"
+            >
+              <div className="h-12 w-12 rounded-lg bg-brand-green-tint text-brand-green flex items-center justify-center text-xl shrink-0">
+                ↻
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm">Reorder last</div>
+                <div className="text-xs text-ink-secondary mt-0.5">
+                  {lastOrder.order_number} · {lastOrder.item_count} {lastOrder.item_count === 1 ? "item" : "items"} · {money(lastOrder.total)}
+                </div>
+              </div>
+              <span className="text-ink-tertiary">→</span>
+            </button>
+          </form>
+        </section>
+      ) : null}
+
       {items.length === 0 ? (
         <div className="card p-8 text-center mx-4 md:mx-0">
-          <div className="text-5xl mb-3 opacity-40">☰</div>
-          <h2 className="text-xl font-serif mb-2">Your guide is empty</h2>
+          <div className="text-5xl mb-3 opacity-30">☰</div>
+          <h2 className="text-xl font-serif mb-2">No items in your guide yet</h2>
           <p className="text-sm text-ink-secondary mb-5 max-w-sm mx-auto">
-            Your rep will usually curate this based on a first conversation — it becomes your
-            one-tap reorder list. You can also browse the catalog and add items yourself.
+            Your rep at Fingerlakes Farms will build this for you based on what you order.
+            You can also browse the full catalog and add items yourself.
           </p>
-          <Link href="/catalog" className="btn-primary text-sm">Browse catalog</Link>
+          <Link href="/catalog" className="btn-primary text-sm">Browse the catalog</Link>
         </div>
       ) : (
         <GuideClient items={items} categories={categories} />

@@ -6,32 +6,24 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import { normalizePhone } from "@/lib/utils/phone";
-import { signInWithPasswordAction } from "./actions";
-
-type Mode = "phone" | "admin";
 
 export function LoginClient() {
-  const [mode, setMode] = useState<Mode>("phone");
+  const [showAdmin, setShowAdmin] = useState(false);
+
   return (
     <>
-      <div className="flex text-sm border-b border-black/10 mb-4">
-        <TabBtn active={mode === "phone"} onClick={() => setMode("phone")}>Buyer — phone</TabBtn>
-        <TabBtn active={mode === "admin"} onClick={() => setMode("admin")}>Admin — email</TabBtn>
-      </div>
-      {mode === "phone" ? <PhoneOtpForm /> : <AdminPasswordForm />}
+      {showAdmin ? <AdminPasswordForm onBack={() => setShowAdmin(false)} /> : <PhoneOtpForm />}
+      {!showAdmin ? (
+        <div className="text-center mt-5">
+          <button
+            onClick={() => setShowAdmin(true)}
+            className="text-xs text-ink-tertiary hover:text-ink-secondary underline"
+          >
+            Admin / email sign-in
+          </button>
+        </div>
+      ) : null}
     </>
-  );
-}
-
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 py-2 border-b-2 ${active ? "border-brand-green text-brand-green" : "border-transparent text-ink-secondary"}`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -68,6 +60,7 @@ function PhoneOtpForm() {
 
   return (
     <div className="space-y-4">
+      <h2 className="font-semibold text-lg text-center">Sign in with your phone</h2>
       {step === "phone" ? (
         <>
           <Field label="Phone number" hint="We'll text you a 6-digit code">
@@ -78,13 +71,19 @@ function PhoneOtpForm() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendCode()}
+              className="text-center text-lg py-3"
             />
           </Field>
-          <Button onClick={sendCode} loading={loading} className="w-full">Text me a code</Button>
+          <Button onClick={sendCode} loading={loading} className="w-full" size="lg">
+            Text me a code
+          </Button>
         </>
       ) : (
         <>
-          <Field label="Enter the 6-digit code">
+          <p className="text-sm text-ink-secondary text-center">
+            We sent a 6-digit code to <strong>{phone}</strong>
+          </p>
+          <Field label="Enter code">
             <Input
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -92,20 +91,23 @@ function PhoneOtpForm() {
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && verify()}
+              className="text-center text-2xl tracking-[0.3em] py-3 mono"
             />
           </Field>
-          <Button onClick={verify} loading={loading} className="w-full">Sign in</Button>
-          <button type="button" onClick={() => setStep("phone")} className="text-sm text-ink-secondary underline">
+          <Button onClick={verify} loading={loading} className="w-full" size="lg">
+            Sign in
+          </Button>
+          <button type="button" onClick={() => setStep("phone")} className="text-sm text-ink-secondary underline block mx-auto">
             Change number
           </button>
         </>
       )}
-      {err ? <p className="text-sm text-feedback-error">{err}</p> : null}
+      {err ? <p className="text-sm text-feedback-error text-center">{err}</p> : null}
     </div>
   );
 }
 
-function AdminPasswordForm() {
+function AdminPasswordForm({ onBack }: { onBack: () => void }) {
   const nextParam = useSearchParams().get("next");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -115,13 +117,21 @@ function AdminPasswordForm() {
   async function submit() {
     setErr(null);
     setLoading(true);
-    const result = await signInWithPasswordAction(email, password, nextParam);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (result?.error) { setErr(result.error); return; }
+    if (error) { setErr(error.message); return; }
+    window.location.assign(nextParam || "/dashboard");
   }
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-lg">Admin sign-in</h2>
+        <button onClick={onBack} className="text-sm text-ink-secondary underline">
+          Back to phone
+        </button>
+      </div>
       <Field label="Email">
         <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </Field>
@@ -131,8 +141,8 @@ function AdminPasswordForm() {
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
       </Field>
-      <Button onClick={submit} loading={loading} className="w-full">Sign in</Button>
-      {err ? <p className="text-sm text-feedback-error">{err}</p> : null}
+      <Button onClick={submit} loading={loading} className="w-full" size="lg">Sign in</Button>
+      {err ? <p className="text-sm text-feedback-error text-center">{err}</p> : null}
     </div>
   );
 }
