@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import type { Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { productImage } from "@/lib/utils/product-image";
@@ -32,20 +31,19 @@ function ProductCard({
   product: PricedProduct;
   fromGroup: string | null;
 }) {
-  const [qty, setQty] = useState(0);
-  const [justAdded, setJustAdded] = useState(false);
+  // One-tap add: every +/- button mutates the global cart directly. No local
+  // "draft qty" — cart is the source of truth.
   const add = useCart((s) => s.add);
-  const cartQty = useCart((s) =>
-    s.lines.find((l) => l.productId === product.id)?.quantity ?? 0,
-  );
+  const setQty = useCart((s) => s.setQty);
+  const cartQty = useCart((s) => s.lines.find((l) => l.productId === product.id)?.quantity ?? 0);
   const available = product.available_this_week && product.unitPrice != null;
 
   const detailHref = fromGroup
     ? `/catalog/${product.id}?from=${fromGroup}`
     : `/catalog/${product.id}`;
 
-  function doAdd(n: number) {
-    if (!available || n <= 0) return;
+  function addOne() {
+    if (!available) return;
     add({
       productId: product.id,
       sku: product.sku,
@@ -53,16 +51,16 @@ function ProductCard({
       packSize: product.pack_size,
       unit: product.unit,
       unitPrice: product.unitPrice!,
-      quantity: n,
+      quantity: 1,
     });
-    setQty(0);
-    setJustAdded(true);
-    setTimeout(() => setJustAdded(false), 1500);
+  }
+
+  function decrement() {
+    setQty(product.id, Math.max(0, cartQty - 1));
   }
 
   return (
     <div className="card overflow-hidden flex flex-col group">
-      {/* Image with name overlaid */}
       <Link href={detailHref} className="relative block aspect-square bg-bg-secondary">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -89,7 +87,6 @@ function ProductCard({
         ) : null}
       </Link>
 
-      {/* Price + qty controls */}
       <div className="p-2.5 flex items-center justify-between gap-2 border-t border-black/5">
         <div className="min-w-0">
           <div className="mono font-semibold text-sm">
@@ -98,33 +95,31 @@ function ProductCard({
           <div className="text-[10px] text-ink-tertiary uppercase">/ {product.unit}</div>
         </div>
         {available ? (
-          qty > 0 ? (
+          cartQty > 0 ? (
             <div className="flex items-center gap-0.5">
               <button
-                onClick={() => setQty(Math.max(0, qty - 1))}
-                className="h-8 w-8 rounded-full border border-black/10 flex items-center justify-center text-sm"
-                aria-label="Decrement"
+                onClick={decrement}
+                className="h-8 w-8 rounded-full border border-black/10 flex items-center justify-center text-sm hover:bg-bg-secondary"
+                aria-label="Remove one"
               >
-                −
+                {cartQty === 1 ? "🗑" : "−"}
               </button>
-              <span className="mono font-semibold w-6 text-center text-sm">{qty}</span>
+              <span className="mono font-semibold w-6 text-center text-sm">{cartQty}</span>
               <button
-                onClick={() => doAdd(qty)}
-                className="h-8 px-2.5 rounded-full bg-brand-blue text-white text-xs font-medium"
+                onClick={addOne}
+                className="h-8 w-8 rounded-full bg-brand-green text-white text-sm font-medium hover:bg-brand-green-dark transition flex items-center justify-center"
+                aria-label="Add one"
               >
-                Add
+                +
               </button>
-            </div>
-          ) : justAdded ? (
-            <div className="text-xs font-medium text-brand-green">
-              ✓ In cart ({cartQty})
             </div>
           ) : (
             <button
-              onClick={() => setQty(1)}
-              className="h-8 px-3 rounded-full bg-brand-blue text-white text-xs font-medium hover:bg-brand-blue-dark transition"
+              onClick={addOne}
+              className="h-9 w-9 rounded-full bg-brand-green text-white text-lg font-medium hover:bg-brand-green-dark transition flex items-center justify-center"
+              aria-label="Add to cart"
             >
-              + Add
+              +
             </button>
           )
         ) : (
