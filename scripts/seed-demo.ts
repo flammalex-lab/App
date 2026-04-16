@@ -151,18 +151,28 @@ async function main() {
       .eq("is_default", true)
       .order("created_at", { ascending: true })
       .limit(1);
-    const guide = guides?.[0];
+    let guide = guides?.[0] as { id: string } | undefined;
     if (!guide) {
-      console.warn(`  (no default guide for ${accountName}; trigger may not have fired)`);
-      continue;
+      // Trigger didn't fire — create the default guide directly.
+      const { data: created, error: createErr } = await sb
+        .from("order_guides")
+        .insert({ profile_id: profileId, name: "My order guide", is_default: true })
+        .select("id")
+        .single();
+      if (createErr || !created) {
+        console.error(`  could not create guide for ${accountName}:`, createErr?.message);
+        continue;
+      }
+      guide = created as { id: string };
+      console.log(`  ✓ default guide created manually for ${accountName}`);
     }
-    await sb.from("order_guide_items").delete().eq("order_guide_id", (guide as any).id);
+    await sb.from("order_guide_items").delete().eq("order_guide_id", guide.id);
     const toInsert = pickSkus
       .map((sku, idx) => {
         const p = products?.find((x: any) => x.sku === sku);
         if (!p) return null;
         return {
-          order_guide_id: (guide as any).id,
+          order_guide_id: guide!.id,
           product_id: (p as any).id,
           suggested_qty: [4, 2, 3, 10, 6, 4, 2, 1][idx] ?? 2,
           par_levels: { tue: [6, 2, 4, 12, 8, 4, 2, 1][idx] ?? 4, fri: [8, 4, 6, 20, 12, 6, 3, 2][idx] ?? 6 },
