@@ -74,6 +74,28 @@ export async function POST(request: Request) {
   const { error: itemsErr } = await svc.from("order_items").insert(itemRows);
   if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 500 });
 
+  // Post an order summary into the account's chat thread (Pepper-style).
+  // Silently skip if the buyer isn't linked to an account.
+  if (effectiveProfile.account_id) {
+    const itemCount = body.lines.reduce((s, l) => s + l.quantity, 0);
+    const deliverPart = body.requestedDeliveryDate
+      ? ` · deliver ${formatDateShort(body.requestedDeliveryDate)}`
+      : body.pickupDate
+      ? ` · pickup ${formatDateShort(body.pickupDate)}`
+      : "";
+    const summary = `📦 Order ${order_number} placed · ${itemCount} ${itemCount === 1 ? "item" : "items"} · ${formatMoney(total)}${deliverPart}`;
+    await svc.from("messages").insert({
+      account_id: effectiveProfile.account_id,
+      from_profile_id: null,
+      to_profile_id: null,
+      body: summary,
+      channel: "app",
+      direction: "outbound",
+      is_system: true,
+      related_order_id: order.id,
+    });
+  }
+
   // Stripe checkout if DTC card
   if (body.paymentMethod === "stripe") {
     try {
@@ -128,3 +150,8 @@ export async function POST(request: Request) {
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
 function formatMoney(n: number): string { return `$${n.toFixed(2)}`; }
+function formatDateShort(iso: string): string {
+  // iso looks like "YYYY-MM-DD"; render in America/New_York locale tone
+  const d = new Date(iso + "T12:00:00");
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}

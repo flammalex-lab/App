@@ -22,6 +22,14 @@ export type NotifType = "order_confirmation" | "order_status" | "cutoff_warning"
 export type NotifChannel = "sms" | "push" | "email";
 export type NotifStatus = "pending" | "sent" | "failed" | "skipped";
 
+export interface NotificationPrefs {
+  push_order_tracking: boolean;
+  email_order_confirmation: boolean;
+  email_new_chat: boolean;
+  email_payments: boolean;
+  sms_cutoff_warning: boolean;
+}
+
 export interface Profile {
   id: string;
   role: Role;
@@ -32,8 +40,16 @@ export interface Profile {
   account_id: string | null;
   title: string | null;
   notes: string | null;
+  notification_prefs: NotificationPrefs;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProfileAccount {
+  profile_id: string;
+  account_id: string;
+  is_default: boolean;
+  created_at: string;
 }
 
 export interface Account {
@@ -221,6 +237,8 @@ export interface Message {
   from_phone: string | null;
   to_phone: string | null;
   read_at: string | null;
+  is_system: boolean;
+  related_order_id: string | null;
   created_at: string;
 }
 

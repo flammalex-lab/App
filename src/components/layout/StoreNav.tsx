@@ -1,44 +1,63 @@
 import Link from "next/link";
 import { CartIconWithBadge } from "./CartIconWithBadge";
-import { BrandLogo, BrandWordmark } from "@/components/Brand";
+import { BrandLogo } from "@/components/Brand";
+import { AccountSwitcher } from "./AccountSwitcher";
+import { ProfileAvatar } from "./ProfileAvatar";
+import type { Account, Profile } from "@/lib/supabase/types";
 
 interface StoreNavProps {
-  role: "b2b_buyer" | "dtc_customer";
+  profile: Profile;
+  activeAccount: Account | null;
+  memberships: Account[];
 }
 
 /**
- * Top header (logo + actions) — shared mobile + desktop.
- * Bottom tab bar — mobile only (4 destinations).
- * Desktop sidebar — wider screens get a left rail.
+ * Top header: logo (home) · account switcher (center) · cart + profile (right)
+ * Bottom tabs: Guide · Catalog · Orders · Chat   (B2B)
+ *              Shop  · Catalog · Orders · Chat   (DTC)
+ * Account moves to the profile sheet (top-right avatar) — Pepper-style.
  */
-export function StoreNav({ role }: StoreNavProps) {
-  const isB2B = role === "b2b_buyer";
+export function StoreNav({ profile, activeAccount, memberships }: StoreNavProps) {
+  const isB2B = profile.role === "b2b_buyer";
   const home = isB2B ? "/guide" : "/catalog";
   return (
     <>
-      <TopHeader home={home} />
+      <TopHeader
+        home={home}
+        profile={profile}
+        activeAccount={activeAccount}
+        memberships={memberships}
+      />
       <BottomTabs isB2B={isB2B} />
     </>
   );
 }
 
-function TopHeader({ home }: { home: string }) {
+function TopHeader({
+  home,
+  profile,
+  activeAccount,
+  memberships,
+}: {
+  home: string;
+  profile: Profile;
+  activeAccount: Account | null;
+  memberships: Account[];
+}) {
   return (
     <header className="sticky top-0 z-30 bg-bg-primary/90 backdrop-blur border-b border-black/5">
-      <div className="flex items-center justify-between px-4 md:px-6 py-3">
-        <Link href={home} className="flex items-center gap-2 group">
-          <BrandLogo size={36} />
-          <BrandWordmark size="md" href={null} className="hidden sm:inline" />
+      <div className="flex items-center gap-2 px-3 md:px-6 py-2.5">
+        <Link href={home} className="shrink-0" aria-label="Home">
+          <BrandLogo size={34} />
         </Link>
-        <div className="flex items-center gap-1">
-          <Link
-            href="/catalog"
-            aria-label="Search catalog"
-            className="h-10 w-10 inline-flex items-center justify-center rounded-full hover:bg-bg-secondary transition"
-          >
-            <SearchIcon />
-          </Link>
+        <div className="flex-1 min-w-0 flex justify-center">
+          {activeAccount ? (
+            <AccountSwitcher active={activeAccount} memberships={memberships} />
+          ) : null}
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
           <CartIconWithBadge />
+          <ProfileAvatar profile={profile} />
         </div>
       </div>
     </header>
@@ -48,8 +67,6 @@ function TopHeader({ home }: { home: string }) {
 function BottomTabs({ isB2B }: { isB2B: boolean }) {
   return (
     <>
-      {/* Tab bar — visible on all screen sizes. On desktop it sits inside the
-          max-width column so it doesn't feel like a phone bar on a wide monitor. */}
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe">
         <div className="mx-auto max-w-3xl grid grid-cols-4 text-[11px]">
           {isB2B ? (
@@ -58,11 +75,10 @@ function BottomTabs({ isB2B }: { isB2B: boolean }) {
             <Tab href="/catalog" label="Shop" icon={<CatalogIcon />} />
           )}
           <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
-          <Tab href="/activity" label="Activity" icon={<ActivityIcon />} />
-          <Tab href="/account" label="Account" icon={<AccountIcon />} />
+          <Tab href="/orders" label="Orders" icon={<OrdersIcon />} />
+          <Tab href="/chat" label="Chat" icon={<ChatIcon />} />
         </div>
       </nav>
-      {/* Spacer so content doesn't sit under the tab bar */}
       <div className="h-[68px]" />
     </>
   );
@@ -80,7 +96,6 @@ function Tab({ href, label, icon }: { href: string; label: string; icon: React.R
   );
 }
 
-/* — Icons (inline SVG, 24x24) — */
 function GuideIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -99,26 +114,18 @@ function CatalogIcon() {
     </svg>
   );
 }
-function ActivityIcon() {
+function OrdersIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.6 4.5 8.4 8.4 0 0 1-4-1L3 21l2-5.6A8.5 8.5 0 1 1 21 11.5Z" />
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M9 7h6M9 11h6M9 15h4" />
     </svg>
   );
 }
-function AccountIcon() {
+function ChatIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21a8 8 0 0 1 16 0" />
-    </svg>
-  );
-}
-function SearchIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
+      <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1-4.6A8 8 0 1 1 21 12Z" />
     </svg>
   );
 }

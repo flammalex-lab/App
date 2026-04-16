@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
+import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { sendSms } from "@/lib/twilio/client";
 
 /**
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
       fromPhone = (target as any).phone;
       accountId = (target as any).account_id;
     }
+  } else {
+    // Non-impersonating: honor the active-account cookie for multi-location buyers
+    const { active } = await resolveActiveAccount(fromProfileId, accountId);
+    if (active) accountId = active.id;
   }
 
   if (!accountId) {
