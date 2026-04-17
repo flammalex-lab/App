@@ -68,8 +68,14 @@ def _fetch_close_price(ticker: str, on_or_before: date,
     return None
 
 
+SLEEVE_CONFIG = {
+    "spinoff": {"max_concurrent": 5, "hold_days": 18 * 30},
+    "microcap": {"max_concurrent": 4, "hold_days": 24 * 30},
+}
+
+
 class PaperTrader:
-    """Execute the deploy queue into paper positions."""
+    """Execute the deploy queue into paper positions (multi-sleeve)."""
 
     def __init__(
         self,
@@ -77,35 +83,40 @@ class PaperTrader:
         queue: DeployQueue | None = None,
         *,
         mode: str = "paper",
-        max_concurrent: int = DEFAULT_MAX_CONCURRENT,
         starting_capital: float = DEFAULT_STARTING_CAPITAL,
-        hold_days: int = DEFAULT_HOLD_DAYS,
+        sleeve_config: dict | None = None,
     ):
         self.ledger = ledger or Ledger()
         self.queue = queue or DeployQueue()
         self.mode = mode
-        self.max_concurrent = max_concurrent
         self.starting_capital = starting_capital
-        self.hold_days = hold_days
+        self.sleeve_config = sleeve_config or SLEEVE_CONFIG
+
+    def _total_slots(self) -> int:
+        return sum(c["max_concurrent"] for c in self.sleeve_config.values())
 
     def _per_slot_allocation(self) -> float:
-        """Equal-weight across max_concurrent slots."""
-        return self.starting_capital / self.max_concurrent
+        return self.starting_capital / self._total_slots()
 
     def step(self, today: date | None = None) -> dict:
-        """One day of paper trading. Returns a summary dict."""
+        """One day of paper trading (multi-sleeve). Returns summary."""
         today = today or date.today()
         closed = self._close_due_positions(today)
         deployed = self._deploy_ready_candidates(today)
         stale = self.queue.mark_stale(today)
-        open_count = self.ledger.open_count(mode=self.mode, sleeve="spinoff")
+        sleeve_summary = {}
+        for sleeve, cfg in self.sleeve_config.items():
+            n = self.ledger.open_count(mode=self.mode, sleeve=sleeve)
+            sleeve_summary[sleeve] = {
+                "open": n,
+                "slots_available": max(0, cfg["max_concurrent"] - n),
+            }
         return {
             "date": today.isoformat(),
             "closed": closed,
             "deployed": deployed,
             "stale_marked": stale,
-            "open_positions": open_count,
-            "slots_available": max(0, self.max_concurrent - open_count),
+            "sleeves": sleeve_summary,
         }
 
     def _close_due_positions(self, today: date) -> int:
@@ -136,16 +147,17 @@ class PaperTrader:
         return closed
 
     def _deploy_ready_candidates(self, today: date) -> int:
-        """Fill empty slots from the queue."""
-        open_count = self.ledger.open_count(mode=self.mode, sleeve="spinoff")
-        slots = self.max_concurrent - open_count
-        if slots <= 0:
-            return 0
+        """Fill empty slots from the queue, respecting per-sleeve limits."""
         deployed = 0
         for cand in self.queue.ready_candidates(today=today,
                                                   only_tradeable=True):
-            if slots <= 0:
-                break
+            sleeve = cand.get("sleeve") or "spinoff"
+            cfg = self.sleeve_config.get(sleeve)
+            if cfg is None:
+                continue
+            open_n = self.ledger.open_count(mode=self.mode, sleeve=sleeve)
+            if open_n >= cfg["max_concurrent"]:
+                continue
             ticker = cand["ticker"]
             if not ticker:
                 continue
@@ -154,13 +166,14 @@ class PaperTrader:
                 continue
             allocation = self._per_slot_allocation()
             shares = allocation / price
+            hold_days = cfg["hold_days"]
             pos_id = self.ledger.open_position(Position(
-                mode=self.mode, sleeve="spinoff",
+                mode=self.mode, sleeve=sleeve,
                 ticker=ticker, cik=cand["cik"], company=cand["company"],
                 entry_date=today, entry_price=price, shares=shares,
                 cost_basis=allocation,
-                target_close=today + timedelta(days=self.hold_days),
-                thesis="systematic spin-off deployment",
+                target_close=today + timedelta(days=hold_days),
+                thesis=f"systematic {sleeve} deployment",
                 heuristic_flags=cand["heuristic_flags"] or "",
             ))
             self.queue.mark_deployed(cand["accession"], pos_id)

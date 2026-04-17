@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS deploy_queue (
     cik               TEXT NOT NULL,
     company           TEXT NOT NULL,
     ticker            TEXT,
+    sleeve            TEXT NOT NULL DEFAULT 'spinoff',
     filed_date        DATE NOT NULL,
     ready_date        DATE NOT NULL,
     size_bucket       TEXT,
@@ -71,16 +72,16 @@ class DeployQueue:
             c.close()
 
     def upsert(self, candidate: SpinoffCandidate) -> bool:
-        """Insert or update a candidate. Returns True if newly added."""
+        """Insert or update a spinoff candidate. Returns True if newly added."""
         with self.conn() as c:
             cur = c.execute(
                 """
                 INSERT OR IGNORE INTO deploy_queue
-                  (accession, cik, company, ticker, filed_date, ready_date,
-                   size_bucket, newco_mcap_usd, tradeable, heuristic_flags,
-                   metadata_json)
+                  (accession, cik, company, ticker, sleeve, filed_date,
+                   ready_date, size_bucket, newco_mcap_usd, tradeable,
+                   heuristic_flags, metadata_json)
                 VALUES
-                  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  (?, ?, ?, ?, 'spinoff', ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     candidate.accession, candidate.cik, candidate.company,
@@ -92,6 +93,36 @@ class DeployQueue:
                         "green_flags": candidate.heuristic.green_flags,
                     }),
                     json.dumps({"primary_doc_url": candidate.primary_doc_url}),
+                ),
+            )
+            return cur.rowcount > 0
+
+    def upsert_microcap(self, candidate) -> bool:
+        """Insert a microcap candidate. Uses cik+screen_date as key."""
+        key = f"microcap-{candidate.cik}-{candidate.screen_date.isoformat()}"
+        with self.conn() as c:
+            cur = c.execute(
+                """
+                INSERT OR IGNORE INTO deploy_queue
+                  (accession, cik, company, ticker, sleeve, filed_date,
+                   ready_date, size_bucket, newco_mcap_usd, tradeable,
+                   heuristic_flags, metadata_json)
+                VALUES
+                  (?, ?, ?, ?, 'microcap', ?, ?, ?, ?, 1, ?, ?)
+                """,
+                (
+                    key, candidate.cik, candidate.company,
+                    candidate.ticker,
+                    candidate.screen_date.isoformat(),
+                    candidate.screen_date.isoformat(),  # ready immediately
+                    "negative-EV",
+                    candidate.market_cap_usd,
+                    json.dumps({
+                        "ev_usd": candidate.ev_usd,
+                        "net_cash_usd": candidate.net_cash_usd,
+                        "discount": candidate.discount_to_net_cash_pct,
+                    }),
+                    json.dumps({"ttm_revenue": candidate.ttm_revenue_usd}),
                 ),
             )
             return cur.rowcount > 0

@@ -87,6 +87,35 @@ def scan(
     console.print(f"[green]scanned={seen} added={added} stale={stale}[/green]")
 
 
+@app.command("scan-microcap")
+def scan_microcap(
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Quarterly scan: find negative-EV microcaps, update deploy queue.
+
+    Run ~4x/year after filing seasons (late Feb, May, Aug, Nov).
+    Takes 1-3 hours for the full universe (~5-6K CIKs).
+    Fundamentals are cached; subsequent runs are much faster.
+    """
+    _setup_logging(verbose)
+    ensure_dirs()
+    from alpha.microcap import scan_microcap_candidates
+    from alpha.portfolio import DeployQueue
+
+    edgar = EdgarClient()
+    queue = DeployQueue()
+    added = 0
+    seen = 0
+    for cand in scan_microcap_candidates(edgar):
+        seen += 1
+        if queue.upsert_microcap(cand):
+            added += 1
+            console.print(f"[magenta]+[/magenta] {cand.pretty_headline}")
+    console.print(
+        f"[green]microcap scan: hits={seen} added={added}[/green]"
+    )
+
+
 @app.command()
 def step(
     mode: str = typer.Option("paper", "--mode",

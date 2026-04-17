@@ -28,9 +28,9 @@ Three sleeves. One is validated. Start there.
 
 | Sleeve | Allocation | Mechanism | Status |
 |---|---:|---|---|
-| **Spinoff deploy queue** | 80-90% | Systematic nano/small spin-offs, 5 concurrent, 18m hold | ✅ backtest validated |
-| **Special situations** | 5-10% | Discretionary: odd-lot tenders, post-BK emergence when found | 🔬 ad hoc |
-| **Dry powder (T-bills)** | 10-15% | DCA ammunition for drawdowns | — |
+| **Spinoff deploy queue** | 50-60% | Systematic nano/small spin-offs, 5 concurrent, 18m hold | ✅ validated (+45% CAGR) |
+| **Microcap negative-EV** | 20-30% | Quarterly screen, 4 concurrent, 24m hold | ✅ validated (+76% mean at 24m) |
+| **Dry powder (T-bills)** | 10-20% | DCA ammunition for drawdowns | — |
 
 **Realistic post-cost expectation: 25-30% real annualized.** Path will
 be volatile — 30%+ portfolio drawdowns are expected 1-2x per decade.
@@ -53,6 +53,7 @@ cp .env.example .env
 ```bash
 alpha init                    # create DB + data dirs
 alpha scan                    # daily: find new Form 10s, update deploy queue
+alpha scan-microcap           # quarterly: screen universe for negative-EV microcaps
 alpha step                    # daily: close due positions, deploy ready candidates (paper)
 alpha digest                  # today's deploy-queue briefing
 alpha performance             # closed-position performance to date
@@ -62,11 +63,12 @@ alpha thesis <accession>      # LLM thesis + red-flag scan for one filing
 ### Daily operator loop
 
 ```bash
-# run every morning
+# every morning (~30 seconds)
 alpha scan && alpha step && alpha digest
-```
 
-That's the whole operation.
+# quarterly (~1-3 hours, after filing season)
+alpha scan-microcap
+```
 
 ---
 
