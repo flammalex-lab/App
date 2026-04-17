@@ -174,6 +174,14 @@ def run_walk_forward(
         if fund is None:
             continue
 
+        # Fetch SIC once per CIK for blacklist check (cheap — cached)
+        sic: str | None = None
+        try:
+            subs = edgar.company_submissions(entry.cik)
+            sic = str(subs.get("sic", "") or "").strip() or None
+        except Exception:  # noqa: BLE001
+            pass
+
         # Fetch price history ONCE per ticker
         if entry.ticker not in price_cache:
             price_cache[entry.ticker] = _fetch_history(
@@ -195,7 +203,7 @@ def run_walk_forward(
             market_cap = shares_pt.value * p
 
             from alpha.experimental.microcap.screener import screen_at_date
-            res = screen_at_date(fund, as_of, market_cap)
+            res = screen_at_date(fund, as_of, market_cap, sic=sic)
             if not res.pass_filter:
                 continue
 

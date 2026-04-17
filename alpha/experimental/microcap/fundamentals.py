@@ -221,6 +221,21 @@ def fetch_fundamentals(edgar, cik: str) -> FundamentalsTS | None:
                     ))
             if points:
                 break  # first matching tag wins per field
-        ts.by_field[field_name] = points
+
+        # Deduplicate XBRL entries: the same fact often appears multiple
+        # times because later filings include prior-year comparatives. For
+        # each (end_date, fp, qtrs) tuple keep the version with the largest
+        # form-seniority (10-K > 10-Q > others) and unique value.
+        seen: dict[tuple, FactPoint] = {}
+        for p in points:
+            key = (p.end_date, p.fp, p.qtrs, round(p.value, 2))
+            existing = seen.get(key)
+            if existing is None:
+                seen[key] = p
+            else:
+                # Prefer 10-K over 10-Q when values are equal
+                if existing.form != "10-K" and p.form == "10-K":
+                    seen[key] = p
+        ts.by_field[field_name] = list(seen.values())
 
     return ts if any(ts.by_field.values()) else None
