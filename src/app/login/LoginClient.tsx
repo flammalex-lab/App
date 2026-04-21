@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
@@ -77,6 +78,20 @@ function PhoneOtpForm() {
           <Button onClick={sendCode} loading={loading} className="w-full" size="lg">
             Text me a code
           </Button>
+          <p className="text-xs text-ink-secondary text-center leading-relaxed">
+            By continuing, you agree to receive SMS one-time login codes and
+            order updates from FingerLakes Farms. Msg &amp; data rates may apply.
+            Msg frequency varies. Reply <strong>STOP</strong> to opt out,{" "}
+            <strong>HELP</strong> for help. See our{" "}
+            <Link href="/privacy" className="underline hover:text-ink-primary">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/terms" className="underline hover:text-ink-primary">
+              Terms
+            </Link>
+            .
+          </p>
         </>
       ) : (
         <>
