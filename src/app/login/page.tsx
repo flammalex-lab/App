@@ -23,7 +23,7 @@ export default function LoginPage() {
       />
       <div className="relative w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-          <BrandLogo size={64} className="mb-3 drop-shadow-md" />
+          <BrandLogo size={192} className="mb-3 drop-shadow-md" />
           <h1 className="display text-2xl tracking-tight text-center text-white drop-shadow-md">
             Fingerlakes Farms
           </h1>
