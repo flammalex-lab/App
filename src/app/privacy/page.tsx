@@ -4,7 +4,7 @@ import { BrandLogo } from "@/components/Brand";
 export const metadata = { title: "Privacy Policy — Fingerlakes Farms" };
 
 const EFFECTIVE_DATE = "April 21, 2026";
-const SUPPORT_EMAIL = "support@fingerlakesfarms.com";
+const SUPPORT_EMAIL = "alex@ilovenyfarms.com";
 const COMPANY_NAME = "Fingerlakes Farms";
 
 export default function PrivacyPage() {

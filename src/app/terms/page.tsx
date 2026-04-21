@@ -4,8 +4,8 @@ import { BrandLogo } from "@/components/Brand";
 export const metadata = { title: "Terms and Conditions — Fingerlakes Farms" };
 
 const EFFECTIVE_DATE = "April 21, 2026";
-const SUPPORT_EMAIL = "support@fingerlakesfarms.com";
-const PROGRAM_NAME = "Fingerlakes Farms SMS";
+const SUPPORT_EMAIL = "alex@ilovenyfarms.com";
+const PROGRAM_NAME = "FingerLakes Farms LLC";
 const COMPANY_NAME = "Fingerlakes Farms";
 
 export default function TermsPage() {
