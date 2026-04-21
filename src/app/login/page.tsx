@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (
-    <main className="relative min-h-screen flex items-center justify-center px-4 py-10 overflow-hidden">
+    <main className="relative isolate min-h-screen flex items-center justify-center px-4 py-10 overflow-hidden">
       <Image
         src="/images/IMG_7794-scaled-3.jpg"
         alt=""
