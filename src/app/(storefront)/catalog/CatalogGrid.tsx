@@ -38,12 +38,8 @@ function ProductCard({
   product: PricedProduct;
   fromGroup: string | null;
 }) {
-  // One-tap add: every +/- button mutates the global cart directly. No local
-  // "draft qty" — cart is the source of truth.
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
-  // Catalog cards only add the DEFAULT variant. Non-default picks happen
-  // on the product detail page.
   const cartQty = useCart(
     (s) =>
       s.lines.find((l) => l.productId === product.id && l.variantKey === null)?.quantity ?? 0,
@@ -53,6 +49,9 @@ function ProductCard({
   const detailHref = fromGroup
     ? `/catalog/${product.id}?from=${fromGroup}`
     : `/catalog/${product.id}`;
+  const producerHref = product.producer
+    ? `/catalog?producer=${encodeURIComponent(product.producer)}`
+    : null;
 
   function addOne() {
     if (!available) return;
@@ -75,12 +74,21 @@ function ProductCard({
   }
 
   return (
-    <div className="card overflow-hidden flex flex-col group">
-      <Link href={detailHref} className="relative block aspect-square bg-bg-secondary">
+    <div className="card relative overflow-hidden flex flex-col group">
+      {/* Stub link covers the whole card. Everything else sits on top with
+          pointer-events disabled, except specific interactive bits that
+          opt back in (producer link, cart buttons). */}
+      <Link
+        href={detailHref}
+        aria-label={product.name}
+        className="absolute inset-0 z-0"
+      />
+
+      <div className="relative aspect-square bg-bg-secondary pointer-events-none">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={productImage(product)}
-          alt={product.name}
+          alt=""
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-transparent" />
@@ -91,10 +99,13 @@ function ProductCard({
           >
             {product.name}
           </div>
-          {product.producer ? (
-            <div className="text-white/80 text-[10px] mt-0.5 line-clamp-1">
+          {product.producer && producerHref ? (
+            <Link
+              href={producerHref}
+              className="mt-0.5 inline-block max-w-full truncate text-white/85 text-[10px] pointer-events-auto hover:underline hover:text-white transition"
+            >
               {product.producer}
-            </div>
+            </Link>
           ) : null}
         </div>
         {!product.available_this_week ? (
@@ -105,46 +116,48 @@ function ProductCard({
             New
           </span>
         ) : null}
-      </Link>
+      </div>
 
-      <div className="p-2.5 flex items-center justify-between gap-2 border-t border-black/5">
+      <div className="relative p-2.5 flex items-center justify-between gap-2 border-t border-black/5 pointer-events-none">
         <div className="min-w-0">
-          <div className="mono font-semibold text-sm">
+          <div className="tabular font-semibold text-sm">
             {product.unitPrice != null ? money(product.unitPrice) : "—"}
           </div>
           <div className="text-[10px] text-ink-tertiary uppercase">/ {product.unit}</div>
         </div>
-        {available ? (
-          cartQty > 0 ? (
-            <div className="flex items-center gap-0.5">
-              <button
-                onClick={decrement}
-                className="h-8 w-8 rounded-full border border-black/10 flex items-center justify-center text-sm hover:bg-bg-secondary"
-                aria-label="Remove one"
-              >
-                {cartQty === 1 ? "🗑" : "−"}
-              </button>
-              <span className="mono font-semibold w-6 text-center text-sm">{cartQty}</span>
+        <div className="pointer-events-auto">
+          {available ? (
+            cartQty > 0 ? (
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={decrement}
+                  className="h-8 w-8 rounded-full border border-black/10 flex items-center justify-center text-sm hover:bg-bg-secondary"
+                  aria-label="Remove one"
+                >
+                  {cartQty === 1 ? "🗑" : "−"}
+                </button>
+                <span className="tabular font-semibold w-6 text-center text-sm">{cartQty}</span>
+                <button
+                  onClick={addOne}
+                  className="h-8 w-8 rounded-full bg-brand-green text-white text-sm font-medium hover:bg-brand-green-dark transition flex items-center justify-center"
+                  aria-label="Add one"
+                >
+                  +
+                </button>
+              </div>
+            ) : (
               <button
                 onClick={addOne}
-                className="h-8 w-8 rounded-full bg-brand-green text-white text-sm font-medium hover:bg-brand-green-dark transition flex items-center justify-center"
-                aria-label="Add one"
+                className="h-9 w-9 rounded-full bg-brand-green text-white text-lg font-medium hover:bg-brand-green-dark transition flex items-center justify-center"
+                aria-label="Add to cart"
               >
                 +
               </button>
-            </div>
+            )
           ) : (
-            <button
-              onClick={addOne}
-              className="h-9 w-9 rounded-full bg-brand-green text-white text-lg font-medium hover:bg-brand-green-dark transition flex items-center justify-center"
-              aria-label="Add to cart"
-            >
-              +
-            </button>
-          )
-        ) : (
-          <span className="text-xs text-ink-tertiary">—</span>
-        )}
+            <span className="text-xs text-ink-tertiary">—</span>
+          )}
+        </div>
       </div>
     </div>
   );
