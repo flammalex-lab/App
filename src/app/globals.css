@@ -32,7 +32,7 @@
   }
   .mono, .tabular {
     font-variant-numeric: tabular-nums;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-feature-settings: "tnum" 1, "lnum" 1;
   }
   input, select, textarea {
     background: #fff;

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { AdminNav, AdminTopBar, ImpersonationBar } from "@/components/layout/AdminNav";
+import { AdminNav, AdminTopBar } from "@/components/layout/AdminNav";
+import { ImpersonationBar } from "@/components/layout/ImpersonationBar";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();

@@ -42,7 +42,7 @@ const config: Config = {
         display: ['"Bricolage Grotesque"', "Georgia", "serif"],
         serif: ['"Bricolage Grotesque"', "Georgia", "serif"], // alias for legacy
         sans: ['"Inter"', "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
-        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
+        mono: ['"Inter"', "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
       },
       letterSpacing: {
         tight: "-0.015em",

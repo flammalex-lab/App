@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { dateShort, money } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/Badge";
-import type { Account, Order } from "@/lib/supabase/types";
+import type { Order } from "@/lib/supabase/types";
 
 export const metadata = { title: "Admin — Dashboard" };
 
@@ -18,7 +18,6 @@ export default async function DashboardPage() {
       db.from("activities").select("id", { count: "exact", head: true }).eq("completed", false).lte("follow_up_date", new Date().toISOString().slice(0, 10)),
     ]);
 
-  // Revenue this month (billed orders, regardless of payment status)
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
@@ -31,33 +30,39 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-6xl">
-      <h1 className="text-3xl mb-4">Dashboard</h1>
+      <h1 className="display text-3xl mb-6">Dashboard</h1>
+
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Stat label="Pending orders" value={(pendingCount as any)?.count ?? 0} href="/admin/orders?status=pending" />
-        <Stat label="To export (QB)" value={(qbPending as any)?.count ?? 0} href="/admin/qb" />
+        <Stat label="Pending orders" value={(pendingCount as any)?.count ?? 0} href="/admin/orders?status=pending" tone="gold" />
+        <Stat label="To export (QB)" value={(qbPending as any)?.count ?? 0} href="/admin/qb" tone="blue" />
         <Stat label="Active accounts" value={(activeAccounts as any)?.count ?? 0} href="/admin/accounts" />
-        <Stat label="Follow-ups due" value={(followUps as any)?.count ?? 0} href="/admin/accounts" />
-        <Stat label="Revenue MTD" value={money(mtd)} />
+        <Stat label="Follow-ups due" value={(followUps as any)?.count ?? 0} href="/admin/accounts" tone={((followUps as any)?.count ?? 0) > 0 ? "rust" : undefined} />
+        <Stat label="Revenue MTD" value={money(mtd)} tone="green" />
       </div>
 
-      <h2 className="text-xl mt-8 mb-2 font-serif">Recent orders</h2>
-      <div className="card divide-y divide-black/5">
+      <div className="flex items-baseline justify-between mt-10 mb-3">
+        <h2 className="display text-xl">Recent orders</h2>
+        <Link href="/admin/orders" className="text-sm text-brand-blue hover:underline">View all →</Link>
+      </div>
+      <div className="card divide-y divide-black/5 overflow-hidden">
         {((recentOrders as (Order & { account: { name: string } | null })[] | null) ?? []).map((o) => (
-          <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center p-3 hover:bg-bg-secondary">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="mono font-medium">{o.order_number}</span>
-                <StatusBadge status={o.status} />
-              </div>
-              <div className="text-xs text-ink-secondary">
+          <Link
+            key={o.id}
+            href={`/admin/orders/${o.id}`}
+            className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 hover:bg-bg-secondary transition"
+          >
+            <span className="tabular font-medium text-ink-primary">{o.order_number}</span>
+            <div className="min-w-0 flex items-center gap-2">
+              <span className="truncate text-sm text-ink-secondary">
                 {o.account?.name ?? "DTC"} · {dateShort(o.created_at)}
-              </div>
+              </span>
+              <StatusBadge status={o.status} />
             </div>
-            <div className="mono text-sm">{money(o.total)}</div>
+            <span className="tabular font-semibold text-ink-primary">{money(o.total)}</span>
           </Link>
         ))}
         {!((recentOrders as any[]) ?? []).length ? (
-          <div className="p-6 text-sm text-ink-secondary text-center">
+          <div className="p-8 text-sm text-ink-secondary text-center">
             No orders yet. Accounts with buyers on the portal will show up here as they order.
           </div>
         ) : null}
@@ -66,13 +71,39 @@ export default async function DashboardPage() {
   );
 }
 
-function Stat({ label, value, href }: { label: string; value: string | number; href?: string }) {
+type Tone = "blue" | "green" | "gold" | "rust";
+const toneStyles: Record<Tone, string> = {
+  blue: "text-brand-blue",
+  green: "text-brand-green-dark",
+  gold: "text-[#8a690f]",
+  rust: "text-[#7a3b1f]",
+};
+
+function Stat({
+  label,
+  value,
+  href,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  href?: string;
+  tone?: Tone;
+}) {
   const body = (
     <>
-      <div className="text-xs text-ink-secondary">{label}</div>
-      <div className="text-2xl mono mt-1">{value}</div>
+      <div className={`display tabular text-3xl lg:text-4xl font-bold tracking-tight ${tone ? toneStyles[tone] : "text-ink-primary"}`}>
+        {value}
+      </div>
+      <div className="text-xs text-ink-secondary mt-1 uppercase tracking-wide">{label}</div>
     </>
   );
-  if (href) return <Link href={href} className="card p-4 hover:shadow-lg transition">{body}</Link>;
+  if (href) {
+    return (
+      <Link href={href} className="card p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
+        {body}
+      </Link>
+    );
+  }
   return <div className="card p-4">{body}</div>;
 }
