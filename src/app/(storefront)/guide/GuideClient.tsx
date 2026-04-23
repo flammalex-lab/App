@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
-import { money, dateShort } from "@/lib/utils/format";
+import { money } from "@/lib/utils/format";
 import { GROUP_LABELS, DAY_SHORT, type ProductGroup } from "@/lib/constants";
 import { productImage } from "@/lib/utils/product-image";
 import { Button } from "@/components/ui/Button";
@@ -17,10 +17,9 @@ interface Props {
 
 export function GuideClient({ items, groups }: Props) {
   const router = useRouter();
-  const [filter, setFilter] = useState<ProductGroup | null>(null);
   const [search, setSearch] = useState("");
 
-  // Seed draft qty from today's par level, falling back to suggested qty
+  // Seed draft qty from today's par level, falling back to suggested qty.
   const todayKey =
     DAY_SHORT[
       new Date().toLocaleDateString("en-US", { weekday: "long" }) as keyof typeof DAY_SHORT
@@ -38,13 +37,9 @@ export function GuideClient({ items, groups }: Props) {
   const bulkSet = useCart((s) => s.bulkSet);
   const cartLines = useCart((s) => s.lines);
 
-  const visible = useMemo(() => {
-    return items.filter((r) => {
-      if (filter && r.product.product_group !== filter) return false;
-      if (search && !r.product.name.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [items, filter, search]);
+  const searchMatch = (r: GuideRow) =>
+    !search || r.product.name.toLowerCase().includes(search.toLowerCase());
+  const visibleCount = items.filter(searchMatch).length;
 
   const totalInCart = Object.entries(draft).reduce((s, [pid, q]) => {
     const row = items.find((r) => r.product_id === pid);
@@ -71,8 +66,6 @@ export function GuideClient({ items, groups }: Props) {
         priceByWeight: Boolean(r.product.price_by_weight),
         quantity: draft[r.product_id]!,
       }));
-    // Only replace the default-variant line for these products; keep any
-    // non-default variants the buyer added elsewhere.
     const kept = cartLines.filter(
       (l) => !newLines.find((x) => x.productId === l.productId) || l.variantKey !== null,
     );
@@ -80,9 +73,24 @@ export function GuideClient({ items, groups }: Props) {
     router.push("/cart");
   }
 
+  // Group items by product_group; preserve original order within group.
+  const byGroup = useMemo(() => {
+    const out: Record<string, GuideRow[]> = {};
+    for (const r of items) {
+      const g = (r.product.product_group as string | null) ?? "_other";
+      (out[g] ??= []).push(r);
+    }
+    return out;
+  }, [items]);
+
+  const orderedGroups: (ProductGroup | "_other")[] = [
+    ...groups,
+    ...(byGroup._other ? (["_other"] as const) : []),
+  ];
+
   return (
     <>
-      <div className="px-4 md:px-0 mb-3 space-y-2">
+      <div className="px-4 md:px-0 mb-3">
         <input
           type="search"
           placeholder="Search your guide"
@@ -90,36 +98,40 @@ export function GuideClient({ items, groups }: Props) {
           onChange={(e) => setSearch(e.target.value)}
           className="input"
         />
-        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 pb-1">
-          <FilterChip active={filter === null} onClick={() => setFilter(null)}>
-            All ({items.length})
-          </FilterChip>
-          {groups.map((g) => {
-            const count = items.filter((r) => r.product.product_group === g).length;
-            return (
-              <FilterChip key={g} active={filter === g} onClick={() => setFilter(g)}>
-                {GROUP_LABELS[g]} ({count})
-              </FilterChip>
-            );
-          })}
-        </div>
       </div>
 
-      <ul className="divide-y divide-black/5 border-y border-black/5 bg-white md:border md:rounded-xl md:shadow-card md:border-black/5">
-        {visible.map((r) => (
-          <GuideLineItem
-            key={r.id}
-            row={r}
-            qty={draft[r.product_id] ?? 0}
-            onQty={(q) => setQty(r.product_id, q)}
-          />
-        ))}
-        {visible.length === 0 ? (
-          <li className="p-6 text-center text-sm text-ink-secondary">
-            No items match that filter.
-          </li>
-        ) : null}
-      </ul>
+      {visibleCount === 0 ? (
+        <div className="px-4 md:px-0 py-8 text-center text-sm text-ink-secondary">
+          No items match &ldquo;{search}&rdquo;.
+        </div>
+      ) : (
+        orderedGroups.map((g) => {
+          const rows = byGroup[g] ?? [];
+          const filtered = rows.filter(searchMatch);
+          if (filtered.length === 0) return null;
+          const label = g === "_other" ? "Other" : GROUP_LABELS[g as ProductGroup];
+          return (
+            <section key={g} className="mb-6">
+              <div className="flex items-baseline justify-between px-4 md:px-0 mb-2">
+                <h2 className="display text-lg tracking-tight">{label}</h2>
+                <span className="text-xs text-ink-tertiary tabular">
+                  {filtered.length} {filtered.length === 1 ? "item" : "items"}
+                </span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto px-4 md:px-0 pb-2 snap-x">
+                {filtered.map((r) => (
+                  <GuideCard
+                    key={r.id}
+                    row={r}
+                    qty={draft[r.product_id] ?? 0}
+                    onQty={(q) => setQty(r.product_id, q)}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })
+      )}
 
       {itemsInCart > 0 ? (
         <div className="fixed bottom-[80px] md:bottom-6 inset-x-0 px-4 md:px-6 z-20 pointer-events-none">
@@ -132,7 +144,7 @@ export function GuideClient({ items, groups }: Props) {
               <span className="flex-1 text-left">
                 {itemsInCart} {itemsInCart === 1 ? "item" : "items"}
               </span>
-              <span className="mono">{money(totalInCart)}</span>
+              <span className="tabular">{money(totalInCart)}</span>
               <span className="ml-2">Review →</span>
             </Button>
           </div>
@@ -142,30 +154,7 @@ export function GuideClient({ items, groups }: Props) {
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 px-3 py-1.5 rounded-full border text-sm transition ${
-        active
-          ? "bg-brand-blue text-white border-brand-blue"
-          : "bg-white border-black/10 hover:bg-bg-secondary"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function GuideLineItem({
+function GuideCard({
   row,
   qty,
   onQty,
@@ -174,55 +163,65 @@ function GuideLineItem({
   qty: number;
   onQty: (q: number) => void;
 }) {
-  const { product, unitPrice, lastOrderedAt } = row;
-  const image = productImage(product);
+  const { product, unitPrice } = row;
   const available = product.available_this_week;
+  const producerHref = product.producer
+    ? `/catalog?producer=${encodeURIComponent(product.producer)}`
+    : null;
 
   return (
-    <li className="p-3 flex items-center gap-3">
-      <Link href={`/catalog/${product.id}`} className="shrink-0">
+    <div className="shrink-0 w-[170px] snap-start card overflow-hidden relative hover:shadow-lg transition">
+      <Link href={`/catalog/${product.id}`} aria-label={product.name} className="absolute inset-0 z-0" />
+
+      <div className="relative aspect-square bg-bg-secondary pointer-events-none">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={image}
-          alt={product.name}
-          className="h-16 w-16 rounded-md object-cover bg-bg-secondary"
+          src={productImage(product)}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
         />
-      </Link>
-      <div className="flex-1 min-w-0">
-        <Link href={`/catalog/${product.id}`} className="block">
-          <div className="font-medium text-sm leading-tight">{product.name}</div>
-        </Link>
-        <div className="text-xs text-ink-secondary mt-0.5">
-          {unitPrice != null ? (
-            <span className="mono">
-              {money(unitPrice)} / {product.unit}
-            </span>
-          ) : (
-            <span>Price on request</span>
-          )}
-          {product.pack_size ? <span> · {product.pack_size}</span> : null}
+        {!available ? (
+          <span className="absolute top-1.5 right-1.5 badge-gray text-[9px] bg-white/90">
+            limited
+          </span>
+        ) : null}
+        {qty > 0 ? (
+          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-brand-blue text-white tabular shadow-sm">
+            {qty}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="relative p-2.5 pointer-events-none">
+        <div className="text-[12px] font-medium leading-tight line-clamp-2 min-h-[28px]">
+          {product.name}
         </div>
-        <div className="text-[11px] text-ink-tertiary mt-0.5">
-          {lastOrderedAt ? (
-            <>Last ordered {dateShort(lastOrderedAt)}</>
-          ) : (
-            <span className="text-ink-tertiary">Never ordered</span>
-          )}
-          {!available ? <span className="ml-2 badge-gray">limited</span> : null}
+        {product.producer && producerHref ? (
+          <Link
+            href={producerHref}
+            className="mt-0.5 inline-block max-w-full truncate text-[10px] text-ink-tertiary hover:text-ink-secondary hover:underline pointer-events-auto"
+          >
+            {product.producer}
+          </Link>
+        ) : null}
+        <div className="tabular text-[12px] mt-1">
+          {unitPrice != null ? money(unitPrice) : "—"}
+          <span className="text-ink-tertiary text-[10px]"> / {product.unit}</span>
         </div>
       </div>
-      <div className="shrink-0 flex items-center gap-1">
+
+      <div className="relative border-t border-black/5 px-2 py-1.5 flex items-center justify-between gap-1 pointer-events-auto">
         <button
           aria-label="Decrement"
           onClick={() => onQty(qty - 1)}
           disabled={qty <= 0}
-          className="h-9 w-9 rounded-full border border-black/10 flex items-center justify-center disabled:opacity-40 hover:bg-bg-secondary transition"
+          className="h-7 w-7 rounded-full border border-black/10 flex items-center justify-center text-sm disabled:opacity-40 hover:bg-bg-secondary transition"
         >
           −
         </button>
-        <div className="min-w-[56px] px-2 py-1.5 text-center border border-black/10 rounded-md bg-white">
-          <span className="mono text-sm font-semibold block leading-none">{qty}</span>
-          <span className="text-[10px] text-ink-secondary uppercase tracking-wide">
+        <div className="flex-1 text-center">
+          <span className="tabular text-sm font-semibold leading-none block">{qty}</span>
+          <span className="text-[9px] text-ink-tertiary uppercase tracking-wide">
             {product.unit}
           </span>
         </div>
@@ -230,11 +229,11 @@ function GuideLineItem({
           aria-label="Increment"
           onClick={() => onQty(qty + 1)}
           disabled={!available}
-          className="h-9 w-9 rounded-full bg-brand-blue text-white flex items-center justify-center disabled:opacity-40 hover:bg-brand-blue-dark transition"
+          className="h-7 w-7 rounded-full bg-brand-blue text-white flex items-center justify-center text-sm disabled:opacity-40 hover:bg-brand-blue-dark transition"
         >
           +
         </button>
       </div>
-    </li>
+    </div>
   );
 }
