@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
 import { useToast } from "@/components/ui/Toast";
 import { money } from "@/lib/utils/format";
-
-type ScanState =
-  | { kind: "idle" }
-  | { kind: "scanning" }
-  | { kind: "looking_up"; code: string }
-  | { kind: "hit"; product: ScannedProduct }
-  | { kind: "error"; message: string; code?: string };
+import { productImage } from "@/lib/utils/product-image";
 
 interface ScannedProduct {
   id: string;
@@ -25,14 +19,22 @@ interface ScannedProduct {
   unitPrice: number | null;
 }
 
+type BannerState =
+  | { kind: "idle" }
+  | { kind: "looking_up"; code: string }
+  | { kind: "added"; name: string; price: number | null; unit: string }
+  | { kind: "error"; message: string };
+
+const COOLDOWN_MS = 2500;
+
 /**
- * Full-screen barcode scanner modal (Pepper-style). Uses @zxing/browser
- * for camera-based UPC/EAN detection — loaded dynamically because the
- * library is heavy and we only need it when the user taps the scanner.
+ * Full-screen barcode scanner modal (Pepper-style). Stays open between
+ * scans so the buyer can scan item after item without re-launching. The
+ * cart below the camera updates live so they can eyeball what they've
+ * captured.
  *
- * After a successful scan:
- *   - mode="cart"  → adds qty 1 to the cart and closes
- *   - mode="guide" → adds to the buyer's default guide and closes
+ * Debounces the same code within a 2.5s window so holding a barcode in
+ * frame doesn't register as 30 scans.
  */
 export function BarcodeScanner({
   open,
@@ -46,17 +48,22 @@ export function BarcodeScanner({
   const router = useRouter();
   const toast = useToast();
   const add = useCart((s) => s.add);
+  const setQty = useCart((s) => s.setQty);
+  const lines = useCart((s) => s.lines);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  const [state, setState] = useState<ScanState>({ kind: "idle" });
+  const cooldownRef = useRef<{ code: string; until: number } | null>(null);
+  const [banner, setBanner] = useState<BannerState>({ kind: "idle" });
   const [manualCode, setManualCode] = useState("");
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Start / stop camera when the modal toggles.
   useEffect(() => {
     if (!open) {
       controlsRef.current?.stop();
       controlsRef.current = null;
-      setState({ kind: "idle" });
+      setBanner({ kind: "idle" });
+      setCameraError(null);
+      cooldownRef.current = null;
       return;
     }
 
@@ -64,38 +71,38 @@ export function BarcodeScanner({
 
     (async () => {
       try {
-        setState({ kind: "scanning" });
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         const reader = new BrowserMultiFormatReader();
-
         const video = videoRef.current;
         if (!video) return;
 
         const controls = await reader.decodeFromVideoDevice(
           undefined,
           video,
-          (result, err) => {
+          (result) => {
             if (cancelled) return;
-            if (result) {
-              const code = result.getText();
-              controls.stop();
-              controlsRef.current = null;
-              lookup(code);
+            if (!result) return;
+            const code = result.getText();
+            const now = Date.now();
+            if (
+              cooldownRef.current &&
+              cooldownRef.current.until > now &&
+              cooldownRef.current.code === code
+            ) {
+              return;
             }
-            // err is a NotFoundException on every frame with no barcode —
-            // that's fine, don't log.
+            cooldownRef.current = { code, until: now + COOLDOWN_MS };
+            lookup(code);
           },
         );
         controlsRef.current = controls;
       } catch (e: any) {
         if (cancelled) return;
-        setState({
-          kind: "error",
-          message:
-            e?.name === "NotAllowedError"
-              ? "Camera permission denied. Enter the code manually below."
-              : e?.message ?? "Couldn't start the camera.",
-        });
+        setCameraError(
+          e?.name === "NotAllowedError"
+            ? "Camera permission denied. Enter the code manually below."
+            : e?.message ?? "Couldn't start the camera.",
+        );
       }
     })();
 
@@ -108,27 +115,28 @@ export function BarcodeScanner({
   }, [open]);
 
   async function lookup(code: string) {
-    setState({ kind: "looking_up", code });
+    setBanner({ kind: "looking_up", code });
     const res = await fetch(`/api/products/scan?code=${encodeURIComponent(code)}`);
     if (res.ok) {
       const { product } = (await res.json()) as { product: ScannedProduct };
-      setState({ kind: "hit", product });
       await handleHit(product);
     } else {
       const body = await res.json().catch(() => ({}));
       const message =
         body.reason === "not_found"
-          ? `No product matches ${code}.`
+          ? `No match for ${code}`
           : body.reason === "out_of_scope"
-          ? `${body.productName ?? "That item"} isn't in your buyer scope.`
-          : body.error ?? "Lookup failed.";
-      setState({ kind: "error", message, code });
+          ? `${body.productName ?? "That item"} isn't in your buyer scope`
+          : body.error ?? "Lookup failed";
+      setBanner({ kind: "error", message });
+      setTimeout(() => setBanner({ kind: "idle" }), 2000);
     }
   }
 
   async function handleHit(product: ScannedProduct) {
     if (product.unitPrice == null) {
-      toast.push(`${product.name} — price on request, can't add directly`, "error");
+      setBanner({ kind: "error", message: `${product.name} — price on request` });
+      setTimeout(() => setBanner({ kind: "idle" }), 2000);
       return;
     }
     if (mode === "cart") {
@@ -144,26 +152,20 @@ export function BarcodeScanner({
         priceByWeight: product.price_by_weight,
         quantity: 1,
       });
-      toast.push(`Added ${product.name} to cart`, "success");
     } else {
-      const res = await fetch("/api/my-guide/add", {
+      await fetch("/api/my-guide/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_id: product.id }),
-      });
-      if (res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { alreadyExisted?: boolean };
-        toast.push(
-          body.alreadyExisted ? `${product.name} is already in your guide` : `Added ${product.name} to guide`,
-          "success",
-        );
-        router.refresh();
-      } else {
-        toast.push("Couldn't add to guide", "error");
-      }
+      }).catch(() => null);
     }
-    // Brief flash then close.
-    setTimeout(() => onClose(), 600);
+    setBanner({
+      kind: "added",
+      name: product.name,
+      price: product.unitPrice,
+      unit: product.unit,
+    });
+    setTimeout(() => setBanner({ kind: "idle" }), 1500);
   }
 
   function submitManual(e: React.FormEvent) {
@@ -174,46 +176,19 @@ export function BarcodeScanner({
     lookup(code);
   }
 
-  function restart() {
-    setState({ kind: "idle" });
-    // Re-mount the effect by toggling open via onClose+reopen pattern is messy;
-    // simpler: just call lookup on a fresh code, or reopen. For now, reload effect:
-    setTimeout(() => {
-      if (controlsRef.current) return;
-      setState({ kind: "scanning" });
-      (async () => {
-        const { BrowserMultiFormatReader } = await import("@zxing/browser");
-        const reader = new BrowserMultiFormatReader();
-        const video = videoRef.current;
-        if (!video) return;
-        const controls = await reader.decodeFromVideoDevice(undefined, video, (result) => {
-          if (result) {
-            const code = result.getText();
-            controls.stop();
-            controlsRef.current = null;
-            lookup(code);
-          }
-        });
-        controlsRef.current = controls;
-      })();
-    }, 100);
+  function reviewCart() {
+    onClose();
+    router.push("/cart");
   }
 
   if (!open) return null;
 
-  const caption =
-    state.kind === "looking_up"
-      ? `Looking up ${state.code}…`
-      : state.kind === "hit"
-      ? `Found: ${state.product.name}`
-      : state.kind === "error"
-      ? state.message
-      : mode === "guide"
-      ? "Scan an item to add it to your guide"
-      : "Scan an item to add it to your cart";
+  const totalQty = lines.reduce((s, l) => s + l.quantity, 0);
+  const totalMoney = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+    <div className="fixed inset-0 z-50 bg-[#1a1a1a] flex flex-col">
+      {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 text-white">
         <button
           onClick={onClose}
@@ -229,7 +204,8 @@ export function BarcodeScanner({
         <div className="h-10 w-10" />
       </div>
 
-      <div className="relative mx-4 rounded-2xl overflow-hidden bg-black/60 aspect-[4/5]">
+      {/* Camera viewport */}
+      <div className="relative mx-3 rounded-2xl overflow-hidden bg-black/60 aspect-[4/3]">
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           ref={videoRef}
@@ -237,55 +213,133 @@ export function BarcodeScanner({
           playsInline
           muted
         />
+        {/* Scan frame */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-6 border-2 border-white/60 rounded-xl" />
+          <div className="absolute inset-6 border-2 border-white/70 rounded-xl" />
         </div>
-        {state.kind === "hit" ? (
-          <div className="absolute inset-0 bg-brand-green/60 flex items-center justify-center text-white">
-            <div className="text-center px-4">
-              <div className="text-4xl mb-2">✓</div>
-              <div className="font-medium">{state.product.name}</div>
-              {state.product.unitPrice != null ? (
-                <div className="text-sm opacity-90 mt-1">
-                  {money(state.product.unitPrice)} / {state.product.unit}
-                </div>
-              ) : null}
-            </div>
+        {/* Banner overlay */}
+        {banner.kind === "added" ? (
+          <div className="absolute inset-x-0 bottom-0 bg-brand-green text-white text-sm px-4 py-2.5 flex items-center justify-between animate-slide-up">
+            <span className="truncate flex-1">✓ Added {banner.name}</span>
+            {banner.price != null ? (
+              <span className="tabular font-semibold">
+                {money(banner.price)}/{banner.unit}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {banner.kind === "error" ? (
+          <div className="absolute inset-x-0 bottom-0 bg-feedback-error text-white text-sm px-4 py-2.5">
+            {banner.message}
+          </div>
+        ) : null}
+        {banner.kind === "looking_up" ? (
+          <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-sm px-4 py-2.5">
+            Looking up {banner.code}…
           </div>
         ) : null}
       </div>
 
-      <div className="bg-white rounded-t-3xl mt-3 px-5 pt-4 pb-6 flex-1 flex flex-col items-center gap-3">
-        <div className="h-1 w-10 rounded-full bg-ink-tertiary/30 -mt-2 mb-1" />
-        <div className="h-12 w-12 rounded-full border-2 border-dashed border-ink-tertiary/40 flex items-center justify-center">
-          <BarcodeIcon className="text-ink-secondary" />
-        </div>
-        <p
-          className={`text-center text-sm ${
-            state.kind === "error" ? "text-feedback-error" : "text-ink-secondary"
-          }`}
-        >
-          {caption}
-        </p>
+      {/* Bottom sheet */}
+      <div className="bg-white rounded-t-3xl mt-3 flex-1 flex flex-col overflow-hidden">
+        <div className="h-1 w-10 rounded-full bg-ink-tertiary/30 mx-auto mt-2" />
 
-        {state.kind === "error" ? (
-          <button onClick={restart} className="btn-secondary text-sm">
-            Try again
-          </button>
+        {cameraError ? (
+          <div className="px-5 pt-3">
+            <p className="text-xs text-feedback-error text-center">{cameraError}</p>
+          </div>
         ) : null}
 
-        <form onSubmit={submitManual} className="w-full max-w-xs mt-2 flex gap-2">
-          <input
-            value={manualCode}
-            onChange={(e) => setManualCode(e.target.value)}
-            placeholder="Or type UPC / SKU"
-            className="input flex-1 text-sm"
-            inputMode="numeric"
-          />
-          <button type="submit" className="btn-primary text-sm">
-            Find
-          </button>
-        </form>
+        {lines.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center px-5 gap-3 py-6">
+            <div className="h-14 w-14 rounded-full border-2 border-dashed border-ink-tertiary/40 flex items-center justify-center">
+              <BarcodeIcon className="text-ink-secondary" />
+            </div>
+            <p className="text-sm text-ink-secondary text-center">
+              {mode === "guide"
+                ? "Scan an item to add it to your guide"
+                : "Scan an item to add it to your cart"}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="px-5 pt-3 pb-2 text-xs text-ink-secondary flex items-baseline justify-between">
+              <span>
+                <span className="tabular font-semibold text-ink-primary">{totalQty}</span>{" "}
+                {totalQty === 1 ? "item" : "items"} in cart
+              </span>
+              <span className="tabular font-semibold text-ink-primary">{money(totalMoney)}</span>
+            </div>
+            <ul className="flex-1 overflow-y-auto divide-y divide-black/5 px-2">
+              {lines.map((l) => (
+                <li key={`${l.productId}:${l.variantKey ?? "default"}`} className="flex items-center gap-3 py-2 px-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={productImage({ id: l.productId, image_url: null, name: l.name } as any)}
+                    alt=""
+                    className="h-12 w-12 rounded-md object-cover bg-bg-secondary shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{l.name}</div>
+                    <div className="text-[11px] text-ink-secondary tabular">
+                      {money(l.unitPrice)} / {l.unit}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setQty(l.productId, Math.max(0, l.quantity - 1), l.variantKey)}
+                      className="h-7 w-7 rounded-full border border-black/10 flex items-center justify-center text-sm hover:bg-bg-secondary"
+                      aria-label="Remove one"
+                    >
+                      {l.quantity === 1 ? "🗑" : "−"}
+                    </button>
+                    <span className="tabular font-semibold w-6 text-center text-sm">{l.quantity}</span>
+                    <button
+                      onClick={() =>
+                        add({
+                          productId: l.productId,
+                          variantKey: l.variantKey,
+                          variantSku: l.variantSku,
+                          sku: l.sku,
+                          name: l.name,
+                          packSize: l.packSize,
+                          unit: l.unit,
+                          unitPrice: l.unitPrice,
+                          priceByWeight: Boolean(l.priceByWeight),
+                          quantity: 1,
+                        })
+                      }
+                      className="h-7 w-7 rounded-full bg-brand-green text-white flex items-center justify-center text-sm hover:bg-brand-green-dark transition"
+                      aria-label="Add one"
+                    >
+                      +
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <div className="border-t border-black/5 px-4 py-3 space-y-2">
+          <form onSubmit={submitManual} className="flex gap-2">
+            <input
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+              placeholder="Type UPC / SKU"
+              className="input flex-1 text-sm"
+              inputMode="numeric"
+            />
+            <button type="submit" className="btn-secondary text-sm">
+              Find
+            </button>
+          </form>
+          {lines.length > 0 ? (
+            <button onClick={reviewCart} className="btn-primary w-full text-sm">
+              Review cart · {money(totalMoney)} →
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import type { Category, Brand } from "@/lib/supabase/types";
 
 interface Row {
   sku: string;
+  upc?: string;
   name: string;
   description?: string;
   wholesale_price?: number;
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
 
     const payload: Record<string, unknown> = {
       sku: r.sku,
+      upc: r.upc ?? null,
       name: r.name,
       description: r.description ?? null,
       wholesale_price: r.wholesale_price ?? null,
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
         pack_size: payload.pack_size,
         qb_income_account: payload.qb_income_account,
       };
+      if (r.upc) updatePayload.upc = r.upc;
       if (r.description) updatePayload.description = r.description;
       const { error } = await svc.from("products").update(updatePayload).eq("id", (existing as any).id);
       if (error) { skipped++; continue; }

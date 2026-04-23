@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 
 interface Row {
   sku: string;
+  upc?: string;
   name: string;
   description?: string;
   wholesale_price?: number;
@@ -72,6 +73,7 @@ export function ItemsImportClient() {
             <thead className="text-left text-ink-secondary">
               <tr>
                 <th className="p-2">SKU</th>
+                <th className="p-2">UPC</th>
                 <th className="p-2">Name</th>
                 <th className="p-2">Wholesale</th>
                 <th className="p-2">Retail</th>
@@ -82,10 +84,11 @@ export function ItemsImportClient() {
             <tbody>
               {preview.map((r, i) => (
                 <tr key={i} className="border-t border-black/5">
-                  <td className="p-2 mono">{r.sku}</td>
+                  <td className="p-2 tabular">{r.sku}</td>
+                  <td className="p-2 tabular">{r.upc ?? ""}</td>
                   <td className="p-2">{r.name}</td>
-                  <td className="p-2 mono">{r.wholesale_price ?? ""}</td>
-                  <td className="p-2 mono">{r.retail_price ?? ""}</td>
+                  <td className="p-2 tabular">{r.wholesale_price ?? ""}</td>
+                  <td className="p-2 tabular">{r.retail_price ?? ""}</td>
                   <td className="p-2">{r.unit ?? ""}</td>
                   <td className="p-2">{r.income_account ?? ""}</td>
                 </tr>
@@ -113,6 +116,7 @@ export function ItemsImportClient() {
         <summary>Expected column headers (any of these match)</summary>
         <p className="mt-1 leading-relaxed">
           <strong>SKU:</strong> Item, Item Name, Name, Number, Item Number, SKU.
+          <strong> UPC:</strong> UPC, Barcode, EAN, GTIN.
           <strong> Name:</strong> Description, Sales Description, Item Description.
           <strong> Wholesale price:</strong> Price, Sales Price, Rate, Cost.
           <strong> Retail price:</strong> Retail, Retail Price.
@@ -134,6 +138,7 @@ function parseCSV(text: string): Row[] {
     headers.findIndex((h) => keys.some((k) => h === k || h.includes(k)));
   const h = {
     sku: find(["item name", "item number", "sku", "item", "number", "name"]),
+    upc: find(["upc", "barcode", "ean", "gtin"]),
     name: find(["description", "sales description", "item description"]),
     wholesale_price: find(["sales price", "price", "rate", "cost"]),
     retail_price: find(["retail"]),
@@ -152,6 +157,7 @@ function parseCSV(text: string): Row[] {
     const retailRaw = cells[h.retail_price]?.replace(/[$,]/g, "").trim();
     out.push({
       sku,
+      upc: cells[h.upc]?.trim() || undefined,
       name: (cells[h.name]?.trim() || sku),
       wholesale_price: priceRaw && !isNaN(Number(priceRaw)) ? Number(priceRaw) : undefined,
       retail_price: retailRaw && !isNaN(Number(retailRaw)) ? Number(retailRaw) : undefined,

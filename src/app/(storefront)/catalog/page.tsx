@@ -14,6 +14,7 @@ import {
 import { CatalogGrid } from "./CatalogGrid";
 import { ScrollStrip } from "./ScrollStrip";
 import { SortSheet, type SortKey } from "./SortSheet";
+import { CatalogSearchInput } from "./CatalogSearchInput";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
@@ -184,14 +185,7 @@ export default async function CatalogPage({
         <div className="px-4 md:px-0 pt-1">
           <h1 className="display text-2xl mb-3">Catalog</h1>
           <form action="/catalog" className="mb-5">
-            <input
-              type="search"
-              name="q"
-              placeholder="Search products or farms…"
-              className="input"
-              list="catalog-suggest"
-              autoComplete="off"
-            />
+            <CatalogSearchInput datalistId="catalog-suggest" />
             <datalist id="catalog-suggest">
               {suggestions.map((s) => (
                 <option key={s} value={s} />
@@ -338,14 +332,10 @@ export default async function CatalogPage({
           <p className="text-sm text-ink-secondary mb-3">All items from {producerFilter}</p>
         ) : null}
         <form action="/catalog" className="mb-3 flex gap-2">
-          <input
-            type="search"
-            name="q"
+          <CatalogSearchInput
             defaultValue={q}
             placeholder="Search name or farm"
-            className="input flex-1"
-            list="catalog-suggest-list"
-            autoComplete="off"
+            datalistId="catalog-suggest-list"
           />
           <datalist id="catalog-suggest-list">
             {suggestionsList.map((s) => (
