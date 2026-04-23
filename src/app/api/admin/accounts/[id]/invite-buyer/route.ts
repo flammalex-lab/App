@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizePhone } from "@/lib/utils/phone";
 import { sendSms } from "@/lib/twilio/client";
-import { seedStarterGuide } from "@/lib/order-guides/seed";
+import { seedGuideFromTemplates } from "@/lib/order-guides/templates";
 
 interface InviteBody {
   phone: string;
@@ -11,6 +11,7 @@ interface InviteBody {
   email?: string | null;
   title?: string | null;
   buyer_type?: string | null;
+  template_ids?: string[];
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -62,7 +63,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .select()
     .maybeSingle();
 
-  const seeded = await seedStarterGuide(svc, profileId, body.buyer_type ?? null);
+  const templateIds = (body.template_ids ?? []).filter(Boolean);
+  const seeded = templateIds.length > 0
+    ? await seedGuideFromTemplates(svc, profileId, templateIds)
+    : 0;
 
   await sendSms({
     to: e164,

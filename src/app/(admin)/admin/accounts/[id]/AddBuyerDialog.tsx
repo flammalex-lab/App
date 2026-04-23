@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
@@ -17,12 +18,21 @@ const BUYER_TYPES: BuyerType[] = [
   "grocery_buyer",
 ];
 
+export interface TemplateOption {
+  id: string;
+  name: string;
+  buyer_type: string | null;
+  itemCount: number;
+}
+
 export function AddBuyerDialog({
   accountId,
   accountBuyerType,
+  templates,
 }: {
   accountId: string;
   accountBuyerType: string | null;
+  templates: TemplateOption[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -35,6 +45,7 @@ export function AddBuyerDialog({
     title: "",
     buyer_type: (accountBuyerType ?? "gm_restaurant") as BuyerType,
   });
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
 
   function close() {
     setOpen(false);
@@ -45,6 +56,13 @@ export function AddBuyerDialog({
       title: "",
       buyer_type: (accountBuyerType ?? "gm_restaurant") as BuyerType,
     });
+    setSelectedTemplateIds([]);
+  }
+
+  function toggleTemplate(id: string) {
+    setSelectedTemplateIds((ids) =>
+      ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+    );
   }
 
   async function submit() {
@@ -62,6 +80,7 @@ export function AddBuyerDialog({
         email: form.email.trim() || null,
         title: form.title.trim() || null,
         buyer_type: form.buyer_type,
+        template_ids: selectedTemplateIds,
       }),
     });
     setSaving(false);
@@ -88,9 +107,13 @@ export function AddBuyerDialog({
     );
   }
 
+  // Group templates by buyer_type and suggest ones matching the picked type.
+  const groupedTemplates = groupByBuyerType(templates);
+  const suggested = templates.filter((t) => t.buyer_type === form.buyer_type);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="card w-full max-w-md p-5 space-y-3">
+      <div className="card w-full max-w-lg p-5 space-y-3 max-h-[92vh] overflow-y-auto">
         <div className="flex items-baseline justify-between">
           <h3 className="display text-lg">Add buyer</h3>
           <button
@@ -141,7 +164,7 @@ export function AddBuyerDialog({
 
         <Field
           label="Buyer type"
-          hint="Restricts what this buyer sees on the catalog (produce buyer → produce only). Overrides the account default."
+          hint="Restricts what this buyer sees on the catalog. Overrides the account default."
         >
           <select
             className="input"
@@ -156,11 +179,69 @@ export function AddBuyerDialog({
           </select>
         </Field>
 
-        <p className="text-xs text-ink-tertiary pt-1">
-          After saving, you&rsquo;ll land on this buyer&rsquo;s guide editor to
-          add the specific items they should see first (e.g. Barrel Brine,
-          Saturn Valley Farm).
-        </p>
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label className="label">Starter templates</label>
+            <Link
+              href="/admin/order-guides/templates"
+              className="text-xs text-brand-blue hover:underline"
+              target="_blank"
+            >
+              Manage templates ↗
+            </Link>
+          </div>
+          <p className="text-xs text-ink-secondary mb-2">
+            Pick one or more. Items from all picked templates are combined and
+            deduped to seed this buyer&rsquo;s guide. Leave empty for a blank
+            guide the buyer curates themselves.
+          </p>
+          {templates.length === 0 ? (
+            <div className="text-xs text-ink-tertiary italic">
+              No templates yet.{" "}
+              <Link href="/admin/order-guides/templates/new" className="underline text-brand-blue" target="_blank">
+                Create one →
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {suggested.length > 0 && selectedTemplateIds.length === 0 ? (
+                <p className="text-[11px] text-ink-tertiary">
+                  Suggested for {BUYER_TYPE_LABELS[form.buyer_type]}:{" "}
+                  {suggested.map((t) => t.name).join(", ")}
+                </p>
+              ) : null}
+              {Object.entries(groupedTemplates).map(([bt, list]) => (
+                <div key={bt}>
+                  <div className="text-[10px] uppercase tracking-wider text-ink-tertiary mb-1">
+                    {bt === "_none" ? "General" : BUYER_TYPE_LABELS[bt as BuyerType]}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {list.map((t) => {
+                      const on = selectedTemplateIds.includes(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => toggleTemplate(t.id)}
+                          className={`px-3 py-1 rounded-full border text-xs transition ${
+                            on
+                              ? "bg-brand-blue text-white border-brand-blue"
+                              : "bg-white text-ink-primary border-black/10 hover:bg-bg-secondary"
+                          }`}
+                        >
+                          {t.name}
+                          <span className={`ml-1 tabular ${on ? "opacity-80" : "text-ink-tertiary"}`}>
+                            {t.itemCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
           <Button variant="ghost" onClick={close}>
@@ -173,4 +254,13 @@ export function AddBuyerDialog({
       </div>
     </div>
   );
+}
+
+function groupByBuyerType(templates: TemplateOption[]): Record<string, TemplateOption[]> {
+  const out: Record<string, TemplateOption[]> = {};
+  for (const t of templates) {
+    const key = t.buyer_type ?? "_none";
+    (out[key] ??= []).push(t);
+  }
+  return out;
 }

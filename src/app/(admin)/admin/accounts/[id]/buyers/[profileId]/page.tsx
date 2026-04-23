@@ -8,7 +8,8 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, money } from "@/lib/utils/format";
 import { BuyerForm } from "./BuyerForm";
 import { DeleteBuyerButton } from "./DeleteBuyerButton";
-import { ReseedGuideButton } from "./ReseedGuideButton";
+import { TemplateSyncPanel, type TemplateLite } from "./TemplateSyncPanel";
+import { computeGuideDrift } from "@/lib/order-guides/templates";
 
 export default async function BuyerEditPage({
   params,
@@ -19,7 +20,14 @@ export default async function BuyerEditPage({
   const { id: accountId, profileId } = await params;
   const svc = createServiceClient();
 
-  const [{ data: account }, { data: profile }, { data: guide }, { data: orders }] = await Promise.all([
+  const [
+    { data: account },
+    { data: profile },
+    { data: guide },
+    { data: orders },
+    { data: allTemplatesRaw },
+    { data: templateItemCountsRaw },
+  ] = await Promise.all([
     svc.from("accounts").select("*").eq("id", accountId).maybeSingle(),
     svc.from("profiles").select("*").eq("id", profileId).maybeSingle(),
     svc
@@ -35,6 +43,11 @@ export default async function BuyerEditPage({
       .eq("profile_id", profileId)
       .order("created_at", { ascending: false })
       .limit(5),
+    svc
+      .from("order_guide_templates")
+      .select("id, name, buyer_type")
+      .order("name"),
+    svc.from("order_guide_template_items").select("template_id"),
   ]);
 
   if (!account || !profile) notFound();
@@ -49,6 +62,33 @@ export default async function BuyerEditPage({
   );
   const effectiveType = (p.buyer_type ?? a.buyer_type) as BuyerType | null;
   const orderCount = ((orders as Order[] | null) ?? []).length;
+
+  // Template item counts map
+  const itemCounts = new Map<string, number>();
+  for (const r of ((templateItemCountsRaw as { template_id: string }[] | null) ?? [])) {
+    itemCounts.set(r.template_id, (itemCounts.get(r.template_id) ?? 0) + 1);
+  }
+  const allTemplates: TemplateLite[] = ((allTemplatesRaw as { id: string; name: string; buyer_type: string | null }[] | null) ?? []).map(
+    (t) => ({ ...t, itemCount: itemCounts.get(t.id) ?? 0 }),
+  );
+
+  // Source templates currently attached to this buyer's guide.
+  let sourceTemplates: TemplateLite[] = [];
+  let drift = { addedByBuyer: 0, removedFromTemplates: 0, pendingSync: 0 };
+  if (guideRow?.id) {
+    const { data: sourcesRaw } = await svc
+      .from("order_guide_seed_sources")
+      .select("template_id")
+      .eq("guide_id", guideRow.id);
+    const sourceIds = new Set(((sourcesRaw as { template_id: string }[] | null) ?? []).map((s) => s.template_id));
+    sourceTemplates = allTemplates.filter((t) => sourceIds.has(t.id));
+    const d = await computeGuideDrift(svc, profileId, guideRow.id);
+    drift = {
+      addedByBuyer: d.addedByBuyer,
+      removedFromTemplates: d.removedFromTemplates,
+      pendingSync: d.pendingSync,
+    };
+  }
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -85,8 +125,8 @@ export default async function BuyerEditPage({
             Open editor →
           </Link>
         </div>
-        <div className="card p-4 flex items-center justify-between gap-3">
-          <div className="text-sm min-w-0">
+        <div className="card p-4 mb-3">
+          <div className="text-sm">
             {guideCount > 0 ? (
               <>
                 <span className="tabular font-semibold">{guideCount}</span>{" "}
@@ -97,17 +137,25 @@ export default async function BuyerEditPage({
                   </span>
                 ) : null}
                 {effectiveType ? (
-                  <span className="text-ink-tertiary"> · buyer type: {BUYER_TYPE_LABELS[effectiveType]}</span>
+                  <span className="text-ink-tertiary">
+                    {" "}· buyer type: {BUYER_TYPE_LABELS[effectiveType]}
+                  </span>
                 ) : null}
               </>
             ) : (
               <span className="text-ink-secondary italic">
-                Empty — seed starter items or open the editor to curate.
+                Empty — attach a template below to seed starter items, or open
+                the editor to curate manually.
               </span>
             )}
           </div>
-          <ReseedGuideButton profileId={p.id} guideCount={guideCount} />
         </div>
+        <TemplateSyncPanel
+          profileId={p.id}
+          sourceTemplates={sourceTemplates}
+          availableTemplates={allTemplates}
+          drift={drift}
+        />
       </section>
 
       <section>

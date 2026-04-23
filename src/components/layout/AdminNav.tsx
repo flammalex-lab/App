@@ -19,6 +19,7 @@ const SECTIONS: { title?: string; links: NavLink[] }[] = [
     title: "Workflow",
     links: [
       { href: "/admin/order-guides", label: "Order guides" },
+      { href: "/admin/order-guides/templates", label: "Guide templates" },
       { href: "/admin/pricing", label: "Pricing" },
       { href: "/admin/standing", label: "Standing orders" },
       { href: "/admin/messages", label: "Messages" },

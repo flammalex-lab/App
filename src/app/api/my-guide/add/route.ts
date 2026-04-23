@@ -18,6 +18,13 @@ export async function POST(request: Request) {
   const guide = await getOrCreateDefaultGuide(svc, profileId);
   if (!guide) return NextResponse.json({ error: "couldn't resolve default guide" }, { status: 500 });
 
+  // Clear any tombstone so future syncs can include this product again.
+  await svc
+    .from("order_guide_item_removals")
+    .delete()
+    .eq("profile_id", profileId)
+    .eq("product_id", product_id);
+
   // Bail if already in the guide (unique constraint on order_guide_id+product_id).
   const { data: existing } = await svc
     .from("order_guide_items")

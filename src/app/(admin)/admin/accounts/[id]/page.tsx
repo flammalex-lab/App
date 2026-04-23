@@ -30,14 +30,30 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
   const { data: account } = await db.from("accounts").select("*").eq("id", id).maybeSingle();
   if (!account) notFound();
 
-  const [{ data: buyers }, { data: orders }, { data: activities }, { data: standing }, overrideCount] =
-    await Promise.all([
-      db.from("profiles").select("*").eq("account_id", id),
-      db.from("orders").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(25),
-      db.from("activities").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(25),
-      db.from("standing_orders").select("*").eq("account_id", id),
-      db.from("account_pricing").select("id", { count: "exact", head: true }).eq("account_id", id),
-    ]);
+  const [
+    { data: buyers },
+    { data: orders },
+    { data: activities },
+    { data: standing },
+    overrideCount,
+    { data: templatesRaw },
+    { data: templateItemCountsRaw },
+  ] = await Promise.all([
+    db.from("profiles").select("*").eq("account_id", id),
+    db.from("orders").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(25),
+    db.from("activities").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(25),
+    db.from("standing_orders").select("*").eq("account_id", id),
+    db.from("account_pricing").select("id", { count: "exact", head: true }).eq("account_id", id),
+    db.from("order_guide_templates").select("id, name, buyer_type").order("name"),
+    db.from("order_guide_template_items").select("template_id"),
+  ]);
+
+  const itemCounts = new Map<string, number>();
+  for (const r of ((templateItemCountsRaw as { template_id: string }[] | null) ?? [])) {
+    itemCounts.set(r.template_id, (itemCounts.get(r.template_id) ?? 0) + 1);
+  }
+  const templateOptions = ((templatesRaw as { id: string; name: string; buyer_type: string | null }[] | null) ?? [])
+    .map((t) => ({ ...t, itemCount: itemCounts.get(t.id) ?? 0 }));
 
   // Per-buyer guide stats — one batched query, aggregated in memory.
   const buyerStats: Record<string, BuyerGuideStats> = {};
@@ -89,6 +105,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
           <AddBuyerDialog
             accountId={id}
             accountBuyerType={(account as Account).buyer_type}
+            templates={templateOptions}
           />
         </div>
         <div className="card divide-y divide-black/5">

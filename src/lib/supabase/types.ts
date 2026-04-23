@@ -177,6 +177,35 @@ export interface OrderGuideItem {
   sort_order: number;
 }
 
+export interface OrderGuideTemplate {
+  id: string;
+  name: string;
+  buyer_type: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderGuideTemplateItem {
+  id: string;
+  template_id: string;
+  product_id: string;
+  suggested_qty: number | null;
+  par_levels: Record<string, number> | null;
+  sort_order: number;
+}
+
+export interface OrderGuideSeedSource {
+  guide_id: string;
+  template_id: string;
+}
+
+export interface OrderGuideItemRemoval {
+  profile_id: string;
+  product_id: string;
+  removed_at: string;
+}
+
 export interface Order {
   id: string;
   order_number: string;
