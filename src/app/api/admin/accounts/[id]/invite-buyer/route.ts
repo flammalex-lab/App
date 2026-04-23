@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizePhone } from "@/lib/utils/phone";
 import { sendSms } from "@/lib/twilio/client";
-import { allowedGroupsFor } from "@/lib/constants";
+import { allowedCategoriesFor, allowedGroupsFor } from "@/lib/constants";
 
 interface InviteBody {
   phone: string;
@@ -97,31 +97,41 @@ async function seedStarterGuide(
   }
   if (!guideRow) return 0;
 
-  const allowed = allowedGroupsFor(buyerType);
-  if (allowed.length === 0) return 0;
+  const allowedGroups = allowedGroupsFor(buyerType);
+  const allowedCats = allowedCategoriesFor(buyerType);
+  if (allowedGroups.length === 0 && allowedCats.length === 0) return 0;
 
-  // Fetch starter items. We cascade from strictest to most permissive so a
-  // sparsely-flagged catalog still yields a seeded guide:
-  //   1) in allowed groups, B2B-available, flagged for this week
-  //   2) in allowed groups, B2B-available (any week)
-  //   3) in allowed groups, active (ignoring B2B flag — covers catalogs
-  //      where the admin hasn't toggled availability yet)
-  async function fetchCandidates(
-    stage: 1 | 2 | 3,
-  ): Promise<{ id: string }[]> {
-    let q = svc.from("products").select("id").eq("is_active", true).in("product_group", allowed);
+  // Match on EITHER category OR product_group so we cover both old data
+  // (category only) and new data (product_group backfilled by 0006).
+  const orExpr = [
+    allowedCats.length ? `category.in.(${allowedCats.join(",")})` : null,
+    allowedGroups.length ? `product_group.in.(${allowedGroups.join(",")})` : null,
+  ]
+    .filter(Boolean)
+    .join(",");
+
+  // Cascade from strictest filter to most permissive so a sparsely-flagged
+  // catalog still yields a seeded guide.
+  async function fetchCandidates(stage: 1 | 2 | 3): Promise<{ id: string }[]> {
+    let q = svc.from("products").select("id").eq("is_active", true).or(orExpr);
     if (stage <= 2) q = q.eq("available_b2b", true);
     if (stage === 1) q = q.eq("available_this_week", true);
-    const { data } = await q
+    const { data, error: qErr } = await q
       .order("sort_order", { ascending: true })
       .limit(STARTER_GUIDE_LIMIT);
+    if (qErr) console.error(`[invite-buyer] seed stage ${stage} query failed:`, qErr.message);
     return (data as { id: string }[] | null) ?? [];
   }
 
   let candidates = await fetchCandidates(1);
   if (candidates.length === 0) candidates = await fetchCandidates(2);
   if (candidates.length === 0) candidates = await fetchCandidates(3);
-  if (candidates.length === 0) return 0;
+  if (candidates.length === 0) {
+    console.warn(
+      `[invite-buyer] no candidate products for buyer_type=${buyerType} (categories=${allowedCats.join("|")} groups=${allowedGroups.join("|")})`,
+    );
+    return 0;
+  }
 
   const rows = candidates.map((p, i) => ({
     order_guide_id: guideRow!.id,

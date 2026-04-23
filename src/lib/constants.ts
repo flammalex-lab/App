@@ -70,6 +70,37 @@ export function allowedGroupsFor(buyerType: string | null | undefined): ProductG
   }
 }
 
+const ALL_CATEGORIES: Category[] = [
+  "beef", "pork", "lamb", "eggs", "dairy", "produce", "pantry", "beverages",
+];
+
+/**
+ * Category-level fallback for allowedGroupsFor. Used to filter products when
+ * product_group isn't populated on rows (older data that predates the 0006
+ * backfill, or imports that didn't set the column). Matches the folding in
+ * migration 0006: meat = beef+pork+lamb, dairy = dairy+eggs,
+ * grocery = pantry+beverages.
+ */
+export function allowedCategoriesFor(buyerType: string | null | undefined): Category[] {
+  switch (buyerType) {
+    case "gm_retail":
+    case "gm_restaurant":
+      return [...ALL_CATEGORIES];
+    case "meat_buyer":
+      return ["beef", "pork", "lamb"];
+    case "produce_buyer":
+      return ["produce"];
+    case "dairy_buyer":
+      return ["dairy", "eggs"];
+    case "cheese_buyer":
+      return ["dairy"]; // cheese lives under dairy in the category enum
+    case "grocery_buyer":
+      return ["pantry", "beverages"];
+    default:
+      return [...ALL_CATEGORIES];
+  }
+}
+
 export const ZONE_LABELS: Record<DeliveryZone, string> = {
   finger_lakes: "Finger Lakes",
   nyc_metro: "NYC Metro",
