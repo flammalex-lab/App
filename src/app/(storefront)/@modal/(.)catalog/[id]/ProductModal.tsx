@@ -99,7 +99,7 @@ export function ProductModal({
                 {producerOrBrand.slice(0, 1).toUpperCase()}
               </span>
               <span>
-                Shop more <span className="underline font-medium">{producerOrBrand}</span>
+                Find more from <span className="underline font-medium">{producerOrBrand}</span>
               </span>
             </Link>
           ) : null}
