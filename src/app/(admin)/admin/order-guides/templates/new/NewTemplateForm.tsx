@@ -17,12 +17,20 @@ const BUYER_TYPES: BuyerType[] = [
   "grocery_buyer",
 ];
 
-export function NewTemplateForm() {
+export interface TemplateSourceOption {
+  id: string;
+  name: string;
+  buyer_type: string | null;
+  itemCount: number;
+}
+
+export function NewTemplateForm({ sources }: { sources: TemplateSourceOption[] }) {
   const router = useRouter();
   const toast = useToast();
   const [name, setName] = useState("");
   const [buyerType, setBuyerType] = useState<string>("");
   const [description, setDescription] = useState("");
+  const [seedFrom, setSeedFrom] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -38,6 +46,7 @@ export function NewTemplateForm() {
         name: name.trim(),
         buyer_type: buyerType || null,
         description: description.trim() || null,
+        seed_from_template_id: seedFrom || null,
       }),
     });
     setSaving(false);
@@ -45,10 +54,18 @@ export function NewTemplateForm() {
       toast.push((await res.json()).error ?? "Create failed", "error");
       return;
     }
-    const { id } = (await res.json()) as { id: string };
-    toast.push("Template created — add items next", "success");
+    const { id, seeded } = (await res.json()) as { id: string; seeded: number };
+    toast.push(
+      seeded > 0 ? `Template created · cloned ${seeded} items` : "Template created",
+      "success",
+    );
     router.push(`/admin/order-guides/templates/${id}`);
   }
+
+  const seedSourceLabel =
+    seedFrom && sources.find((s) => s.id === seedFrom)?.itemCount
+      ? `${sources.find((s) => s.id === seedFrom)!.itemCount} items will be copied`
+      : "Start empty";
 
   return (
     <div className="card p-5 space-y-3">
@@ -64,11 +81,30 @@ export function NewTemplateForm() {
         label="Suggested buyer type (optional)"
         hint="Surfaces this template as a matching default when adding a buyer of this type."
       >
-        <select className="input" value={buyerType} onChange={(e) => setBuyerType(e.target.value)}>
+        <select
+          className="input"
+          value={buyerType}
+          onChange={(e) => setBuyerType(e.target.value)}
+        >
           <option value="">No association</option>
           {BUYER_TYPES.map((t) => (
             <option key={t} value={t}>
               {BUYER_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field
+        label="Seed from existing template (optional)"
+        hint={seedSourceLabel}
+      >
+        <select className="input" value={seedFrom} onChange={(e) => setSeedFrom(e.target.value)}>
+          <option value="">— start empty —</option>
+          {sources.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+              {s.buyer_type ? ` · ${BUYER_TYPE_LABELS[s.buyer_type as BuyerType] ?? s.buyer_type}` : ""}
+              {" "}({s.itemCount})
             </option>
           ))}
         </select>
