@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { money } from "@/lib/utils/format";
+import { useToast } from "@/components/ui/Toast";
 import type { PackRow } from "./packs";
 
 export type { PackRow } from "./packs";
@@ -21,6 +22,7 @@ export function ProductDetailClient({
   inGuideInitial: boolean;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
   const lines = useCart((s) => s.lines);
@@ -59,7 +61,18 @@ export function ProductDetailClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ product_id: product.id }),
     });
-    setGuideState(res.ok ? "saved" : "idle");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Failed to add to guide" }));
+      toast.push(err.error ?? "Failed to add to guide", "error");
+      setGuideState("idle");
+      return;
+    }
+    const body = (await res.json().catch(() => ({}))) as { alreadyExisted?: boolean };
+    setGuideState("saved");
+    toast.push(body.alreadyExisted ? "Already in your guide" : "Added to your guide", "success");
+    // Refresh the underlying page so /guide reflects the new item when the
+    // modal closes.
+    router.refresh();
   }
 
   const saved = guideState === "saved";
