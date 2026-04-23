@@ -10,7 +10,6 @@ import type {
   OrderGuideItem,
   Product,
 } from "@/lib/supabase/types";
-import type { ProductGroup } from "@/lib/constants";
 import { GuideClient } from "./GuideClient";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { money } from "@/lib/utils/format";
@@ -110,12 +109,6 @@ export default async function GuidePage() {
     };
   }
 
-  const groups = Array.from(
-    new Set(
-      items.map((r) => r.product.product_group).filter((g): g is ProductGroup => !!g),
-    ),
-  );
-
   // Time-of-day greeting
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -164,7 +157,7 @@ export default async function GuidePage() {
           <Link href="/catalog" className="btn-primary text-sm">Browse the catalog</Link>
         </div>
       ) : (
-        <GuideClient items={items} groups={groups} />
+        <GuideClient items={items} />
       )}
     </div>
   );
