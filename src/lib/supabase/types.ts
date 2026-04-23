@@ -38,6 +38,7 @@ export interface Profile {
   phone: string | null;
   email: string | null;
   account_id: string | null;
+  buyer_type: string | null;
   title: string | null;
   notes: string | null;
   notification_prefs: NotificationPrefs;

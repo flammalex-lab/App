@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import type { Account, Activity, Order, Profile, StandingOrder } from "@/lib/supabase/types";
 import { AccountForm } from "./AccountForm";
 import { ActivityLogForm } from "./ActivityLogForm";
+import { AddBuyerDialog } from "./AddBuyerDialog";
 import { dateShort, money } from "@/lib/utils/format";
-import { GROUP_LABELS, type ProductGroup } from "@/lib/constants";
+import { BUYER_TYPE_LABELS, GROUP_LABELS, type BuyerType, type ProductGroup } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/Badge";
 
 interface BuyerGuideStats {
@@ -78,22 +79,41 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
       <AccountForm account={account as Account} />
 
       <section>
-        <div className="flex items-baseline justify-between mb-2">
-          <h2 className="display text-xl">Buyers</h2>
-          <span className="text-xs text-ink-tertiary">
-            Each buyer has their own order guide
-          </span>
+        <div className="flex items-center justify-between mb-2 gap-3">
+          <div>
+            <h2 className="display text-xl">Buyers</h2>
+            <p className="text-xs text-ink-tertiary mt-0.5">
+              Each buyer gets their own catalog scope and order guide
+            </p>
+          </div>
+          <AddBuyerDialog
+            accountId={id}
+            accountBuyerType={(account as Account).buyer_type}
+          />
         </div>
         <div className="card divide-y divide-black/5">
           {((buyers as Profile[] | null) ?? []).map((b) => {
             const stats = buyerStats[b.id];
             const groupLabels = stats?.groups.map((g) => GROUP_LABELS[g]) ?? [];
+            const effectiveType = (b.buyer_type ?? (account as Account).buyer_type) as BuyerType | null;
+            const typeLabel = effectiveType ? BUYER_TYPE_LABELS[effectiveType] : null;
+            const isOverride = !!b.buyer_type && b.buyer_type !== (account as Account).buyer_type;
             return (
               <div key={b.id} className="p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate">
-                    {b.first_name} {b.last_name}
-                    {b.title ? <span className="text-ink-tertiary font-normal"> · {b.title}</span> : null}
+                  <div className="font-medium truncate flex items-center gap-2 flex-wrap">
+                    <span>
+                      {b.first_name} {b.last_name}
+                      {b.title ? <span className="text-ink-tertiary font-normal"> · {b.title}</span> : null}
+                    </span>
+                    {typeLabel ? (
+                      <span
+                        className={isOverride ? "badge-blue" : "badge-gray"}
+                        title={isOverride ? "Per-buyer override of the account buyer type" : "Inherited from account"}
+                      >
+                        {typeLabel}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="text-xs text-ink-secondary truncate mt-0.5">
                     {b.email ?? b.phone}
@@ -124,8 +144,8 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
             );
           })}
           {!(buyers as Profile[] | null)?.length ? (
-            <div className="p-4 text-sm text-ink-secondary">
-              No buyers yet. Invite one from the account form.
+            <div className="p-6 text-sm text-ink-secondary text-center">
+              No buyers yet. Click <strong>Add buyer</strong> above to invite one.
             </div>
           ) : null}
         </div>

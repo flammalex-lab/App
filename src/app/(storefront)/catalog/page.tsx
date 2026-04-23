@@ -61,7 +61,9 @@ export default async function CatalogPage({
   const { active } = await resolveActiveAccount(profileId, me.account_id);
   const account = active;
 
-  const allowed = allowedGroupsFor(account?.buyer_type);
+  // Per-buyer buyer_type overrides the account's (see migration 0009).
+  const effectiveBuyerType = me.buyer_type ?? account?.buyer_type ?? null;
+  const allowed = allowedGroupsFor(effectiveBuyerType);
   const sp = await searchParams;
   const groupFilter =
     sp.group && allowed.includes(sp.group as ProductGroup) ? (sp.group as ProductGroup) : null;
