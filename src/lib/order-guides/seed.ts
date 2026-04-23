@@ -1,5 +1,6 @@
 import type { createServiceClient } from "@/lib/supabase/server";
 import { allowedCategoriesFor, allowedGroupsFor } from "@/lib/constants";
+import { getOrCreateDefaultGuide } from "@/lib/order-guides/default-guide";
 
 const STARTER_GUIDE_LIMIT = 15;
 
@@ -17,22 +18,9 @@ export async function seedStarterGuide(
   buyerType: string | null,
   opts: { replaceExisting?: boolean } = {},
 ): Promise<number> {
-  let { data: guideRow } = await svc
-    .from("order_guides")
-    .select("id")
-    .eq("profile_id", profileId)
-    .eq("is_default", true)
-    .maybeSingle();
-  if (!guideRow) {
-    const { data: inserted } = await svc
-      .from("order_guides")
-      .insert({ profile_id: profileId, name: "My order guide", is_default: true })
-      .select("id")
-      .single();
-    guideRow = inserted;
-  }
-  if (!guideRow) return 0;
-  const guideId = guideRow.id;
+  const guide = await getOrCreateDefaultGuide(svc, profileId);
+  if (!guide) return 0;
+  const guideId = guide.id;
 
   // Don't wipe a curated guide unless asked.
   if (!opts.replaceExisting) {

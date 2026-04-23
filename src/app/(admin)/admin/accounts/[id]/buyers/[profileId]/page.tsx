@@ -27,7 +27,8 @@ export default async function BuyerEditPage({
       .select("id, order_guide_items(product:products(product_group))")
       .eq("profile_id", profileId)
       .eq("is_default", true)
-      .maybeSingle(),
+      .order("created_at", { ascending: true })
+      .limit(1),
     svc
       .from("orders")
       .select("*")
@@ -40,7 +41,8 @@ export default async function BuyerEditPage({
   const a = account as Account;
   const p = profile as Profile;
 
-  const guideItems = ((guide as any)?.order_guide_items ?? []) as { product: { product_group: string | null } | null }[];
+  const guideRow = ((guide as any[] | null) ?? [])[0] ?? null;
+  const guideItems = ((guideRow?.order_guide_items ?? []) as { product: { product_group: string | null } | null }[]);
   const guideCount = guideItems.length;
   const guideGroups = Array.from(
     new Set(guideItems.map((g) => g.product?.product_group).filter((g): g is ProductGroup => !!g)),

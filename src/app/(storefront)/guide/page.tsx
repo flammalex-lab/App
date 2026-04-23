@@ -33,14 +33,16 @@ export default async function GuidePage() {
     : { data: null as Account | null };
   const account = accountRow as Account | null;
 
-  // Default order guide
-  const { data: guideRow } = await db
+  // Default order guide. Use limit(1) + order by created_at so legacy rows
+  // with multiple defaults (pre-0010 dedupe) still resolve deterministically.
+  const { data: guideRows } = await db
     .from("order_guides")
     .select("*")
     .eq("profile_id", profileId)
     .eq("is_default", true)
-    .maybeSingle();
-  const guide = guideRow as OrderGuide | null;
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const guide = ((guideRows as OrderGuide[] | null) ?? [])[0] ?? null;
 
   let items: GuideRow[] = [];
   if (guide) {

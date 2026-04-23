@@ -15,17 +15,23 @@ export default async function AdminGuideEditPage({
   const { id: accountId, profileId } = await params;
   const svc = createServiceClient();
 
-  const [{ data: profile }, { data: account }, { data: guideRow }] = await Promise.all([
+  const [{ data: profile }, { data: account }, { data: guideRows }] = await Promise.all([
     svc.from("profiles").select("*").eq("id", profileId).maybeSingle(),
     svc.from("accounts").select("*").eq("id", accountId).maybeSingle(),
-    svc.from("order_guides").select("*").eq("profile_id", profileId).eq("is_default", true).maybeSingle(),
+    svc
+      .from("order_guides")
+      .select("*")
+      .eq("profile_id", profileId)
+      .eq("is_default", true)
+      .order("created_at", { ascending: true })
+      .limit(1),
   ]);
   if (!profile || !account) notFound();
   const a = account as Account;
   const p = profile as Profile;
 
   // If no default guide yet, create one on the fly
-  let guide = guideRow as OrderGuide | null;
+  let guide = ((guideRows as OrderGuide[] | null) ?? [])[0] ?? null;
   if (!guide) {
     const { data: created } = await svc
       .from("order_guides")
