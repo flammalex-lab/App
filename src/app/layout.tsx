@@ -7,7 +7,12 @@ export const metadata: Metadata = {
   title: "Fingerlakes Farms",
   description: "Order fresh NYS farm products — wholesale and direct.",
   manifest: "/manifest.json",
-  icons: { icon: "/favicon.svg" },
+  icons: {
+    icon: [
+      { url: "/images/flf-logo.png", type: "image/png", sizes: "500x500" },
+    ],
+    apple: { url: "/images/flf-logo.png" },
+  },
   appleWebApp: { capable: true, statusBarStyle: "default", title: "FLF" },
 };
 
