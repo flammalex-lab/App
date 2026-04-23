@@ -133,8 +133,8 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <Link href={`/admin/accounts/${id}/guide/${b.id}`} className="btn-ghost text-sm">
-                    Edit guide
+                  <Link href={`/admin/accounts/${id}/buyers/${b.id}`} className="btn-ghost text-sm">
+                    Edit buyer
                   </Link>
                   <form action={`/api/admin/impersonate/start?profileId=${b.id}`} method="post">
                     <button className="btn-secondary text-sm">View as buyer</button>
