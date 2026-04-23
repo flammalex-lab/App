@@ -34,9 +34,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const firstName = body.name.split(" ")[0] ?? "";
   const lastName = body.name.split(" ").slice(1).join(" ");
 
-  // Create the auth user with phone (no password — they'll sign in via OTP).
-  // The handle_new_user trigger inserts the profile row, and the
-  // ensure_default_order_guide trigger creates their default guide.
   const { data: created, error } = await svc.auth.admin.createUser({
     phone: e164,
     phone_confirm: true,
@@ -52,7 +49,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const profileId = created.user.id;
 
-  // Update profile with account link, title, buyer_type override, email.
   await svc
     .from("profiles")
     .update({
@@ -64,34 +60,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     })
     .eq("id", profileId);
 
-  // Ensure a profile_accounts row exists for the multi-account path.
   await svc
     .from("profile_accounts")
     .insert({ profile_id: profileId, account_id: accountId, is_default: true })
     .select()
     .maybeSingle();
 
-  // Seed the default guide with starter items matching the buyer's allowed
-  // groups. Uses allowedGroupsFor() so the seed matches exactly what the
-  // buyer can see on /catalog.
-  await seedStarterGuide(svc, profileId, body.buyer_type ?? null);
+  const seeded = await seedStarterGuide(svc, profileId, body.buyer_type ?? null);
 
-  // Welcome SMS
   await sendSms({
     to: e164,
     body: `Welcome to Fingerlakes Farms. Sign in at ${process.env.NEXT_PUBLIC_APP_URL}/login — enter this number to receive a code.`,
   });
 
-  return NextResponse.json({ ok: true, profileId });
+  return NextResponse.json({ ok: true, profileId, seeded });
 }
 
 async function seedStarterGuide(
   svc: ReturnType<typeof createServiceClient>,
   profileId: string,
   buyerType: string | null,
-): Promise<void> {
-  // Fetch (or ensure) the default guide. The ensure_default_order_guide
-  // trigger should have created it already, but handle the race just in case.
+): Promise<number> {
   let { data: guideRow } = await svc
     .from("order_guides")
     .select("id")
@@ -106,30 +95,43 @@ async function seedStarterGuide(
       .single();
     guideRow = inserted;
   }
-  if (!guideRow) return;
+  if (!guideRow) return 0;
 
   const allowed = allowedGroupsFor(buyerType);
-  if (allowed.length === 0) return;
+  if (allowed.length === 0) return 0;
 
-  // Pick starter items: currently-available, B2B-enabled products in the
-  // buyer's groups, ordered by sort_order (same signal the catalog uses
-  // for "Best sellers").
-  const { data: products } = await svc
-    .from("products")
-    .select("id")
-    .eq("is_active", true)
-    .eq("available_b2b", true)
-    .eq("available_this_week", true)
-    .in("product_group", allowed)
-    .order("sort_order", { ascending: true })
-    .limit(STARTER_GUIDE_LIMIT);
+  // Fetch starter items. We cascade from strictest to most permissive so a
+  // sparsely-flagged catalog still yields a seeded guide:
+  //   1) in allowed groups, B2B-available, flagged for this week
+  //   2) in allowed groups, B2B-available (any week)
+  //   3) in allowed groups, active (ignoring B2B flag — covers catalogs
+  //      where the admin hasn't toggled availability yet)
+  async function fetchCandidates(
+    stage: 1 | 2 | 3,
+  ): Promise<{ id: string }[]> {
+    let q = svc.from("products").select("id").eq("is_active", true).in("product_group", allowed);
+    if (stage <= 2) q = q.eq("available_b2b", true);
+    if (stage === 1) q = q.eq("available_this_week", true);
+    const { data } = await q
+      .order("sort_order", { ascending: true })
+      .limit(STARTER_GUIDE_LIMIT);
+    return (data as { id: string }[] | null) ?? [];
+  }
 
-  const rows = (products ?? []).map((p, i) => ({
+  let candidates = await fetchCandidates(1);
+  if (candidates.length === 0) candidates = await fetchCandidates(2);
+  if (candidates.length === 0) candidates = await fetchCandidates(3);
+  if (candidates.length === 0) return 0;
+
+  const rows = candidates.map((p, i) => ({
     order_guide_id: guideRow!.id,
     product_id: p.id,
     sort_order: i,
   }));
-  if (rows.length === 0) return;
-
-  await svc.from("order_guide_items").insert(rows);
+  const { error: insertErr } = await svc.from("order_guide_items").insert(rows);
+  if (insertErr) {
+    console.error("[invite-buyer] seed insert failed:", insertErr.message);
+    return 0;
+  }
+  return rows.length;
 }

@@ -69,9 +69,15 @@ export function AddBuyerDialog({
       toast.push((await res.json()).error ?? "Failed to add buyer", "error");
       return;
     }
-    const { profileId } = (await res.json()) as { profileId: string };
-    toast.push("Buyer added · opening their guide", "success");
-    router.push(`/admin/accounts/${accountId}/guide/${profileId}`);
+    const { seeded } = (await res.json()) as { seeded?: number };
+    toast.push(
+      seeded && seeded > 0
+        ? `Buyer added · guide seeded with ${seeded} items`
+        : "Buyer added",
+      "success",
+    );
+    close();
+    router.refresh();
   }
 
   if (!open) {
