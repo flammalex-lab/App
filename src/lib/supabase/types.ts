@@ -99,6 +99,7 @@ export interface PackOption {
 export interface Product {
   id: string;
   sku: string | null;
+  upc: string | null;
   brand: Brand;
   category: Category;
   name: string;
