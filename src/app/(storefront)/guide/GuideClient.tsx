@@ -3,22 +3,21 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Category } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { money, dateShort } from "@/lib/utils/format";
-import { CATEGORY_LABELS, DAY_SHORT } from "@/lib/constants";
+import { GROUP_LABELS, DAY_SHORT, type ProductGroup } from "@/lib/constants";
 import { productImage } from "@/lib/utils/product-image";
 import { Button } from "@/components/ui/Button";
 import type { GuideRow } from "./page";
 
 interface Props {
   items: GuideRow[];
-  categories: Category[];
+  groups: ProductGroup[];
 }
 
-export function GuideClient({ items, categories }: Props) {
+export function GuideClient({ items, groups }: Props) {
   const router = useRouter();
-  const [filter, setFilter] = useState<Category | null>(null);
+  const [filter, setFilter] = useState<ProductGroup | null>(null);
   const [search, setSearch] = useState("");
 
   // Seed draft qty from today's par level, falling back to suggested qty
@@ -41,7 +40,7 @@ export function GuideClient({ items, categories }: Props) {
 
   const visible = useMemo(() => {
     return items.filter((r) => {
-      if (filter && r.product.category !== filter) return false;
+      if (filter && r.product.product_group !== filter) return false;
       if (search && !r.product.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
@@ -95,11 +94,11 @@ export function GuideClient({ items, categories }: Props) {
           <FilterChip active={filter === null} onClick={() => setFilter(null)}>
             All ({items.length})
           </FilterChip>
-          {categories.map((c) => {
-            const count = items.filter((r) => r.product.category === c).length;
+          {groups.map((g) => {
+            const count = items.filter((r) => r.product.product_group === g).length;
             return (
-              <FilterChip key={c} active={filter === c} onClick={() => setFilter(c)}>
-                {CATEGORY_LABELS[c]} ({count})
+              <FilterChip key={g} active={filter === g} onClick={() => setFilter(g)}>
+                {GROUP_LABELS[g]} ({count})
               </FilterChip>
             );
           })}

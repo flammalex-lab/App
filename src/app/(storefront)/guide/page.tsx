@@ -6,11 +6,11 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import type {
   Account,
   AccountPricing,
-  Category,
   OrderGuide,
   OrderGuideItem,
   Product,
 } from "@/lib/supabase/types";
+import type { ProductGroup } from "@/lib/constants";
 import { GuideClient } from "./GuideClient";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { money } from "@/lib/utils/format";
@@ -108,7 +108,11 @@ export default async function GuidePage() {
     };
   }
 
-  const categories = Array.from(new Set(items.map((r) => r.product.category))) as Category[];
+  const groups = Array.from(
+    new Set(
+      items.map((r) => r.product.product_group).filter((g): g is ProductGroup => !!g),
+    ),
+  );
 
   // Time-of-day greeting
   const hour = new Date().getHours();
@@ -158,7 +162,7 @@ export default async function GuidePage() {
           <Link href="/catalog" className="btn-primary text-sm">Browse the catalog</Link>
         </div>
       ) : (
-        <GuideClient items={items} categories={categories} />
+        <GuideClient items={items} groups={groups} />
       )}
     </div>
   );
