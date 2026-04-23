@@ -20,26 +20,39 @@ export default async function ChatPage() {
   const me = meData as Profile;
 
   const { active } = await resolveActiveAccount(me.id, me.account_id);
-  if (!active) redirect("/account");
+  const accountId = active?.id ?? null;
 
-  const { data } = await db
-    .from("messages")
-    .select("*")
-    .eq("account_id", active.id)
-    .order("created_at", { ascending: true })
-    .limit(200);
+  // Fetch the thread: either the account thread OR the buyer's personal
+  // account-less thread (account_id IS NULL + sender/recipient is them).
+  let messages: Message[] = [];
+  if (accountId) {
+    const { data } = await db
+      .from("messages")
+      .select("*")
+      .eq("account_id", accountId)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    messages = (data as Message[] | null) ?? [];
+  } else {
+    const { data } = await db
+      .from("messages")
+      .select("*")
+      .is("account_id", null)
+      .or(`from_profile_id.eq.${profileId},to_profile_id.eq.${profileId}`)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    messages = (data as Message[] | null) ?? [];
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="display text-2xl mb-1">Chat</h1>
       <p className="text-xs text-ink-secondary mb-3">
-        Messages go to your rep as a text too — reply from either side.
+        {accountId
+          ? "Messages go to your rep as a text too — reply from either side."
+          : "You're not linked to an account yet. Messages go straight to our team."}
       </p>
-      <ChatClient
-        accountId={active.id}
-        profileId={profileId}
-        initial={(data as Message[] | null) ?? []}
-      />
+      <ChatClient accountId={accountId} profileId={profileId} initial={messages} />
     </div>
   );
 }

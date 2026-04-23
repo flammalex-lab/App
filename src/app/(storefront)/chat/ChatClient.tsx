@@ -13,7 +13,7 @@ export function ChatClient({
   profileId,
   initial,
 }: {
-  accountId: string;
+  accountId: string | null;
   profileId: string;
   initial: Message[];
 }) {
@@ -24,6 +24,10 @@ export function ChatClient({
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Without an account the realtime channel has nothing to filter on
+    // reliably — skip the subscription; the page will still show any
+    // messages the buyer sent, and sends succeed regardless.
+    if (!accountId) return;
     const channel = supabase
       .channel(`messages:${accountId}`)
       .on(
@@ -51,6 +55,14 @@ export function ChatClient({
     });
     setSending(false);
     if (res.ok) {
+      // When there's no account, realtime isn't subscribed so append
+      // locally using the echoed row from the API.
+      const data = (await res.json().catch(() => ({}))) as { message?: Message };
+      if (data.message && !accountId) {
+        setMessages((prev) =>
+          prev.find((m) => m.id === data.message!.id) ? prev : [...prev, data.message!],
+        );
+      }
       setBody("");
     } else {
       const { error } = await res.json().catch(() => ({ error: "Send failed" }));
