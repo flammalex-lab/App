@@ -6,9 +6,28 @@ import type { Account, AccountType, AccountStatus, Category, Channel, DeliveryZo
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { CATEGORY_LABELS, ZONE_LABELS, BUYER_TYPE_LABELS, type BuyerType } from "@/lib/constants";
+import { ZONE_LABELS, BUYER_TYPE_LABELS, type BuyerType } from "@/lib/constants";
 
-const CAT_LIST: Category[] = ["beef", "pork", "eggs", "dairy", "produce"];
+// Buyer-facing product groups as a Category-level toggle. Matches the folding
+// used everywhere else in the app: meat = beef+pork+lamb,
+// dairy = dairy+eggs (includes cheese, which shares category 'dairy'),
+// grocery = pantry+beverages.
+type AccountGroup = "meat" | "produce" | "dairy" | "grocery";
+const ACCOUNT_GROUPS: AccountGroup[] = ["meat", "produce", "dairy", "grocery"];
+const ACCOUNT_GROUP_LABELS: Record<AccountGroup, string> = {
+  meat: "Meat",
+  produce: "Produce",
+  dairy: "Dairy & Cheese",
+  grocery: "Grocery",
+};
+const ACCOUNT_GROUP_CATS: Record<AccountGroup, Category[]> = {
+  meat: ["beef", "pork", "lamb"],
+  produce: ["produce"],
+  dairy: ["dairy", "eggs"],
+  grocery: ["pantry", "beverages"],
+};
+const ALL_ENABLED_CATS: Category[] = ACCOUNT_GROUPS.flatMap((g) => ACCOUNT_GROUP_CATS[g]);
+
 const ZONE_LIST: DeliveryZone[] = ["finger_lakes", "nyc_metro", "hudson_valley", "long_island", "nj_pa_ct"];
 const BUYER_TYPES: BuyerType[] = ["gm_restaurant", "gm_retail", "meat_buyer", "produce_buyer", "dairy_buyer", "cheese_buyer", "grocery_buyer"];
 
@@ -20,7 +39,7 @@ export function AccountForm({ account }: { account: Account | null }) {
     channel: (account?.channel ?? "foodservice") as Channel,
     pricing_tier: (account?.pricing_tier ?? "standard") as PricingTier,
     status: (account?.status ?? "prospect") as AccountStatus,
-    enabled_categories: (account?.enabled_categories ?? CAT_LIST) as Category[],
+    enabled_categories: (account?.enabled_categories ?? ALL_ENABLED_CATS) as Category[],
     buyer_type: (account?.buyer_type ?? "gm_restaurant") as BuyerType,
     primary_contact_name: account?.primary_contact_name ?? "",
     primary_contact_email: account?.primary_contact_email ?? "",
@@ -60,13 +79,18 @@ export function AccountForm({ account }: { account: Account | null }) {
     else router.refresh();
   }
 
-  function toggleCat(c: Category) {
-    setForm((f) => ({
-      ...f,
-      enabled_categories: f.enabled_categories.includes(c)
-        ? f.enabled_categories.filter((x) => x !== c)
-        : [...f.enabled_categories, c],
-    }));
+  function isGroupOn(group: AccountGroup): boolean {
+    return ACCOUNT_GROUP_CATS[group].every((c) => form.enabled_categories.includes(c));
+  }
+  function toggleGroup(group: AccountGroup) {
+    const cats = ACCOUNT_GROUP_CATS[group];
+    setForm((f) => {
+      const on = cats.every((c) => f.enabled_categories.includes(c));
+      const next = on
+        ? f.enabled_categories.filter((c) => !cats.includes(c))
+        : Array.from(new Set([...f.enabled_categories, ...cats]));
+      return { ...f, enabled_categories: next };
+    });
   }
 
   return (
@@ -108,14 +132,28 @@ export function AccountForm({ account }: { account: Account | null }) {
         </select>
       </Field>
 
-      <Field label="Buying profile (legacy)" hint="Fine-grained category access, separate from buyer type">
+      <Field
+        label="Product groups"
+        hint="Upper bound on what this account can order. Individual buyers narrow further via their buyer type."
+      >
         <div className="flex flex-wrap gap-2 pt-1">
-          {CAT_LIST.map((c) => (
-            <label key={c} className={`px-3 py-1.5 rounded-full border cursor-pointer text-sm ${form.enabled_categories.includes(c) ? "bg-brand-green text-white border-brand-green" : "bg-white border-black/10"}`}>
-              <input type="checkbox" className="hidden" checked={form.enabled_categories.includes(c)} onChange={() => toggleCat(c)} />
-              {CATEGORY_LABELS[c]}
-            </label>
-          ))}
+          {ACCOUNT_GROUPS.map((g) => {
+            const on = isGroupOn(g);
+            return (
+              <label
+                key={g}
+                className={`px-3 py-1.5 rounded-full border cursor-pointer text-sm ${on ? "bg-brand-green text-white border-brand-green" : "bg-white border-black/10"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={on}
+                  onChange={() => toggleGroup(g)}
+                />
+                {ACCOUNT_GROUP_LABELS[g]}
+              </label>
+            );
+          })}
         </div>
       </Field>
 
