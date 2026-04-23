@@ -8,7 +8,13 @@ import { CutoffClock } from "@/components/CutoffClock";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import type { DeliveryZoneRow, Profile } from "@/lib/supabase/types";
 
-export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
+export default async function StorefrontLayout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -66,6 +72,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
         memberships={memberships}
       />
       <main className="flex-1 px-4 md:px-6 py-5 pb-36">{children}</main>
+      {modal}
       <footer className="hidden md:block px-6 py-8 text-xs text-ink-secondary border-t border-black/5">
         © Fingerlakes Farms — ilovenyfarms.com
       </footer>
