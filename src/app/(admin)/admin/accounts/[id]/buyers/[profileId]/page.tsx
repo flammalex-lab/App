@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, money } from "@/lib/utils/format";
 import { BuyerForm } from "./BuyerForm";
 import { DeleteBuyerButton } from "./DeleteBuyerButton";
+import { ReseedGuideButton } from "./ReseedGuideButton";
 
 export default async function BuyerEditPage({
   params,
@@ -82,25 +83,28 @@ export default async function BuyerEditPage({
             Open editor →
           </Link>
         </div>
-        <div className="card p-4">
-          {guideCount > 0 ? (
-            <div className="text-sm">
-              <span className="tabular font-semibold">{guideCount}</span>{" "}
-              {guideCount === 1 ? "item" : "items"}
-              {guideGroups.length ? (
-                <span className="text-ink-secondary">
-                  {" "}· {guideGroups.map((g) => GROUP_LABELS[g]).join(", ")}
-                </span>
-              ) : null}
-              {effectiveType ? (
-                <span className="text-ink-tertiary"> · buyer type: {BUYER_TYPE_LABELS[effectiveType]}</span>
-              ) : null}
-            </div>
-          ) : (
-            <div className="text-sm text-ink-secondary italic">
-              Empty — open the editor to add starter items.
-            </div>
-          )}
+        <div className="card p-4 flex items-center justify-between gap-3">
+          <div className="text-sm min-w-0">
+            {guideCount > 0 ? (
+              <>
+                <span className="tabular font-semibold">{guideCount}</span>{" "}
+                {guideCount === 1 ? "item" : "items"}
+                {guideGroups.length ? (
+                  <span className="text-ink-secondary">
+                    {" "}· {guideGroups.map((g) => GROUP_LABELS[g]).join(", ")}
+                  </span>
+                ) : null}
+                {effectiveType ? (
+                  <span className="text-ink-tertiary"> · buyer type: {BUYER_TYPE_LABELS[effectiveType]}</span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-ink-secondary italic">
+                Empty — seed starter items or open the editor to curate.
+              </span>
+            )}
+          </div>
+          <ReseedGuideButton profileId={p.id} guideCount={guideCount} />
         </div>
       </section>
 
