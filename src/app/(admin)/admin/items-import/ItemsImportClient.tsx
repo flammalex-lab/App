@@ -148,6 +148,10 @@ function parseCSV(text: string): Row[] {
   const headers = splitCSVLine(lines[0]).map((h) => h.trim().toLowerCase());
   const find = (keys: string[]) =>
     headers.findIndex((h) => keys.some((k) => h === k || h.includes(k)));
+  // Exact-match lookup. Used for columns where substring matching causes
+  // collisions (e.g. "pack" would match both "Pack Size" and "Case Pack").
+  const findExact = (keys: string[]) =>
+    headers.findIndex((h) => keys.includes(h));
   // Preferred → fallback lookup. Returns the first key group that finds a
   // column, so B2B-specific headers like "Case Cost" take priority over
   // generic "Price" when both are present.
@@ -167,13 +171,15 @@ function parseCSV(text: string): Row[] {
       ["sales price", "price", "rate", "cost"],
     ),
     retail_price: find(["retail"]),
-    unit: find(["u/m", "uom", "unit of measure", "unit"]),
-    // "Size" alone is treated as the numeric per-unit quantity (e.g. 5),
-    // combined with Unit below to form the pack_size text ("5 oz").
-    size_qty: find(["size"]),
+    // Pack-related columns use exact match so "case pack" doesn't collide
+    // with "pack" / "pack size" lookups and vice versa.
+    unit: findExact(["unit", "u/m", "uom", "unit of measure"]),
+    // "Size" alone is the numeric per-unit quantity (e.g. 5), combined
+    // with Unit below to form the pack_size text ("5 oz").
+    size_qty: findExact(["size"]),
     // "Pack Size" / "Pack" are pre-formatted text pack sizes ("5 oz").
-    pack_size: find(["pack size", "pack"]),
-    case_pack: find(["case pack", "case format", "pack format", "case"]),
+    pack_size: findExact(["pack size", "pack"]),
+    case_pack: findExact(["case pack", "case format", "pack format", "case"]),
     producer: find(["producer", "farm", "supplier", "source", "vendor", "grower", "maker"]),
     income_account: find(["income account", "account"]),
     category_hint: find(["type", "category", "item type", "class"]),
