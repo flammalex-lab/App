@@ -34,6 +34,7 @@ const SECTIONS: { title?: string; links: NavLink[] }[] = [
       { href: "/admin/qb", label: "QuickBooks" },
       { href: "/admin/import", label: "Import customers" },
       { href: "/admin/items-import", label: "Import items (QB)" },
+      { href: "/admin/image-triage", label: "Image triage" },
       { href: "/admin/settings", label: "Settings" },
     ],
   },

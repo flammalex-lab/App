@@ -1,0 +1,197 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/session";
+import { createServiceClient } from "@/lib/supabase/server";
+
+// Vision + heavy prompts — give the route room on Vercel Pro (60s cap).
+export const maxDuration = 60;
+
+interface MatchBody {
+  filename: string;
+  producer: string | null;
+  imageBase64: string; // data portion only (no "data:image/...;base64," prefix)
+  imageMediaType: string; // e.g. image/jpeg
+}
+
+/**
+ * Match a product image against the catalog. Two paths:
+ *   1. Filename SKU match — if the filename contains any product's SKU
+ *      substring, return that product directly. Fast + deterministic.
+ *   2. Vision match — otherwise ask Claude which product the image shows,
+ *      scoped to the producer filter if present. Returns confidence.
+ */
+export async function POST(request: Request) {
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json({ error: "admin only" }, { status: 403 });
+  }
+
+  const body = (await request.json()) as MatchBody;
+  if (!body?.imageBase64) {
+    return NextResponse.json({ error: "imageBase64 required" }, { status: 400 });
+  }
+
+  const svc = createServiceClient();
+
+  // (1) Filename SKU match. Pull all active SKUs once and scan the filename
+  // for any of them. "IMG_spice4.png" → matches SKU "SPICE4" (case-insensitive).
+  const { data: allSkuRows } = await svc
+    .from("products")
+    .select("id, sku, name, producer, pack_size, unit")
+    .eq("is_active", true)
+    .not("sku", "is", null);
+  const allSkus = (allSkuRows as Array<{
+    id: string;
+    sku: string;
+    name: string;
+    producer: string | null;
+    pack_size: string | null;
+    unit: string;
+  }> | null) ?? [];
+
+  const filenameLower = body.filename.toLowerCase();
+  const skuHit = allSkus.find(
+    (p) => p.sku && filenameLower.includes(p.sku.toLowerCase()),
+  );
+  if (skuHit) {
+    return NextResponse.json({
+      match: {
+        id: skuHit.id,
+        sku: skuHit.sku,
+        name: skuHit.name,
+        producer: skuHit.producer,
+        pack_size: skuHit.pack_size,
+        unit: skuHit.unit,
+      },
+      source: "filename_sku",
+      confidence: "high",
+    });
+  }
+
+  // (2) Vision match. Scope candidates to the requested producer if given,
+  // else to the full active catalog. Cap at 40 so the prompt stays tight.
+  let q = svc
+    .from("products")
+    .select("id, sku, name, producer, pack_size, unit, description")
+    .eq("is_active", true);
+  if (body.producer?.trim()) {
+    q = q.ilike("producer", `%${body.producer.trim()}%`);
+  }
+  const { data: candRows } = await q.order("name", { ascending: true }).limit(40);
+  const candidates = (candRows as Array<{
+    id: string;
+    sku: string | null;
+    name: string;
+    producer: string | null;
+    pack_size: string | null;
+    unit: string;
+    description: string | null;
+  }> | null) ?? [];
+  if (candidates.length === 0) {
+    return NextResponse.json({ match: null, source: "no_candidates" });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "ANTHROPIC_API_KEY not set on this deployment" },
+      { status: 500 },
+    );
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  // Compact the candidate list for the prompt — keep it under ~2K tokens.
+  const candidateLines = candidates
+    .map(
+      (c, i) =>
+        `${i + 1}. [id=${c.id}] ${c.name}${c.pack_size ? ` · ${c.pack_size}` : ""}${c.producer ? ` · ${c.producer}` : ""}${c.description ? ` — ${c.description.slice(0, 120)}` : ""}`,
+    )
+    .join("\n");
+
+  const visionResponse = await client.messages.create({
+    model: "claude-opus-4-7",
+    max_tokens: 512,
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          properties: {
+            product_id: { type: ["string", "null"] },
+            confidence: { type: "string", enum: ["high", "medium", "low", "none"] },
+            reasoning: { type: "string" },
+          },
+          required: ["product_id", "confidence", "reasoning"],
+          additionalProperties: false,
+        },
+      },
+    },
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: body.imageMediaType as any,
+              data: body.imageBase64,
+            },
+          },
+          {
+            type: "text",
+            text: `Which product is shown in this image? Match it against this list:
+
+${candidateLines}
+
+Return:
+- product_id: the id of the best match, or null if none fits.
+- confidence: "high" (clearly this product), "medium" (likely but not certain), "low" (possible but many candidates fit), or "none" (no reasonable match).
+- reasoning: one sentence explaining your pick.
+
+Be strict — if the image shows something not in the list, return product_id: null, confidence: "none". Don't guess based on color or shape alone if the product packaging or label clearly shows a different item.`,
+          },
+        ],
+      },
+    ],
+  });
+
+  const textBlock = visionResponse.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    return NextResponse.json({ match: null, source: "no_vision_response" });
+  }
+  let parsed: { product_id: string | null; confidence: string; reasoning: string };
+  try {
+    parsed = JSON.parse(textBlock.text);
+  } catch {
+    return NextResponse.json({ match: null, source: "parse_error" });
+  }
+
+  const picked = parsed.product_id
+    ? candidates.find((c) => c.id === parsed.product_id) ?? null
+    : null;
+
+  return NextResponse.json({
+    match: picked
+      ? {
+          id: picked.id,
+          sku: picked.sku,
+          name: picked.name,
+          producer: picked.producer,
+          pack_size: picked.pack_size,
+          unit: picked.unit,
+        }
+      : null,
+    source: "vision",
+    confidence: parsed.confidence,
+    reasoning: parsed.reasoning,
+    candidates: candidates.map((c) => ({
+      id: c.id,
+      name: c.name,
+      producer: c.producer,
+      pack_size: c.pack_size,
+    })),
+  });
+}

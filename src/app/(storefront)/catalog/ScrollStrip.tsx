@@ -135,59 +135,49 @@ function StripCard({ product }: { product: PricedProduct }) {
         ) : null}
       </div>
 
-      {/* Bottom action row */}
+      {/* Bottom action row — price on left, cart control on right */}
       <div className="relative border-t border-black/[0.06] px-3 py-2 flex items-center justify-between gap-2 pointer-events-auto">
-        {cartQty > 0 ? (
-          <>
-            <button
-              onClick={sub}
-              className="h-7 w-7 rounded-full flex items-center justify-center text-brand-green-dark hover:bg-brand-green-tint transition"
-              aria-label={cartQty === 1 ? "Remove from cart" : "Remove one"}
-            >
-              {cartQty === 1 ? (
-                <TrashIcon />
-              ) : (
-                <span className="text-base leading-none">−</span>
-              )}
-            </button>
-            <span className="tabular text-sm font-semibold text-ink-primary">{cartQty}</span>
-            <button
-              onClick={addOne}
-              disabled={!available}
-              className="h-7 w-7 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-sm hover:bg-brand-green-dark/90 transition disabled:opacity-40"
-              aria-label="Add one"
-            >
-              +
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-1.5 text-brand-green-dark">
-              <CartIcon />
-              <span className="text-[10px] uppercase tracking-widest font-semibold">Cart</span>
+        <div className="min-w-0">
+          <div className="tabular text-[12px] font-semibold text-ink-primary">
+            {product.unitPrice != null ? money(product.unitPrice) : "—"}
+          </div>
+          <div className="text-[9px] text-ink-tertiary uppercase tracking-wide -mt-0.5">
+            / {product.unit}
+          </div>
+        </div>
+        {available ? (
+          cartQty > 0 ? (
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={sub}
+                className="h-7 w-7 rounded-full flex items-center justify-center text-brand-green-dark hover:bg-brand-green-tint transition"
+                aria-label={cartQty === 1 ? "Remove from cart" : "Remove one"}
+              >
+                {cartQty === 1 ? <TrashIcon /> : <span className="text-base leading-none">−</span>}
+              </button>
+              <span className="tabular text-sm font-semibold w-5 text-center">{cartQty}</span>
+              <button
+                onClick={addOne}
+                className="h-7 w-7 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-sm hover:bg-brand-green-dark/90 transition"
+                aria-label="Add one"
+              >
+                +
+              </button>
             </div>
+          ) : (
             <button
               onClick={addOne}
-              disabled={!available}
-              className="h-7 w-7 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-base leading-none transition disabled:opacity-40 hover:bg-brand-green-dark/90"
+              className="h-7 w-7 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-base leading-none transition hover:bg-brand-green-dark/90"
               aria-label="Add to cart"
             >
               +
             </button>
-          </>
+          )
+        ) : (
+          <span className="text-xs text-ink-tertiary">—</span>
         )}
       </div>
     </div>
-  );
-}
-
-function CartIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 4h2l2.5 11a2 2 0 0 0 2 1.5h7.3a2 2 0 0 0 2-1.4L21 8H6" />
-      <circle cx="10" cy="20" r="1.2" />
-      <circle cx="17" cy="20" r="1.2" />
-    </svg>
   );
 }
 
