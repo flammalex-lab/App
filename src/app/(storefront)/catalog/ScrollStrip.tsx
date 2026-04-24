@@ -22,6 +22,12 @@ export function ScrollStrip({
   emoji?: string;
 }) {
   if (products.length === 0) return null;
+
+  // Pack products into two rows by splitting in half. Within each row
+  // products are ordered left→right, top row first then bottom, so
+  // scrolling horizontally reveals the next pair together.
+  const rows = layoutTwoRows(products);
+
   return (
     <section className="mb-4">
       <div className="flex items-baseline justify-between px-4 md:px-0 mb-1">
@@ -38,19 +44,48 @@ export function ScrollStrip({
       {subtitle ? (
         <p className="text-[11px] text-ink-secondary px-4 md:px-0 mb-1">{subtitle}</p>
       ) : null}
-      <div className="flex gap-2 overflow-x-auto px-4 md:px-0 pb-1 snap-x">
-        {products.map((p) => (
-          <CompactCard key={p.id} product={p} />
-        ))}
+      <div className="overflow-x-auto px-4 md:px-0 pb-1 snap-x">
+        <div
+          className="grid grid-flow-col auto-cols-[200px] gap-x-2 gap-y-2"
+          style={{ gridTemplateRows: rows.rowCount === 2 ? "1fr 1fr" : "1fr" }}
+        >
+          {rows.items.map(({ product, row }) => (
+            <div key={product.id} className="snap-start" style={{ gridRow: row }}>
+              <CompactCard product={product} />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
 /**
+ * Split the products list into two rows when there are more than 2.
+ * Column-major fill so scrolling shows pairs (A/B) together, then (C/D), etc.
+ */
+function layoutTwoRows(products: readonly PricedProduct[]) {
+  if (products.length <= 2) {
+    return {
+      rowCount: 1,
+      items: products.map((product) => ({ product, row: 1 as 1 | 2 })),
+    };
+  }
+  const halfUp = Math.ceil(products.length / 2);
+  const items: { product: PricedProduct; row: 1 | 2 }[] = [];
+  for (let col = 0; col < halfUp; col++) {
+    const top = products[col];
+    const bot = products[col + halfUp];
+    if (top) items.push({ product: top, row: 1 });
+    if (bot) items.push({ product: bot, row: 2 });
+  }
+  return { rowCount: 2, items };
+}
+
+/**
  * Dense list-style card — small thumb on the left, tight info on the right.
- * Single-line name. Price + case/pack info on one line with the + button
- * inline, so nothing sits alone in empty space.
+ * Whole card opens the product modal via the stub Link. Specific interactive
+ * bits (the +/stepper) opt back in with pointer-events-auto.
  */
 function CompactCard({ product }: { product: PricedProduct }) {
   const add = useCart((s) => s.add);
@@ -62,7 +97,9 @@ function CompactCard({ product }: { product: PricedProduct }) {
   const available = product.available_this_week && product.unitPrice != null;
   const detailHref = `/catalog/${product.id}`;
 
-  function addOne() {
+  function addOne(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     if (!available) return;
     add({
       productId: product.id,
@@ -77,23 +114,25 @@ function CompactCard({ product }: { product: PricedProduct }) {
       quantity: 1,
     });
   }
-  function sub() {
+  function sub(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     setQty(product.id, Math.max(0, cartQty - 1), null);
   }
 
-  // Prefer case_pack ("2X12LB AVG") for informativeness, then pack_size
-  // ("10 LB"), fall back to unit ("lb"). Use middot when showing the
-  // richer label, slash when it's just a unit.
   const richSize = product.case_pack ?? product.pack_size;
   const sizeLabel = richSize ?? product.unit;
   const sep = richSize ? "·" : "/";
 
   return (
-    <div className="shrink-0 w-[200px] snap-start relative rounded-lg border border-black/[0.06] bg-bg-primary overflow-hidden transition hover:border-black/10">
+    <div className="w-full h-full relative rounded-lg border border-black/[0.06] bg-bg-primary overflow-hidden transition hover:border-black/10">
+      {/* Stub link — THE click target for the whole card (opens product modal). */}
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-      <div className="relative flex gap-2 p-1.5">
-        <div className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden bg-bg-secondary flex items-center justify-center pointer-events-none">
+      {/* Content is marked pointer-events-none so clicks pass through to the
+          stub Link above. Specific interactive bits opt back in. */}
+      <div className="relative flex gap-2 p-1.5 pointer-events-none">
+        <div className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden bg-bg-secondary flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
@@ -107,7 +146,7 @@ function CompactCard({ product }: { product: PricedProduct }) {
           ) : null}
         </div>
 
-        <div className="flex-1 min-w-0 pointer-events-none">
+        <div className="flex-1 min-w-0">
           <div
             className="display text-[12px] font-semibold leading-tight text-ink-primary truncate"
             title={product.name}

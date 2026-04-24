@@ -22,11 +22,21 @@ interface MatchResult {
   candidates?: { id: string; name: string; producer: string | null; pack_size: string | null }[];
 }
 
-type ItemStatus = "idle" | "matching" | "matched" | "applying" | "applied" | "error" | "skipped";
+type ItemStatus =
+  | "idle"
+  | "stripping"
+  | "stripped"
+  | "matching"
+  | "matched"
+  | "applying"
+  | "applied"
+  | "error"
+  | "skipped";
 
 interface Item {
   id: string;
-  file: File;
+  file: File; // original
+  cutoutFile: File | null; // background-removed
   previewUrl: string;
   status: ItemStatus;
   result?: MatchResult;
@@ -52,6 +62,7 @@ export function ImageTriageClient() {
   const [producer, setProducer] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [running, setRunning] = useState(false);
+  const [stripBg, setStripBg] = useState(true);
 
   const counts = useMemo(() => {
     const c = { total: items.length, matched: 0, applied: 0, needsReview: 0, skipped: 0, errors: 0 };
@@ -73,6 +84,7 @@ export function ImageTriageClient() {
       next.push({
         id: crypto.randomUUID(),
         file: f,
+        cutoutFile: null,
         previewUrl: URL.createObjectURL(f),
         status: "idle",
       });
@@ -80,13 +92,60 @@ export function ImageTriageClient() {
     setItems((xs) => [...xs, ...next]);
   }
 
-  async function matchAll() {
+  /**
+   * Server-side background removal via Replicate (rembg / BRIA RMBG).
+   * Returns a transparent PNG blob.
+   */
+  async function stripBackground(file: File): Promise<File> {
+    const form = new FormData();
+    form.append("image", file);
+    const res = await fetch("/api/admin/image-triage/strip-bg", {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "strip-bg failed" }));
+      throw new Error(err.error ?? `strip-bg ${res.status}`);
+    }
+    const blob = await res.blob();
+    const pngName = file.name.replace(/\.[^.]+$/, "") + ".png";
+    return new File([blob], pngName, { type: "image/png" });
+  }
+
+  async function processAll() {
     setRunning(true);
     for (const it of items) {
       if (it.status !== "idle") continue;
+
+      let working: File = it.file;
+      if (stripBg) {
+        setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, status: "stripping" } : x)));
+        try {
+          const cutout = await stripBackground(it.file);
+          const cutoutUrl = URL.createObjectURL(cutout);
+          working = cutout;
+          setItems((xs) =>
+            xs.map((x) =>
+              x.id === it.id
+                ? { ...x, cutoutFile: cutout, previewUrl: cutoutUrl, status: "stripped" }
+                : x,
+            ),
+          );
+        } catch (e: any) {
+          setItems((xs) =>
+            xs.map((x) =>
+              x.id === it.id
+                ? { ...x, status: "error", error: `bg removal failed: ${e?.message ?? "unknown"}` }
+                : x,
+            ),
+          );
+          continue;
+        }
+      }
+
       setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, status: "matching" } : x)));
       try {
-        const imageBase64 = await readAsBase64(it.file);
+        const imageBase64 = await readAsBase64(working);
         const res = await fetch("/api/admin/image-triage/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -94,7 +153,7 @@ export function ImageTriageClient() {
             filename: it.file.name,
             producer: producer.trim() || null,
             imageBase64,
-            imageMediaType: it.file.type || "image/jpeg",
+            imageMediaType: working.type || "image/jpeg",
           }),
         });
         if (!res.ok) {
@@ -135,7 +194,8 @@ export function ImageTriageClient() {
     if (!it || !it.chosenProductId) return;
     setItems((xs) => xs.map((x) => (x.id === itemId ? { ...x, status: "applying" } : x)));
     const form = new FormData();
-    form.append("image", it.file);
+    // Upload the cutout if we have one, else the original.
+    form.append("image", it.cutoutFile ?? it.file);
     form.append("product_id", it.chosenProductId);
     const res = await fetch("/api/admin/image-triage/apply", { method: "POST", body: form });
     if (!res.ok) {
@@ -174,6 +234,8 @@ export function ImageTriageClient() {
     }
   }
 
+  const pendingCount = items.filter((x) => x.status === "idle").length;
+
   return (
     <div className="space-y-5">
       <div className="card p-5 space-y-3">
@@ -184,6 +246,17 @@ export function ImageTriageClient() {
             placeholder="Olivia's, Satur Farms, Barrel Brine…"
           />
         </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={stripBg}
+            onChange={(e) => setStripBg(e.target.checked)}
+          />
+          <span>
+            <strong>Strip background</strong> (Replicate rembg · ~5–10s per image · a few tenths
+            of a cent each)
+          </span>
+        </label>
         <div>
           <label className="label">Images</label>
           <div className="flex items-center gap-3 flex-wrap">
@@ -194,8 +267,8 @@ export function ImageTriageClient() {
               onChange={(e) => addFiles(e.target.files)}
               className="text-sm"
             />
-            <Button onClick={matchAll} loading={running} disabled={items.length === 0 || running}>
-              Match {items.filter((x) => x.status === "idle").length || ""} pending
+            <Button onClick={processAll} loading={running} disabled={items.length === 0 || running}>
+              Process {pendingCount || ""} pending
             </Button>
             <Button
               variant="secondary"
@@ -299,11 +372,17 @@ function ItemCard({
       />
       <div className="flex-1 min-w-0">
         <div className="text-xs text-ink-tertiary truncate">{item.file.name}</div>
+        {item.status === "stripping" ? (
+          <div className="text-sm text-ink-secondary italic mt-2">Removing background…</div>
+        ) : null}
+        {item.status === "stripped" ? (
+          <div className="text-sm text-ink-secondary italic mt-2">Background removed · matching…</div>
+        ) : null}
         {item.status === "matching" ? (
           <div className="text-sm text-ink-secondary italic mt-2">Matching…</div>
         ) : null}
         {item.status === "idle" ? (
-          <div className="text-sm text-ink-tertiary mt-2">Queued — click Match above.</div>
+          <div className="text-sm text-ink-tertiary mt-2">Queued — click Process above.</div>
         ) : null}
         {item.status === "applied" ? (
           <div className="text-sm text-brand-green-dark mt-2">
@@ -330,6 +409,11 @@ function ItemCard({
                 ) : null}
                 {r.reasoning ? (
                   <div className="text-[11px] text-ink-tertiary italic">{r.reasoning}</div>
+                ) : null}
+                {item.cutoutFile ? (
+                  <div className="text-[11px] text-ink-tertiary">
+                    Uploading cutout ({Math.round(item.cutoutFile.size / 1024)} KB)
+                  </div>
                 ) : null}
               </>
             ) : (
