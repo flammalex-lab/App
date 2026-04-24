@@ -230,7 +230,7 @@ export default async function CatalogPage({
             <Link
               key={group}
               href={`/catalog?group=${group}`}
-              className="group relative aspect-square rounded-xl overflow-hidden shadow-card hover:shadow-lg transition"
+              className="group relative aspect-[3/1] rounded-xl overflow-hidden shadow-card hover:shadow-lg transition"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -240,10 +240,10 @@ export default async function CatalogPage({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                <div className="display text-2xl tracking-tight leading-none">
+                <div className="display text-lg tracking-tight leading-none">
                   {GROUP_LABELS[group]}
                 </div>
-                <div className="text-xs opacity-80 mt-1">
+                <div className="text-[11px] opacity-80 mt-1">
                   {count} {count === 1 ? "item" : "items"}
                 </div>
               </div>
