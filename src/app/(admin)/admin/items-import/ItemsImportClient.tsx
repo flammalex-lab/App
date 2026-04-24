@@ -78,6 +78,7 @@ export function ItemsImportClient() {
                 <th className="p-2">UPC</th>
                 <th className="p-2">Name</th>
                 <th className="p-2">Producer</th>
+                <th className="p-2">Category</th>
                 <th className="p-2">Pack</th>
                 <th className="p-2">Case</th>
                 <th className="p-2">Wholesale</th>
@@ -92,6 +93,7 @@ export function ItemsImportClient() {
                   <td className="p-2 tabular">{r.upc ?? ""}</td>
                   <td className="p-2">{r.name}</td>
                   <td className="p-2">{r.producer ?? ""}</td>
+                  <td className="p-2">{r.category_hint ?? ""}</td>
                   <td className="p-2">{r.pack_size ?? ""}</td>
                   <td className="p-2">{r.case_pack ?? ""}</td>
                   <td className="p-2 tabular">{r.wholesale_price ?? ""}</td>
@@ -125,8 +127,9 @@ export function ItemsImportClient() {
           <p><strong>UPC</strong>: <code>UPC</code>, <code>Barcode</code>, <code>EAN</code>, <code>GTIN</code>.</p>
           <p><strong>Name</strong>: <code>Description</code>, <code>Sales Description</code>, <code>Item Description</code>.</p>
           <p><strong>Producer / farm</strong>: <code>Producer</code>, <code>Farm</code>, <code>Vendor</code>, <code>Supplier</code>, <code>Source</code>. (Shown on every product card.)</p>
-          <p><strong>Pack size</strong>: <code>Pack Size</code>, <code>Pack</code>, <code>Size</code>. (Per-unit weight, e.g. &ldquo;10 LB&rdquo;.)</p>
-          <p><strong>Case pack</strong>: <code>Case</code>, <code>Case Pack</code>, <code>Case Format</code>, <code>Pack Format</code>. (e.g. &ldquo;2X12LB AVG&rdquo;.)</p>
+          <p><strong>Pack size</strong>: <code>Pack Size</code>, <code>Pack</code>. Pre-formatted, e.g. &ldquo;10 LB&rdquo;, &ldquo;5 oz&rdquo;.</p>
+          <p><strong>Size</strong> (alternative to Pack Size): <code>Size</code> — numeric per-unit quantity, combined with <code>Unit</code> to form the pack size. e.g. Size=5 + Unit=oz → &ldquo;5 oz&rdquo;.</p>
+          <p><strong>Case pack</strong>: <code>Case</code>, <code>Case Pack</code>, <code>Case Format</code>, <code>Pack Format</code>. If just a number (e.g. &ldquo;12&rdquo;) it&rsquo;s combined with the pack size → &ldquo;12 / 5 oz&rdquo;. If pre-formatted (e.g. &ldquo;2X12LB AVG&rdquo;), used as-is.</p>
           <p><strong>Wholesale price</strong>: <code>Case Cost</code>, <code>Wholesale Cost</code>, <code>Wholesale Price</code>, <code>Price</code>, <code>Sales Price</code>, <code>Rate</code>, <code>Cost</code>. (B2B-specific headers take priority when multiple match.)</p>
           <p><strong>Retail price</strong>: <code>Retail</code>, <code>Retail Price</code>.</p>
           <p><strong>Unit</strong>: <code>Unit</code>, <code>U/M</code>, <code>UOM</code>, <code>Unit of Measure</code>.</p>
@@ -165,11 +168,15 @@ function parseCSV(text: string): Row[] {
     ),
     retail_price: find(["retail"]),
     unit: find(["u/m", "uom", "unit of measure", "unit"]),
-    pack_size: find(["pack size", "pack", "size"]),
+    // "Size" alone is treated as the numeric per-unit quantity (e.g. 5),
+    // combined with Unit below to form the pack_size text ("5 oz").
+    size_qty: find(["size"]),
+    // "Pack Size" / "Pack" are pre-formatted text pack sizes ("5 oz").
+    pack_size: find(["pack size", "pack"]),
     case_pack: find(["case pack", "case format", "pack format", "case"]),
-    producer: find(["producer", "farm", "supplier", "source", "vendor"]),
+    producer: find(["producer", "farm", "supplier", "source", "vendor", "grower", "maker"]),
     income_account: find(["income account", "account"]),
-    category_hint: find(["type", "category", "item type"]),
+    category_hint: find(["type", "category", "item type", "class"]),
     brand_hint: find(["manufacturer", "brand"]),
   };
   const out: Row[] = [];
@@ -179,15 +186,35 @@ function parseCSV(text: string): Row[] {
     if (!sku) continue;
     const priceRaw = cells[h.wholesale_price]?.replace(/[$,]/g, "").trim();
     const retailRaw = cells[h.retail_price]?.replace(/[$,]/g, "").trim();
+
+    const rawUnit = cells[h.unit]?.trim() || undefined;
+    const rawSizeQty = cells[h.size_qty]?.trim() || undefined;
+    const rawPackSize = cells[h.pack_size]?.trim() || undefined;
+    const rawCasePack = cells[h.case_pack]?.trim() || undefined;
+
+    // Pack size: pre-formatted column wins. Else compose from Size + Unit.
+    let packSize: string | undefined = rawPackSize;
+    if (!packSize && rawSizeQty) {
+      packSize = rawUnit ? `${rawSizeQty} ${rawUnit.toLowerCase()}` : rawSizeQty;
+    }
+
+    // Case pack: if CSV gave a pure number (e.g. "12"), combine with pack
+    // size to make "12 / 5 oz". If it's already formatted text (e.g.
+    // "2X12LB AVG"), pass through unchanged.
+    let casePack = rawCasePack;
+    if (casePack && /^\d+$/.test(casePack) && packSize) {
+      casePack = `${casePack} / ${packSize}`;
+    }
+
     out.push({
       sku,
       upc: cells[h.upc]?.trim() || undefined,
       name: (cells[h.name]?.trim() || sku),
       wholesale_price: priceRaw && !isNaN(Number(priceRaw)) ? Number(priceRaw) : undefined,
       retail_price: retailRaw && !isNaN(Number(retailRaw)) ? Number(retailRaw) : undefined,
-      unit: cells[h.unit]?.trim(),
-      pack_size: cells[h.pack_size]?.trim(),
-      case_pack: cells[h.case_pack]?.trim() || undefined,
+      unit: rawUnit,
+      pack_size: packSize,
+      case_pack: casePack,
       producer: cells[h.producer]?.trim() || undefined,
       income_account: cells[h.income_account]?.trim(),
       category_hint: cells[h.category_hint]?.trim(),
