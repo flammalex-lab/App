@@ -113,21 +113,6 @@ export async function POST(request: Request) {
   const visionResponse = await client.messages.create({
     model: "claude-opus-4-7",
     max_tokens: 512,
-    output_config: {
-      format: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: {
-            product_id: { type: ["string", "null"] },
-            confidence: { type: "string", enum: ["high", "medium", "low", "none"] },
-            reasoning: { type: "string" },
-          },
-          required: ["product_id", "confidence", "reasoning"],
-          additionalProperties: false,
-        },
-      },
-    },
     messages: [
       {
         role: "user",
@@ -146,12 +131,10 @@ export async function POST(request: Request) {
 
 ${candidateLines}
 
-Return:
-- product_id: the id of the best match, or null if none fits.
-- confidence: "high" (clearly this product), "medium" (likely but not certain), "low" (possible but many candidates fit), or "none" (no reasonable match).
-- reasoning: one sentence explaining your pick.
+Respond with ONLY a JSON object matching this exact shape, nothing else:
+{"product_id": "<id or null>", "confidence": "high|medium|low|none", "reasoning": "<one sentence>"}
 
-Be strict — if the image shows something not in the list, return product_id: null, confidence: "none". Don't guess based on color or shape alone if the product packaging or label clearly shows a different item.`,
+Be strict — if the image shows something not in the list, return product_id as null and confidence as "none". Don't guess based on color or shape alone when the product packaging or label clearly shows a different item.`,
           },
         ],
       },
@@ -164,7 +147,12 @@ Be strict — if the image shows something not in the list, return product_id: n
   }
   let parsed: { product_id: string | null; confidence: string; reasoning: string };
   try {
-    parsed = JSON.parse(textBlock.text);
+    // Strip any accidental code fences or prose around the JSON.
+    const raw = textBlock.text.trim();
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}");
+    const jsonStr = jsonStart >= 0 && jsonEnd >= 0 ? raw.slice(jsonStart, jsonEnd + 1) : raw;
+    parsed = JSON.parse(jsonStr);
   } catch {
     return NextResponse.json({ match: null, source: "parse_error" });
   }
