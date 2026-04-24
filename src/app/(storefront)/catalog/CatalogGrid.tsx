@@ -77,8 +77,32 @@ function ProductCard({
       {/* Stub link covers the whole card; producer + cart buttons opt back in. */}
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-      {/* Text block — producer · name · pack size */}
-      <div className="relative px-3 pt-3 pb-1 pointer-events-none">
+      {/* Image — smaller aspect so placeholders don't dominate */}
+      <div className="relative aspect-[3/2] flex items-center justify-center p-1.5 pointer-events-none">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={productImage(product)}
+          alt=""
+          className="max-h-full max-w-full object-contain mix-blend-multiply"
+        />
+        {!product.available_this_week ? (
+          <span className="absolute top-1.5 right-1.5 badge-gray bg-white/90 text-[9px]">limited</span>
+        ) : null}
+        {isRecent(product.created_at) ? (
+          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
+            New
+          </span>
+        ) : null}
+        {cartQty > 0 ? (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-accent-gold text-white text-xs font-semibold rounded-full h-11 w-11 flex flex-col items-center justify-center leading-tight shadow-sm pointer-events-none">
+            <span className="tabular text-sm">{cartQty}</span>
+            <span className="text-[8px] font-normal opacity-90">in cart</span>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Text block — tighter: producer · name · pack size inline */}
+      <div className="relative px-2.5 pt-1.5 pb-1 pointer-events-none">
         {product.producer && producerHref ? (
           <Link
             href={producerHref}
@@ -86,11 +110,9 @@ function ProductCard({
           >
             {product.producer}
           </Link>
-        ) : (
-          <div className="h-[14px]" />
-        )}
+        ) : null}
         <div
-          className="display text-sm sm:text-[15px] font-semibold leading-snug text-ink-primary line-clamp-2 min-h-[38px] mt-0.5"
+          className="display text-[13px] font-semibold leading-tight text-ink-primary line-clamp-2"
           title={product.name}
         >
           {product.name}
@@ -100,43 +122,19 @@ function ProductCard({
         </div>
       </div>
 
-      {/* Image — blends into card bg */}
-      <div className="relative flex-1 aspect-[5/4] flex items-center justify-center p-3 pointer-events-none">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={productImage(product)}
-          alt=""
-          className="max-h-full max-w-full object-contain mix-blend-multiply"
-        />
-        {!product.available_this_week ? (
-          <span className="absolute top-2 right-2 badge-gray bg-white/90">limited</span>
-        ) : null}
-        {isRecent(product.created_at) ? (
-          <span className="absolute top-2 left-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
-            New
-          </span>
-        ) : null}
-        {cartQty > 0 ? (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-accent-gold/90 text-white text-sm font-semibold rounded-full h-16 w-16 flex flex-col items-center justify-center leading-tight shadow-sm pointer-events-none">
-            <span className="tabular">{cartQty}</span>
-            <span className="text-[10px] font-normal opacity-90">in cart</span>
-          </div>
-        ) : null}
-      </div>
-
-      {/* Price + action row */}
-      <div className="relative border-t border-black/[0.06] px-3 py-2 flex items-center justify-between gap-2 pointer-events-auto">
+      {/* Price + action row — no extra top border, tighter padding */}
+      <div className="relative px-2.5 pb-2 pt-1 flex items-center justify-between gap-2 pointer-events-auto">
         <div className="min-w-0">
-          <div className="tabular font-semibold text-sm text-ink-primary">
+          <span className="tabular text-sm font-semibold text-ink-primary">
             {product.unitPrice != null ? money(product.unitPrice) : "—"}
-          </div>
-          <div className="text-[10px] text-ink-tertiary uppercase tracking-wide -mt-0.5">
+          </span>
+          <span className="text-[10px] text-ink-tertiary uppercase tracking-wide ml-1">
             / {product.unit}
-          </div>
+          </span>
         </div>
         {available ? (
           cartQty > 0 ? (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={sub}
                 className="h-7 w-7 rounded-full flex items-center justify-center text-brand-green-dark hover:bg-brand-green-tint transition"
@@ -156,7 +154,7 @@ function ProductCard({
           ) : (
             <button
               onClick={addOne}
-              className="h-8 w-8 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-lg leading-none hover:bg-brand-green-dark/90 transition"
+              className="h-7 w-7 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-base leading-none hover:bg-brand-green-dark/90 transition"
               aria-label="Add to cart"
             >
               +
