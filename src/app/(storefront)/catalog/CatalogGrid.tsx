@@ -87,7 +87,7 @@ function ProductCard({
         ) : null}
       </div>
 
-      {/* Producer + pack on one line */}
+      {/* Producer + pack on one line — prefer case_pack over pack_size */}
       <div className="relative px-2 pt-1 pb-0.5 pointer-events-none flex items-center gap-1 text-[9px] uppercase tracking-wider">
         {product.producer && producerHref ? (
           <Link
@@ -97,10 +97,10 @@ function ProductCard({
             {product.producer}
           </Link>
         ) : null}
-        {product.producer && (product.pack_size || product.unit) ? (
-          <span className="text-ink-tertiary">·</span>
-        ) : null}
-        <span className="truncate text-ink-tertiary">{product.pack_size ?? product.unit}</span>
+        {product.producer ? <span className="text-ink-tertiary">·</span> : null}
+        <span className="truncate text-ink-tertiary">
+          {product.case_pack ?? product.pack_size ?? product.unit}
+        </span>
       </div>
 
       {/* Name — single line, truncated */}
@@ -110,13 +110,12 @@ function ProductCard({
         </div>
       </div>
 
-      {/* Price + action — tight bottom row */}
+      {/* Price + action — tight bottom row. Price shows just /unit here,
+          since case/pack is already on the producer line above. */}
       <div className="relative px-2 pb-1.5 pt-1 flex items-center justify-between gap-1 pointer-events-auto">
         <span className="tabular text-[13px] font-semibold text-ink-primary">
           {product.unitPrice != null ? money(product.unitPrice) : "—"}
-          <span className="text-[9px] text-ink-tertiary uppercase ml-0.5">
-            {product.pack_size ? `· ${product.pack_size}` : `/${product.unit}`}
-          </span>
+          <span className="text-[9px] text-ink-tertiary uppercase ml-0.5">/{product.unit}</span>
         </span>
         {available ? (
           cartQty > 0 ? (
