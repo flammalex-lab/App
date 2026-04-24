@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, money } from "@/lib/utils/format";
 import { BuyerForm } from "./BuyerForm";
 import { DeleteBuyerButton } from "./DeleteBuyerButton";
+import { SigninLinkButton } from "./SigninLinkButton";
 import { TemplateSyncPanel, type TemplateLite } from "./TemplateSyncPanel";
 import { computeGuideDrift } from "@/lib/order-guides/templates";
 
@@ -114,6 +115,16 @@ export default async function BuyerEditPage({
       </div>
 
       <BuyerForm profile={p} accountBuyerType={a.buyer_type} />
+
+      <section className="card p-4">
+        <h2 className="display text-lg mb-1">Sign-in link</h2>
+        <p className="text-xs text-ink-secondary mb-3">
+          Generate a single-use magic link to log this buyer in. Useful while
+          SMS OTP is pending carrier approval — paste the link into a personal
+          text or email. Link expires in about an hour.
+        </p>
+        <SigninLinkButton profileId={p.id} />
+      </section>
 
       <section>
         <div className="flex items-baseline justify-between mb-2">
