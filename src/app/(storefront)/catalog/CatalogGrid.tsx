@@ -46,7 +46,9 @@ function ProductCard({
     ? `/catalog?producer=${encodeURIComponent(product.producer)}`
     : null;
 
-  function addOne() {
+  function addOne(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     if (!available) return;
     add({
       productId: product.id,
@@ -61,9 +63,18 @@ function ProductCard({
       quantity: 1,
     });
   }
-  function sub() {
+  function sub(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     setQty(product.id, Math.max(0, cartQty - 1), null);
   }
+
+  // Prefer the richer pack label: case_pack ("2X12LB AVG") → pack_size
+  // ("9/10 OZ") → unit ("lb"). Middot separator when we have a pack,
+  // slash when we only have the unit.
+  const richSize = product.case_pack ?? product.pack_size;
+  const sizeLabel = richSize ?? product.unit;
+  const sep = richSize ? "·" : "/";
 
   return (
     <div className="relative rounded-lg border border-black/[0.06] bg-bg-primary overflow-hidden transition hover:border-black/10 flex flex-col">
@@ -87,39 +98,41 @@ function ProductCard({
         ) : null}
       </div>
 
-      {/* Producer + pack on one line — prefer case_pack over pack_size */}
-      <div className="relative px-2 pt-1 pb-0.5 pointer-events-none flex items-center gap-1 text-[9px] uppercase tracking-wider">
-        {product.producer && producerHref ? (
-          <Link
-            href={producerHref}
-            className="truncate text-brand-green-dark font-semibold hover:underline pointer-events-auto"
-          >
-            {product.producer}
-          </Link>
-        ) : null}
-        {product.producer ? <span className="text-ink-tertiary">·</span> : null}
-        <span className="truncate text-ink-tertiary">
-          {product.case_pack ?? product.pack_size ?? product.unit}
-        </span>
-      </div>
-
       {/* Name — single line, truncated */}
-      <div className="relative px-2 pointer-events-none">
-        <div className="display text-[13px] font-semibold leading-tight text-ink-primary truncate" title={product.name}>
+      <div className="relative px-2 pt-1 pointer-events-none">
+        <div
+          className="display text-[13px] font-semibold leading-tight text-ink-primary truncate"
+          title={product.name}
+        >
           {product.name}
         </div>
       </div>
 
-      {/* Price + action — tight bottom row. Price shows just /unit here,
-          since case/pack is already on the producer line above. */}
-      <div className="relative px-2 pb-1.5 pt-1 flex items-center justify-between gap-1 pointer-events-auto">
-        <span className="tabular text-[13px] font-semibold text-ink-primary">
-          {product.unitPrice != null ? money(product.unitPrice) : "—"}
-          <span className="text-[9px] text-ink-tertiary uppercase ml-0.5">/{product.unit}</span>
-        </span>
+      {/* Producer — small brand-green link under the name */}
+      {product.producer && producerHref ? (
+        <div className="relative px-2 pointer-events-none">
+          <Link
+            href={producerHref}
+            className="block max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-brand-green-dark hover:underline pointer-events-auto"
+          >
+            {product.producer}
+          </Link>
+        </div>
+      ) : null}
+
+      {/* Price + action — price shows size inline ("$35 · 9/10oz") */}
+      <div className="relative px-2 pb-1.5 pt-0.5 flex items-center justify-between gap-1 pointer-events-auto">
+        <div className="min-w-0 truncate">
+          <span className="tabular text-[13px] font-semibold text-ink-primary">
+            {product.unitPrice != null ? money(product.unitPrice) : "—"}
+          </span>
+          <span className="text-[9px] text-ink-tertiary uppercase ml-1">
+            {sep} {sizeLabel}
+          </span>
+        </div>
         {available ? (
           cartQty > 0 ? (
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5 shrink-0">
               <button
                 onClick={sub}
                 className="h-6 w-6 rounded-full flex items-center justify-center text-brand-green-dark hover:bg-brand-green-tint transition"
@@ -139,7 +152,7 @@ function ProductCard({
           ) : (
             <button
               onClick={addOne}
-              className="h-6 w-6 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-sm leading-none hover:bg-brand-green-dark/90 transition"
+              className="h-6 w-6 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-sm leading-none hover:bg-brand-green-dark/90 transition shrink-0"
               aria-label="Add to cart"
             >
               +
