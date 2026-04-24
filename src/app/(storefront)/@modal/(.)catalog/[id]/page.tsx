@@ -4,6 +4,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, AccountPricing, PackOption, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
+import { allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
 import { defaultPackRow, optionPackRow, type PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { ProductModal } from "./ProductModal";
 
@@ -31,6 +32,17 @@ export default async function InterceptedProductDetail({
     : { data: null as Account | null };
   const account = acctRow as Account | null;
   const isB2B = me.role === "b2b_buyer";
+
+  // Visibility gate — mirror /catalog/[id] so a crafted modal URL can't
+  // bypass buyer_type / channel / is_active checks.
+  if (!impersonating) {
+    const buyerType = me.buyer_type ?? account?.buyer_type ?? null;
+    const groupOk = p.product_group
+      ? allowedGroupsFor(buyerType).includes(p.product_group as ProductGroup)
+      : allowedCategoriesFor(buyerType).includes(p.category);
+    const channelOk = isB2B ? p.available_b2b : p.available_dtc;
+    if (!p.is_active || !channelOk || !groupOk) notFound();
+  }
 
   const { data: override } = account
     ? await db

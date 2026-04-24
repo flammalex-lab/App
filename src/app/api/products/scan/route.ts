@@ -51,12 +51,22 @@ export async function GET(request: Request) {
 
   // Respect buyer_type scope so a produce-only buyer scanning a meat UPC
   // gets a clean rejection instead of silently adding out-of-scope items
-  // to their cart.
+  // to their cart. Also enforce the channel gate here — the UPC lookup
+  // itself doesn't filter on available_b2b/available_dtc since we want a
+  // clear "not available in your channel" response rather than "not found."
   const { active } = await resolveActiveAccount(profileId, me.account_id);
   const effectiveBuyerType = me.buyer_type ?? active?.buyer_type ?? null;
   const allowed = allowedGroupsFor(effectiveBuyerType);
+  const isB2B = me.role === "b2b_buyer";
+  const channelOk = isB2B ? product.available_b2b : product.available_dtc;
+  if (!channelOk) {
+    return NextResponse.json(
+      { ok: false, reason: "not_available", productName: product.name },
+      { status: 403 },
+    );
+  }
   if (
-    me.role === "b2b_buyer" &&
+    isB2B &&
     product.product_group &&
     !allowed.includes(product.product_group as any)
   ) {
@@ -72,7 +82,6 @@ export async function GET(request: Request) {
   }
 
   // Price resolution — same logic as catalog / guide.
-  const isB2B = me.role === "b2b_buyer";
   const account = active;
   const { data: overrideRaw } = account
     ? await db

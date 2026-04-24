@@ -6,6 +6,7 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
+import { visibleProductsQuery } from "@/lib/products/queries";
 import {
   GROUP_LABELS,
   allowedGroupsFor,
@@ -86,13 +87,12 @@ export default async function CatalogPage({
       : { data: [] as AccountPricing[] };
     const overrides = overridesRaw as AccountPricing[] | null;
 
+    // All buyer-facing strip queries share visibleProductsQuery so the
+    // is_active / channel / buyer_type filter set can never drift.
+    const baseOpts = { buyerType: effectiveBuyerType, isB2B };
+
     // Strip 1: This week — available_this_week = true
-    const { data: weekRows } = await db
-      .from("products")
-      .select("*")
-      .eq("is_active", true)
-      .eq(isB2B ? "available_b2b" : "available_dtc", true)
-      .in("product_group", allowed)
+    const { data: weekRows } = await visibleProductsQuery(db, baseOpts)
       .eq("available_this_week", true)
       .order("sort_order", { ascending: true })
       .limit(12);
@@ -114,24 +114,20 @@ export default async function CatalogPage({
       .map(([id]) => id);
     let history: (Product & { unitPrice: number | null })[] = [];
     if (topIds.length > 0) {
-      const { data: histProducts } = await db
-        .from("products")
-        .select("*")
-        .in("id", topIds)
-        .eq("is_active", true);
+      // Use visibleProductsQuery so previously-ordered products that have
+      // since been hidden, moved out of buyer scope, or disabled don't
+      // appear as ghosts in the "your history" strip.
+      const { data: histProducts } = await visibleProductsQuery(db, baseOpts).in("id", topIds);
       history = priceProducts(histProducts as Product[] | null, overrides, account, isB2B);
       // preserve most-ordered order
       history.sort((a, b) => (countByProduct.get(b.id) ?? 0) - (countByProduct.get(a.id) ?? 0));
     }
 
-    // Strip 3: Featured producer — pick the producer with the most products in allowed groups
-    const { data: producerRows } = await db
-      .from("products")
-      .select("producer")
-      .eq("is_active", true)
-      .eq(isB2B ? "available_b2b" : "available_dtc", true)
-      .in("product_group", allowed)
-      .not("producer", "is", null);
+    // Strip 3: Featured producer — pick the producer with the most products
+    const { data: producerRows } = await visibleProductsQuery(db, {
+      ...baseOpts,
+      select: "producer",
+    }).not("producer", "is", null);
     const producerCounts = new Map<string, number>();
     for (const r of (producerRows as { producer: string | null }[] | null) ?? []) {
       if (r.producer) producerCounts.set(r.producer, (producerCounts.get(r.producer) ?? 0) + 1);
@@ -143,35 +139,25 @@ export default async function CatalogPage({
     const featuredProducer = topProducers[0] ?? null;
     let featured: (Product & { unitPrice: number | null })[] = [];
     if (featuredProducer) {
-      const { data: featRows } = await db
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .eq(isB2B ? "available_b2b" : "available_dtc", true)
+      const { data: featRows } = await visibleProductsQuery(db, baseOpts)
         .eq("producer", featuredProducer)
-        .in("product_group", allowed)
         .order("sort_order", { ascending: true })
         .limit(10);
       featured = priceProducts(featRows as Product[] | null, overrides, account, isB2B);
     }
 
     // Product-name + producer suggestions for the search autocomplete
-    const { data: suggestRows } = await db
-      .from("products")
-      .select("name, producer")
-      .eq("is_active", true)
-      .eq(isB2B ? "available_b2b" : "available_dtc", true)
-      .in("product_group", allowed)
-      .order("name", { ascending: true });
+    const { data: suggestRows } = await visibleProductsQuery(db, {
+      ...baseOpts,
+      select: "name, producer",
+    }).order("name", { ascending: true });
     const suggestions = buildSuggestions(suggestRows);
 
     // Group counts for the fallback tile grid
-    const { data: counts } = await db
-      .from("products")
-      .select("product_group")
-      .eq("is_active", true)
-      .eq(isB2B ? "available_b2b" : "available_dtc", true)
-      .in("product_group", allowed);
+    const { data: counts } = await visibleProductsQuery(db, {
+      ...baseOpts,
+      select: "product_group",
+    });
 
     const groupCounts = allowed
       .map((g) => ({
@@ -270,10 +256,7 @@ export default async function CatalogPage({
   // =====================================================================
   // LIST VIEW (group / search / producer / explore / best)
   // =====================================================================
-  let query = db.from("products").select("*").eq("is_active", true);
-  if (isB2B) query = query.eq("available_b2b", true);
-  else query = query.eq("available_dtc", true);
-  query = query.in("product_group", allowed);
+  let query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B });
   if (groupFilter) query = query.eq("product_group", groupFilter);
   if (q) query = query.or(`name.ilike.%${q}%,producer.ilike.%${q}%`);
   if (producerFilter) query = query.eq("producer", producerFilter);
@@ -288,13 +271,11 @@ export default async function CatalogPage({
   const { data: products } = await query;
 
   // Suggestions for the list-view search (same pool the user sees below)
-  const { data: suggestRowsList } = await db
-    .from("products")
-    .select("name, producer")
-    .eq("is_active", true)
-    .eq(isB2B ? "available_b2b" : "available_dtc", true)
-    .in("product_group", allowed)
-    .order("name", { ascending: true });
+  const { data: suggestRowsList } = await visibleProductsQuery(db, {
+    buyerType: effectiveBuyerType,
+    isB2B,
+    select: "name, producer",
+  }).order("name", { ascending: true });
   const suggestionsList = buildSuggestions(suggestRowsList);
 
   const { data: overrides } = account

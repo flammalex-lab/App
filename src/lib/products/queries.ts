@@ -32,8 +32,8 @@ function buyerScopeOrExpr(buyerType: string | null | undefined): string | null {
 export function visibleProductsQuery(
   db: AnyDb,
   opts: { buyerType: string | null | undefined; isB2B: boolean; select?: string },
-) {
-  let q = db.from("products").select(opts.select ?? "*").eq("is_active", true);
+): any {
+  let q: any = db.from("products").select(opts.select ?? "*").eq("is_active", true);
   q = q.eq(opts.isB2B ? "available_b2b" : "available_dtc", true);
   const orExpr = buyerScopeOrExpr(opts.buyerType);
   if (orExpr) q = q.or(orExpr);
