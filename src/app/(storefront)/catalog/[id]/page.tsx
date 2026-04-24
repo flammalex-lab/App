@@ -11,8 +11,6 @@ import { dateShort, money } from "@/lib/utils/format";
 import { ProductDetailClient } from "./ProductDetailClient";
 import { defaultPackRow, optionPackRow, type PackRow } from "./packs";
 
-const NEW_PRODUCT_DAYS = 60;
-
 export default async function ProductDetail({
   params,
   searchParams,
@@ -107,12 +105,6 @@ export default async function ProductDetail({
     total: Number(r.line_total),
   }));
 
-  // NEW badge: product created within the last N days
-  const createdMs = new Date(p.created_at).getTime();
-  const isNew = Number.isFinite(createdMs)
-    ? Date.now() - createdMs < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000
-    : false;
-
   const fromIsSpecial = from === "explore" || from === "best";
   const backHref = from
     ? fromIsSpecial
@@ -140,11 +132,6 @@ export default async function ProductDetail({
         <div className="relative aspect-square bg-bg-secondary rounded-xl overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={productImage(p)} alt={p.name} className="w-full h-full object-cover" />
-          {isNew ? (
-            <span className="absolute top-3 left-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-card">
-              New
-            </span>
-          ) : null}
         </div>
         <div>
           <div className="text-sm text-ink-secondary">{CATEGORY_LABELS[p.category]}</div>

@@ -114,7 +114,9 @@ function ProductCard({
       <div className="relative px-2 pb-1.5 pt-1 flex items-center justify-between gap-1 pointer-events-auto">
         <span className="tabular text-[13px] font-semibold text-ink-primary">
           {product.unitPrice != null ? money(product.unitPrice) : "—"}
-          <span className="text-[9px] text-ink-tertiary uppercase ml-0.5">/{product.unit}</span>
+          <span className="text-[9px] text-ink-tertiary uppercase ml-0.5">
+            {product.pack_size ? `· ${product.pack_size}` : `/${product.unit}`}
+          </span>
         </span>
         {available ? (
           cartQty > 0 ? (
