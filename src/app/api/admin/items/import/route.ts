@@ -48,10 +48,28 @@ export async function POST(request: Request) {
   const svc = createServiceClient();
 
   let created = 0, updated = 0, skipped = 0;
+  const errors: Array<{ sku: string; reason: string }> = [];
 
   for (const r of rows) {
-    if (!r.sku || !r.name) { skipped++; continue; }
-    const { data: existing } = await svc.from("products").select("id").eq("sku", r.sku).maybeSingle();
+    if (!r.sku || !r.name) {
+      skipped++;
+      if (errors.length < 10) errors.push({ sku: r.sku ?? "(missing)", reason: "missing sku or name" });
+      continue;
+    }
+    // Use limit(1) instead of maybeSingle() — maybeSingle errors on >1 rows
+    // (e.g. from a prior partial import) and would silently fall through to
+    // the insert path, failing the unique constraint.
+    const { data: existingRows, error: lookupErr } = await svc
+      .from("products")
+      .select("id")
+      .eq("sku", r.sku)
+      .limit(1);
+    if (lookupErr) {
+      skipped++;
+      if (errors.length < 10) errors.push({ sku: r.sku, reason: `lookup: ${lookupErr.message}` });
+      continue;
+    }
+    const existing = existingRows?.[0];
 
     const payload: Record<string, unknown> = {
       sku: r.sku,
@@ -86,14 +104,22 @@ export async function POST(request: Request) {
       if (r.producer) updatePayload.producer = r.producer;
       if (r.description) updatePayload.description = r.description;
       const { error } = await svc.from("products").update(updatePayload).eq("id", (existing as any).id);
-      if (error) { skipped++; continue; }
+      if (error) {
+        skipped++;
+        if (errors.length < 10) errors.push({ sku: r.sku, reason: `update: ${error.message}` });
+        continue;
+      }
       updated++;
     } else {
       const { error } = await svc.from("products").insert(payload);
-      if (error) { skipped++; continue; }
+      if (error) {
+        skipped++;
+        if (errors.length < 10) errors.push({ sku: r.sku, reason: `insert: ${error.message}` });
+        continue;
+      }
       created++;
     }
   }
 
-  return NextResponse.json({ created, updated, skipped });
+  return NextResponse.json({ created, updated, skipped, errors });
 }

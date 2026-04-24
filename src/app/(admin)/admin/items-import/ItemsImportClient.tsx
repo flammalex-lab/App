@@ -24,7 +24,12 @@ export function ItemsImportClient() {
   const [raw, setRaw] = useState<Row[]>([]);
   const [filename, setFilename] = useState<string>("");
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
+  const [result, setResult] = useState<{
+    created: number;
+    updated: number;
+    skipped: number;
+    errors?: Array<{ sku: string; reason: string }>;
+  } | null>(null);
   const toast = useToast();
 
   async function handleFile(file: File) {
@@ -119,6 +124,21 @@ export function ItemsImportClient() {
           </p>
         ) : null}
       </div>
+
+      {result?.errors && result.errors.length > 0 ? (
+        <div className="card p-3 text-xs">
+          <p className="font-medium text-accent-rust mb-1">
+            First {result.errors.length} skip reason{result.errors.length === 1 ? "" : "s"}:
+          </p>
+          <ul className="space-y-0.5 text-ink-secondary">
+            {result.errors.map((e, i) => (
+              <li key={i}>
+                <span className="tabular font-medium text-ink-primary">{e.sku}</span>: {e.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <details className="text-xs text-ink-secondary">
         <summary>Expected column headers (any of these match — header row is case-insensitive)</summary>
