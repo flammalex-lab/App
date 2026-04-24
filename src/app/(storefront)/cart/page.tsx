@@ -54,7 +54,7 @@ export default async function CartPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <h1 className="display text-3xl mb-1 px-4 md:px-0 pt-4">Let&apos;s get this order in.</h1>
       {account ? (
         <p className="text-sm text-ink-secondary mb-4 px-4 md:px-0">{account.name}</p>

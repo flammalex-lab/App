@@ -115,7 +115,7 @@ export default async function GuidePage() {
   const firstName = me.first_name ?? "Chef";
 
   return (
-    <div className="max-w-3xl mx-auto pb-8">
+    <div className="max-w-screen-xl mx-auto pb-8">
       {/* Personal greeting — single compact line */}
       <div className="px-4 md:px-0 pt-1 pb-2 text-xs text-ink-secondary">
         {greeting}, <span className="font-medium text-ink-primary">{firstName}</span>.

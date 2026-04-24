@@ -138,7 +138,7 @@ export default async function ProductDetail({
     : "Catalog";
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-0 pt-4">
+    <div className="max-w-5xl mx-auto px-4 md:px-0 pt-4">
       <Link href={backHref} className="text-sm text-ink-secondary hover:underline">
         ← {backLabel}
       </Link>

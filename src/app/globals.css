@@ -4,8 +4,11 @@
 
 @layer base {
   :root {
-    --bg-primary: #FBFAF6;
-    --bg-secondary: #F1EFE8;
+    /* Pure white surface, Baldor-style. Cards read via border + spacing
+       rather than a contrasting warm background. The bg-secondary token
+       is kept as a neutral hover/thumbnail wash. */
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F4F4F1;
     --ink-primary: #161616;
     --ink-secondary: #5E5E5E;
     --brand-blue: #1763B5;
@@ -71,7 +74,9 @@
     @apply block text-sm font-medium text-ink-primary mb-1;
   }
   .card {
-    @apply rounded-xl bg-white shadow-card border border-black/[0.04];
+    /* On pure white surfaces a thin hairline reads better than a shadow.
+       Shadow is kept lighter for floating affordances (modals, sticky bars). */
+    @apply rounded-xl bg-white border border-black/[0.08];
   }
   .divider {
     @apply border-t border-black/5 my-4;

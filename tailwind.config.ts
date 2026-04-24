@@ -6,8 +6,8 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          primary: "#FBFAF6",   // off-white, slightly warmer than pure white
-          secondary: "#F1EFE8", // warm cream for cards / hovers
+          primary: "#FFFFFF",   // pure white surface (Baldor-style)
+          secondary: "#F4F4F1", // neutral wash for hovers / thumb placeholders
           tinted: "#EAF1F6",    // very faint blue tint, for highlights
         },
         ink: {

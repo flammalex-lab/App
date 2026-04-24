@@ -181,7 +181,7 @@ export default async function CatalogPage({
       .filter((g) => g.count > 0);
 
     return (
-      <div className="max-w-3xl mx-auto pb-8">
+      <div className="max-w-screen-xl mx-auto pb-8">
         <form action="/catalog" className="px-4 md:px-0 mb-3">
           <CatalogSearchInput datalistId="catalog-suggest" />
           <datalist id="catalog-suggest">
@@ -318,8 +318,17 @@ export default async function CatalogPage({
     ? GROUP_LABELS[groupFilter]
     : `Search “${q}”`;
 
+  // When the user narrowed to a single group (and isn't also searching /
+  // filtering by producer), render producers as sections of small cards so
+  // Baldor-style browsing-by-farm is the default. Drilling into a producer
+  // reverts to the big grid via producerFilter.
+  const showProducerSections =
+    Boolean(groupFilter) && !producerFilter && !q && !isBest && !isExplore;
+  const producerSections = showProducerSections ? groupByProducer(priced) : [];
+  const fromGroupLabel = groupFilter ?? (isExplore ? "explore" : isBest ? "best" : null);
+
   return (
-    <div className="max-w-3xl mx-auto pb-8">
+    <div className="max-w-screen-xl mx-auto pb-8">
       <div className="px-4 md:px-0 pt-1">
         <Link href="/catalog" className="text-xs text-ink-secondary hover:underline">
           ← Catalog
@@ -343,7 +352,7 @@ export default async function CatalogPage({
           <button className="btn-secondary text-sm">Search</button>
         </form>
 
-        {!isBest ? (
+        {!isBest && !showProducerSections ? (
           <div className="flex items-center gap-2 mb-4">
             <SortSheet current={sort} />
           </div>
@@ -352,14 +361,54 @@ export default async function CatalogPage({
 
       {priced.length === 0 ? (
         <p className="text-ink-secondary px-4 md:px-0">No products match.</p>
+      ) : showProducerSections ? (
+        <div className="space-y-2">
+          {producerSections.map(({ producer, items }) => (
+            <ScrollStrip
+              key={producer ?? "__nofarm"}
+              title={producer ?? "Other"}
+              href={
+                producer
+                  ? `/catalog?producer=${encodeURIComponent(producer)}`
+                  : undefined
+              }
+              products={items}
+            />
+          ))}
+        </div>
       ) : (
-        <CatalogGrid
-          products={priced}
-          fromGroup={groupFilter ?? (isExplore ? "explore" : isBest ? "best" : null)}
-        />
+        <CatalogGrid products={priced} fromGroup={fromGroupLabel} />
       )}
     </div>
   );
+}
+
+/**
+ * Group a priced-products list by producer, preserving the order producers
+ * first appear (so sort-order semantics from the parent query still win).
+ * Rows without a producer get bucketed into a single "Other" section at
+ * the end.
+ */
+function groupByProducer<T extends { producer: string | null }>(
+  items: T[],
+): { producer: string | null; items: T[] }[] {
+  const order: (string | null)[] = [];
+  const bucket = new Map<string | null, T[]>();
+  for (const p of items) {
+    const key = p.producer?.trim() || null;
+    if (!bucket.has(key)) {
+      bucket.set(key, []);
+      order.push(key);
+    }
+    bucket.get(key)!.push(p);
+  }
+  // Move nameless bucket to the tail
+  const namedFirst = order.filter((k) => k !== null);
+  const hasNull = order.includes(null);
+  return [
+    ...namedFirst.map((k) => ({ producer: k, items: bucket.get(k)! })),
+    ...(hasNull ? [{ producer: null, items: bucket.get(null)! }] : []),
+  ];
 }
 
 /**

@@ -30,7 +30,7 @@ export default async function StandingPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-screen-xl mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl">Standing orders</h1>
         <Link href="/standing/new" className="btn-primary text-sm">New</Link>

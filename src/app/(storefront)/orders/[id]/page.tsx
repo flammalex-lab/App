@@ -68,7 +68,7 @@ export default async function OrderDetail({
   const totalUnits = rows.reduce((s, r) => s + Number(r.quantity), 0);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-0 pt-3 pb-24">
+    <div className="max-w-5xl mx-auto px-4 md:px-0 pt-3 pb-24">
       <div className="flex items-center justify-between mb-3">
         <Link href="/orders" className="text-sm text-ink-secondary hover:underline">
           ← Orders

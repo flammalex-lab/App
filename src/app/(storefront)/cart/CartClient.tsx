@@ -212,7 +212,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
 
       {/* Sticky Checkout CTA */}
       <div className="fixed bottom-[80px] md:bottom-6 inset-x-0 px-4 md:px-6 z-20 pointer-events-none">
-        <div className="max-w-3xl mx-auto pointer-events-auto">
+        <div className="max-w-5xl mx-auto pointer-events-auto">
           <Button
             onClick={goToReview}
             size="lg"

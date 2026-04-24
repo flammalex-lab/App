@@ -50,7 +50,7 @@ export default async function OrdersPage({
   const visible = tab === "past" ? past : upcoming;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-screen-xl mx-auto">
       <h1 className="display text-2xl mb-3">Orders</h1>
 
       <div className="flex border-b border-black/10 mb-3">
