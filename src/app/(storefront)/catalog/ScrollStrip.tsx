@@ -8,13 +8,6 @@ import { money } from "@/lib/utils/format";
 
 type PricedProduct = Product & { unitPrice: number | null };
 
-const NEW_DAYS = 60;
-function isRecent(iso: string | null | undefined): boolean {
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  return Number.isFinite(t) && Date.now() - t < NEW_DAYS * 24 * 60 * 60 * 1000;
-}
-
 export function ScrollStrip({
   title,
   href,
@@ -30,9 +23,9 @@ export function ScrollStrip({
 }) {
   if (products.length === 0) return null;
   return (
-    <section className="mb-6">
-      <div className="flex items-baseline justify-between px-4 md:px-0 mb-2">
-        <h2 className="display text-lg tracking-tight">
+    <section className="mb-4">
+      <div className="flex items-baseline justify-between px-4 md:px-0 mb-1">
+        <h2 className="display text-base tracking-tight">
           {emoji ? <span className="mr-1">{emoji}</span> : null}
           {title}
         </h2>
@@ -43,9 +36,9 @@ export function ScrollStrip({
         ) : null}
       </div>
       {subtitle ? (
-        <p className="text-xs text-ink-secondary px-4 md:px-0 mb-2">{subtitle}</p>
+        <p className="text-[11px] text-ink-secondary px-4 md:px-0 mb-1">{subtitle}</p>
       ) : null}
-      <div className="flex gap-3 overflow-x-auto px-4 md:px-0 pb-2 snap-x">
+      <div className="flex gap-2 overflow-x-auto px-4 md:px-0 pb-1 snap-x">
         {products.map((p) => (
           <CompactCard key={p.id} product={p} />
         ))}
@@ -55,11 +48,10 @@ export function ScrollStrip({
 }
 
 /**
- * Compact list-style card — thumb on the left, product info on the right.
- * Used in the first-click scroll strips on /guide and /catalog to pack
- * more items onto the landing. The larger portrait card (CatalogGrid's
- * ProductCard) shows up when the buyer clicks "See all" into a filtered
- * producer or group view.
+ * Dense list-style card — small thumb on the left, tight info on the right.
+ * Used in the first-click scroll strips on /guide and /catalog. Since the
+ * strip title carries the producer (for producer-grouped sections), the
+ * card itself skips the producer line.
  */
 function CompactCard({ product }: { product: PricedProduct }) {
   const add = useCart((s) => s.add);
@@ -69,9 +61,6 @@ function CompactCard({ product }: { product: PricedProduct }) {
   );
   const available = product.available_this_week && product.unitPrice != null;
   const detailHref = `/catalog/${product.id}`;
-  const producerHref = product.producer
-    ? `/catalog?producer=${encodeURIComponent(product.producer)}`
-    : null;
 
   function addOne() {
     if (!available) return;
@@ -90,13 +79,11 @@ function CompactCard({ product }: { product: PricedProduct }) {
   }
 
   return (
-    <div className="shrink-0 w-[240px] snap-start relative rounded-xl border border-black/[0.06] bg-bg-primary overflow-hidden transition hover:border-black/10 hover:shadow-[0_2px_10px_rgba(22,22,22,0.05)]">
-      {/* Stub link covers the whole card; producer + cart button opt back in. */}
+    <div className="shrink-0 w-[180px] snap-start relative rounded-lg border border-black/[0.06] bg-bg-primary overflow-hidden transition hover:border-black/10">
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-      <div className="relative flex gap-3 p-2.5">
-        {/* Thumbnail */}
-        <div className="relative h-[76px] w-[76px] shrink-0 rounded-lg overflow-hidden bg-bg-secondary flex items-center justify-center pointer-events-none">
+      <div className="relative flex gap-2 p-1.5">
+        <div className="relative h-14 w-14 shrink-0 rounded-md overflow-hidden bg-bg-secondary flex items-center justify-center pointer-events-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
@@ -104,50 +91,35 @@ function CompactCard({ product }: { product: PricedProduct }) {
             className="max-h-full max-w-full object-contain mix-blend-multiply"
           />
           {cartQty > 0 ? (
-            <span className="absolute top-0.5 left-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-gold text-white text-[10px] font-semibold flex items-center justify-center tabular shadow-sm">
+            <span className="absolute top-0 left-0 min-w-[16px] h-[16px] px-1 rounded-br-md bg-accent-gold text-white text-[9px] font-semibold flex items-center justify-center tabular">
               {cartQty}
             </span>
           ) : null}
-          {available ? (
-            <button
-              onClick={addOne}
-              className="absolute bottom-0.5 right-0.5 h-6 w-6 rounded-full bg-brand-green-dark text-white text-sm leading-none flex items-center justify-center hover:bg-brand-green-dark/90 transition shadow-sm pointer-events-auto"
-              aria-label="Add to cart"
-            >
-              +
-            </button>
-          ) : null}
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0 pointer-events-none">
-          {product.producer && producerHref ? (
-            <Link
-              href={producerHref}
-              className="block max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-brand-green-dark hover:underline pointer-events-auto"
-            >
-              {product.producer}
-            </Link>
-          ) : null}
-          <div className="display text-[13px] font-semibold leading-snug text-ink-primary line-clamp-2">
+          <div className="display text-[12px] font-semibold leading-tight text-ink-primary line-clamp-2">
             {product.name}
           </div>
-          <div className="mt-0.5 flex items-baseline gap-1.5">
-            <span className="tabular text-[13px] font-semibold text-ink-primary">
+          <div className="mt-0.5 flex items-baseline gap-1">
+            <span className="tabular text-[12px] font-semibold text-ink-primary">
               {product.unitPrice != null ? money(product.unitPrice) : "—"}
             </span>
-            <span className="text-[10px] text-ink-tertiary uppercase">
-              / {product.pack_size ?? product.unit}
+            <span className="text-[9px] text-ink-tertiary uppercase">
+              /{product.pack_size ?? product.unit}
             </span>
           </div>
-          {!available ? (
-            <span className="inline-block mt-1 badge-gray text-[9px]">limited</span>
-          ) : isRecent(product.created_at) ? (
-            <span className="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white">
-              New
-            </span>
-          ) : null}
         </div>
+
+        {available ? (
+          <button
+            onClick={addOne}
+            className="absolute bottom-1 right-1 h-6 w-6 rounded-full bg-brand-green-dark text-white text-sm leading-none flex items-center justify-center hover:bg-brand-green-dark/90 transition pointer-events-auto"
+            aria-label="Add to cart"
+          >
+            +
+          </button>
+        ) : null}
       </div>
     </div>
   );
