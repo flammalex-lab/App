@@ -13,6 +13,7 @@ import type {
 import { GuideClient } from "./GuideClient";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { money } from "@/lib/utils/format";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
 
@@ -145,15 +146,13 @@ export default async function GuidePage() {
       ) : null}
 
       {items.length === 0 ? (
-        <div className="card p-8 text-center mx-4 md:mx-0">
-          <div className="text-5xl mb-3 opacity-30">☰</div>
-          <h2 className="text-xl font-serif mb-2">No items in your guide yet</h2>
-          <p className="text-sm text-ink-secondary mb-5 max-w-sm mx-auto">
-            Your rep at Fingerlakes Farms will build this for you based on what you order.
-            You can also browse the full catalog and add items yourself.
-          </p>
-          <Link href="/catalog" className="btn-primary text-sm">Browse the catalog</Link>
-        </div>
+        <EmptyState
+          className="card mx-4 md:mx-0"
+          icon={<div className="text-5xl opacity-30">☰</div>}
+          title="Nothing in your guide yet"
+          body="Your rep will build this for you based on what you order. You can also browse the catalog and add items yourself."
+          cta={{ href: "/catalog", label: "Browse the catalog" }}
+        />
       ) : (
         <GuideClient items={items} />
       )}

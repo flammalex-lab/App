@@ -7,6 +7,7 @@ import { resolveActiveAccount } from "@/lib/auth/active-account";
 import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { visibleProductsQuery } from "@/lib/products/queries";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   GROUP_LABELS,
   allowedGroupsFor,
@@ -341,7 +342,7 @@ export default async function CatalogPage({
       </div>
 
       {priced.length === 0 ? (
-        <p className="text-ink-secondary px-4 md:px-0">No products match.</p>
+        <EmptyState title="No products match" body="Try a different search or clear filters." />
       ) : showProducerSections ? (
         <div className="space-y-2">
           {producerSections.map(({ producer, items }) => (

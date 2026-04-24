@@ -8,6 +8,7 @@ import { money, dateLong } from "@/lib/utils/format";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { LineItem } from "@/components/products/LineItem";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface NextDelivery {
@@ -95,13 +96,16 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
 
   if (lines.length === 0) {
     return (
-      <div className="card p-8 text-center mx-4 md:mx-0">
-        <div className="text-5xl mb-3 opacity-30">🛒</div>
-        <p className="text-ink-secondary mb-4">Nothing here yet — head to your guide to start building an order.</p>
-        <Link href={isB2B ? "/guide" : "/catalog"} className="btn-primary text-sm">
-          {isB2B ? "Back to your guide" : "Browse the catalog"}
-        </Link>
-      </div>
+      <EmptyState
+        className="card mx-4 md:mx-0"
+        icon={<div className="text-5xl opacity-30">🛒</div>}
+        title="Nothing in your cart yet"
+        body={isB2B ? "Head back to your guide to start building an order." : "Browse the catalog to pick something fresh."}
+        cta={{
+          href: isB2B ? "/guide" : "/catalog",
+          label: isB2B ? "Back to your guide" : "Browse the catalog",
+        }}
+      />
     );
   }
 

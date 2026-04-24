@@ -35,7 +35,11 @@ export function ProductCard({
     (s) =>
       s.lines.find((l) => l.productId === product.id && l.variantKey === null)?.quantity ?? 0,
   );
-  const available = product.available_this_week && product.unitPrice != null;
+  // "Paused" = admin has toggled this product off since it was added to
+  // this buyer's guide/standing order. Render but gray out + block add
+  // so buyers see why the item no longer works.
+  const paused = product.available_b2b === false;
+  const available = product.available_this_week && product.unitPrice != null && !paused;
 
   const detailHref = fromGroup
     ? `/catalog/${product.id}?from=${fromGroup}`
@@ -79,7 +83,7 @@ export function ProductCard({
 
   if (variant === "grid") {
     return (
-      <div className="relative rounded-lg border border-black/10 bg-white overflow-hidden transition hover:border-black/20 flex flex-col">
+      <div className={`relative rounded-lg border border-black/10 bg-white overflow-hidden transition hover:border-black/20 flex flex-col ${paused ? "opacity-70" : ""}`}>
         <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
         <div className="relative aspect-[2/1] flex items-center justify-center p-1 pointer-events-none">
@@ -89,7 +93,9 @@ export function ProductCard({
             alt=""
             className="max-h-full max-w-full object-contain mix-blend-multiply"
           />
-          {!product.available_this_week ? (
+          {paused ? (
+            <span className="absolute top-1 right-1 badge badge-gold text-[9px]">Paused</span>
+          ) : !product.available_this_week ? (
             <span className="absolute top-1 right-1 badge-gray bg-white/90 text-[9px]">week off</span>
           ) : null}
           {cartQty > 0 ? (
@@ -140,7 +146,7 @@ export function ProductCard({
 
   // compact
   return (
-    <div className="w-full h-full relative rounded-lg border border-black/10 bg-white overflow-hidden transition hover:border-black/20">
+    <div className={`w-full h-full relative rounded-lg border border-black/10 bg-white overflow-hidden transition hover:border-black/20 ${paused ? "opacity-70" : ""}`}>
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
       <div className="relative flex gap-2 p-1.5 pointer-events-none">
@@ -151,7 +157,11 @@ export function ProductCard({
             alt=""
             className="max-h-full max-w-full object-contain mix-blend-multiply"
           />
-          {cartQty > 0 ? (
+          {paused ? (
+            <span className="absolute top-0 right-0 min-w-[14px] h-[14px] px-1 rounded-bl bg-accent-gold text-white text-[8px] font-semibold flex items-center justify-center uppercase tracking-wide">
+              off
+            </span>
+          ) : cartQty > 0 ? (
             <span className="absolute top-0 left-0 min-w-[14px] h-[14px] px-1 rounded-br bg-accent-gold text-white text-[9px] font-semibold flex items-center justify-center tabular">
               {cartQty}
             </span>
