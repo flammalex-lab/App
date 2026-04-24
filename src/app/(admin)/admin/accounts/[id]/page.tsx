@@ -20,7 +20,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
 
   if (id === "new") {
     return (
-      <div className="max-w-3xl">
+      <div className="max-w-5xl">
         <h1 className="display text-3xl mb-4">New account</h1>
         <AccountForm account={null} />
       </div>
@@ -79,7 +79,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="display text-3xl">{(account as Account).name}</h1>

@@ -4,7 +4,7 @@ export const metadata = { title: "Admin — Import items from QuickBooks" };
 
 export default function ItemsImportPage() {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <h1 className="text-3xl mb-2">Import items from QuickBooks</h1>
       <p className="text-sm text-ink-secondary mb-4">
         Export your Item List from QuickBooks Desktop (<strong>Reports → List → Item Listing → Export → Excel/CSV</strong>)

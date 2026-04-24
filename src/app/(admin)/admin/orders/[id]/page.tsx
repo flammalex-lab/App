@@ -17,7 +17,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
   const rows = (items as (OrderItem & { product: Product })[] | null) ?? [];
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl mono">{o.order_number}</h1>

@@ -39,7 +39,7 @@ export default async function TemplateEditPage({
   }).order("sort_order");
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="max-w-5xl space-y-4">
       <Link
         href="/admin/order-guides/templates"
         className="text-sm text-ink-secondary hover:underline"

@@ -91,7 +91,7 @@ export default async function BuyerEditPage({
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <div className="text-sm text-ink-secondary">
         <Link href={`/admin/accounts/${accountId}`} className="hover:underline">
           ← {a.name}

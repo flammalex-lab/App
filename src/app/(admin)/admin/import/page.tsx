@@ -4,7 +4,7 @@ export const metadata = { title: "Admin — Import customers" };
 
 export default function ImportPage() {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <h1 className="text-3xl mb-2">Import customers from QuickBooks</h1>
       <p className="text-sm text-ink-secondary mb-4">
         One-time pull: export your Customer list from QuickBooks Desktop (Reports → Customer &amp; Receivables →

@@ -20,7 +20,7 @@ export default async function AdminMessagesPage() {
   const threads = Object.values(latest);
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <h1 className="text-3xl mb-4">Messages</h1>
       <div className="card divide-y divide-black/5">
         {threads.map((t: any) => (
