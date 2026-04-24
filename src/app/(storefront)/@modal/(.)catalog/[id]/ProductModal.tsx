@@ -58,7 +58,7 @@ export function ProductModal({
       aria-modal="true"
       aria-label={product.name}
       onMouseDown={onBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/50 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/60 animate-fade-in"
     >
       <div
         ref={panelRef}
@@ -72,7 +72,7 @@ export function ProductModal({
           ×
         </button>
 
-        <div className="relative aspect-[4/3] sm:aspect-[16/10] bg-bg-secondary">
+        <div className="relative aspect-[4/3] sm:aspect-[16/10] bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}

@@ -228,7 +228,7 @@ function Stepper({
       <div className="flex items-center gap-0 shrink-0">
         <button
           onClick={onSub}
-          className={`${box} rounded-full flex items-center justify-center text-brand-green-dark hover:bg-brand-green-tint transition`}
+          className={`${box} rounded-full flex items-center justify-center text-brand-green-dark hover:bg-brand-green-tint transition focus:outline-none focus:ring-2 focus:ring-brand-green/40`}
           aria-label={cartQty === 1 ? "Remove from cart" : "Remove one"}
         >
           {cartQty === 1 ? <TrashIcon size={size} /> : <span className={`${txt} leading-none`}>−</span>}
@@ -236,7 +236,7 @@ function Stepper({
         <span className={`tabular ${qtyW} font-semibold text-center`}>{cartQty}</span>
         <button
           onClick={onAdd}
-          className={`${box} rounded-full bg-brand-green-dark text-white flex items-center justify-center ${txt} leading-none hover:bg-brand-green-dark/90 transition`}
+          className={`${box} rounded-full bg-brand-green-dark text-white flex items-center justify-center ${txt} leading-none hover:bg-brand-green-dark/90 transition focus:outline-none focus:ring-2 focus:ring-brand-green/40`}
           aria-label="Add one"
         >
           +
@@ -247,7 +247,7 @@ function Stepper({
   return (
     <button
       onClick={onAdd}
-      className={`${box} rounded-full bg-brand-green-dark text-white flex items-center justify-center ${txt} leading-none hover:bg-brand-green-dark/90 transition shrink-0`}
+      className={`${box} rounded-full bg-brand-green-dark text-white flex items-center justify-center ${txt} leading-none hover:bg-brand-green-dark/90 transition shrink-0 focus:outline-none focus:ring-2 focus:ring-brand-green/40`}
       aria-label="Add to cart"
     >
       +
