@@ -182,17 +182,14 @@ export default async function CatalogPage({
 
     return (
       <div className="max-w-3xl mx-auto pb-8">
-        <div className="px-4 md:px-0 pt-1">
-          <h1 className="display text-2xl mb-3">Catalog</h1>
-          <form action="/catalog" className="mb-5">
-            <CatalogSearchInput datalistId="catalog-suggest" />
-            <datalist id="catalog-suggest">
-              {suggestions.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </form>
-        </div>
+        <form action="/catalog" className="px-4 md:px-0 mb-3">
+          <CatalogSearchInput datalistId="catalog-suggest" />
+          <datalist id="catalog-suggest">
+            {suggestions.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        </form>
 
         <ScrollStrip
           title="This week"
@@ -324,12 +321,12 @@ export default async function CatalogPage({
   return (
     <div className="max-w-3xl mx-auto pb-8">
       <div className="px-4 md:px-0 pt-1">
-        <Link href="/catalog" className="text-sm text-ink-secondary hover:underline">
+        <Link href="/catalog" className="text-xs text-ink-secondary hover:underline">
           ← Catalog
         </Link>
-        <h1 className="display text-2xl mt-1 mb-3">{headerTitle}</h1>
+        <h1 className="display text-xl mt-0.5 mb-1">{headerTitle}</h1>
         {producerFilter ? (
-          <p className="text-sm text-ink-secondary mb-3">All items from {producerFilter}</p>
+          <p className="text-xs text-ink-secondary mb-2">All items from {producerFilter}</p>
         ) : null}
         <form action="/catalog" className="mb-3 flex gap-2">
           <CatalogSearchInput

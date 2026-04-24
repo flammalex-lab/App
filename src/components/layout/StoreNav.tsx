@@ -47,9 +47,9 @@ function TopHeader({
 }) {
   return (
     <header className="sticky top-0 z-30 bg-bg-primary/90 backdrop-blur border-b border-black/5">
-      <div className="flex items-center gap-2 px-3 md:px-6 py-2.5">
+      <div className="flex items-center gap-2 px-3 md:px-6 py-1.5">
         <Link href={home} className="shrink-0" aria-label="Home">
-          <BrandLogo size={34} />
+          <BrandLogo size={28} />
         </Link>
         <div className="flex-1 min-w-0 flex justify-center">
           {activeAccount ? (

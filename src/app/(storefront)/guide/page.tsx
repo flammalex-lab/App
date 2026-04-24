@@ -116,16 +116,14 @@ export default async function GuidePage() {
 
   return (
     <div className="max-w-3xl mx-auto pb-8">
-      {/* Personal greeting */}
-      <section className="px-4 md:px-0 pt-1 pb-3">
-        <h1 className="display text-2xl tracking-tight">
-          {greeting}, {firstName}.
-        </h1>
-      </section>
+      {/* Personal greeting — single compact line */}
+      <div className="px-4 md:px-0 pt-1 pb-2 text-xs text-ink-secondary">
+        {greeting}, <span className="font-medium text-ink-primary">{firstName}</span>.
+      </div>
 
       {/* Reorder-last card */}
       {lastOrder ? (
-        <section className="px-4 md:px-0 mb-4">
+        <section className="px-4 md:px-0 mb-3">
           <form action={`/api/orders/reorder?orderId=${lastOrder.id}`} method="post">
             <button
               type="submit"
