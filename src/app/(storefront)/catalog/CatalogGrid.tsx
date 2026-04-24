@@ -110,10 +110,10 @@ function ProductCard({
 
       {/* Producer — small brand-green link under the name */}
       {product.producer && producerHref ? (
-        <div className="relative px-2 pointer-events-none">
+        <div className="relative px-2 pt-0.5 pointer-events-none">
           <Link
             href={producerHref}
-            className="block max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-brand-green-dark hover:underline pointer-events-auto"
+            className="block max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-brand-green-dark leading-none hover:underline pointer-events-auto"
           >
             {product.producer}
           </Link>
@@ -121,7 +121,7 @@ function ProductCard({
       ) : null}
 
       {/* Price + action — price shows size inline ("$35 · 9/10oz") */}
-      <div className="relative px-2 pb-1.5 pt-0.5 flex items-center justify-between gap-1 pointer-events-auto">
+      <div className="relative px-2 pb-1.5 pt-1 flex items-center justify-between gap-1 pointer-events-auto">
         <div className="min-w-0 truncate">
           <span className="tabular text-[13px] font-semibold text-ink-primary">
             {product.unitPrice != null ? money(product.unitPrice) : "—"}
