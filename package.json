@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.62.0",
-    "@imgly/background-removal": "^1.5.8",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.2",
     "@zxing/browser": "^0.1.5",
