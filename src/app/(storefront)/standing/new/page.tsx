@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, Product } from "@/lib/supabase/types";
+import { visibleProductsQuery } from "@/lib/products/queries";
 import { StandingOrderEditor } from "@/components/standing/StandingOrderEditor";
 
 export const metadata = { title: "New standing order — Fingerlakes Farms" };
@@ -17,14 +18,13 @@ export default async function NewStandingPage() {
   const { data: me } = await db.from("profiles").select("*").eq("id", profileId).maybeSingle();
   if (!me?.account_id) redirect("/standing");
   const { data: account } = await db.from("accounts").select("*").eq("id", me.account_id).maybeSingle();
+  const a = account as Account;
 
-  const { data: products } = await db
-    .from("products")
-    .select("*")
-    .eq("is_active", true)
-    .eq("available_b2b", true)
-    .in("category", (account as Account).enabled_categories)
-    .order("sort_order");
+  const buyerType = me.buyer_type ?? a.buyer_type ?? null;
+  const { data: products } = await visibleProductsQuery(db, {
+    buyerType,
+    isB2B: me.role === "b2b_buyer",
+  }).order("sort_order");
 
   return (
     <div className="max-w-2xl mx-auto">

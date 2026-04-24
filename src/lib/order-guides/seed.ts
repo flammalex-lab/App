@@ -45,9 +45,17 @@ export async function seedStarterGuide(
     .filter(Boolean)
     .join(",");
 
-  async function fetchCandidates(stage: 1 | 2 | 3): Promise<{ id: string }[]> {
-    let q = svc.from("products").select("id").eq("is_active", true).or(orExpr);
-    if (stage <= 2) q = q.eq("available_b2b", true);
+  // Two-stage fallback: prefer in-this-week picks, then drop the weekly flag
+  // if nothing matches. We deliberately never drop available_b2b — a seeded
+  // guide item that isn't live for B2B would silently vanish from the buyer's
+  // /guide page at read time.
+  async function fetchCandidates(stage: 1 | 2): Promise<{ id: string }[]> {
+    let q = svc
+      .from("products")
+      .select("id")
+      .eq("is_active", true)
+      .eq("available_b2b", true)
+      .or(orExpr);
     if (stage === 1) q = q.eq("available_this_week", true);
     const { data, error: qErr } = await q
       .order("sort_order", { ascending: true })
@@ -58,7 +66,6 @@ export async function seedStarterGuide(
 
   let candidates = await fetchCandidates(1);
   if (candidates.length === 0) candidates = await fetchCandidates(2);
-  if (candidates.length === 0) candidates = await fetchCandidates(3);
   if (candidates.length === 0) {
     console.warn(
       `[seedStarterGuide] no candidates for buyer_type=${buyerType} (cats=${allowedCats.join("|")} groups=${allowedGroups.join("|")})`,

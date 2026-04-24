@@ -5,7 +5,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, AccountPricing, PackOption, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
-import { CATEGORY_LABELS, GROUP_LABELS, type ProductGroup } from "@/lib/constants";
+import { CATEGORY_LABELS, GROUP_LABELS, allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
 import { productImage } from "@/lib/utils/product-image";
 import { dateShort, money } from "@/lib/utils/format";
 import { ProductDetailClient } from "./ProductDetailClient";
@@ -38,6 +38,20 @@ export default async function ProductDetail({
     : { data: null as Account | null };
   const account = acctRow as Account | null;
   const isB2B = me.role === "b2b_buyer";
+
+  // Visibility gate. Admins impersonating can view any product to debug;
+  // buyers only see products that match their allowed groups + channel +
+  // active state. Prevents direct-URL disclosure of hidden SKUs.
+  if (!impersonating) {
+    const buyerType = me.buyer_type ?? account?.buyer_type ?? null;
+    const allowedGroups = allowedGroupsFor(buyerType);
+    const allowedCats = allowedCategoriesFor(buyerType);
+    const groupOk = p.product_group
+      ? allowedGroups.includes(p.product_group as ProductGroup)
+      : allowedCats.includes(p.category);
+    const channelOk = isB2B ? p.available_b2b : p.available_dtc;
+    if (!p.is_active || !channelOk || !groupOk) notFound();
+  }
 
   const { data: override } = account
     ? await db

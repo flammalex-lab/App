@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, Product, StandingOrder, StandingOrderItem } from "@/lib/supabase/types";
+import { visibleProductsQuery } from "@/lib/products/queries";
 import { StandingOrderEditor } from "@/components/standing/StandingOrderEditor";
 
 export default async function StandingDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,13 +24,11 @@ export default async function StandingDetailPage({ params }: { params: Promise<{
     : { data: null as Account | null };
 
   const { data: items } = await db.from("standing_order_items").select("*").eq("standing_order_id", id);
-  const { data: products } = await db
-    .from("products")
-    .select("*")
-    .eq("is_active", true)
-    .eq("available_b2b", true)
-    .in("category", (account as Account | null)?.enabled_categories ?? ["beef", "pork", "eggs", "dairy", "produce"])
-    .order("sort_order");
+  const buyerType = me?.buyer_type ?? (account as Account | null)?.buyer_type ?? null;
+  const { data: products } = await visibleProductsQuery(db, {
+    buyerType,
+    isB2B: true,
+  }).order("sort_order");
 
   const s = so as StandingOrder;
   return (

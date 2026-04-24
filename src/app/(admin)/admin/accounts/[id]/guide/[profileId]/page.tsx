@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Account, OrderGuide, OrderGuideItem, Product, Profile } from "@/lib/supabase/types";
-import { allowedCategoriesFor, allowedGroupsFor } from "@/lib/constants";
+import { adminPickerProductsQuery } from "@/lib/products/queries";
 import { GuideEditor } from "./GuideEditor";
 
 export default async function AdminGuideEditPage({
@@ -47,26 +47,14 @@ export default async function AdminGuideEditPage({
     .eq("order_guide_id", guide.id)
     .order("sort_order");
 
-  // Filter the picker to what this buyer would see on the catalog: the
-  // buyer's buyer_type (or the account's as a fallback) narrows by product
-  // group/category. available_b2b is NOT required here — admin picking
-  // happens before catalog flags are set, and anyway the guide is a
-  // curated list that can include anything.
+  // Picker is scoped to this buyer's allowed groups. available_b2b is NOT
+  // required — admins often curate ahead of go-live — but we surface a
+  // "Not live" badge in GuideEditor so it's visible which picks won't
+  // render on the buyer's storefront yet.
   const effectiveBuyerType = p.buyer_type ?? a.buyer_type ?? null;
-  const allowedCats = allowedCategoriesFor(effectiveBuyerType);
-  const allowedGroups = allowedGroupsFor(effectiveBuyerType);
-  const orExpr = [
-    allowedCats.length ? `category.in.(${allowedCats.join(",")})` : null,
-    allowedGroups.length ? `product_group.in.(${allowedGroups.join(",")})` : null,
-  ]
-    .filter(Boolean)
-    .join(",");
-  const { data: products } = await svc
-    .from("products")
-    .select("*")
-    .eq("is_active", true)
-    .or(orExpr)
-    .order("sort_order");
+  const { data: products } = await adminPickerProductsQuery(svc, {
+    buyerType: effectiveBuyerType,
+  }).order("sort_order");
 
   return (
     <div className="max-w-3xl">

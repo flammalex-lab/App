@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
+import { adminPickerProductsQuery } from "@/lib/products/queries";
 import { AccountPricingEditor } from "./AccountPricingEditor";
 
 export default async function AccountPricingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,16 +13,14 @@ export default async function AccountPricingPage({ params }: { params: Promise<{
 
   const { data: account } = await svc.from("accounts").select("*").eq("id", id).maybeSingle();
   if (!account) notFound();
+  const a = account as Account;
 
   const [{ data: overrides }, { data: products }] = await Promise.all([
     svc.from("account_pricing").select("*").eq("account_id", id),
-    svc
-      .from("products")
-      .select("*")
-      .eq("is_active", true)
-      .eq("available_b2b", true)
-      .in("category", (account as Account).enabled_categories)
-      .order("sort_order"),
+    adminPickerProductsQuery(svc, {
+      buyerType: a.buyer_type,
+      onlyAvailableB2B: true,
+    }).order("sort_order"),
   ]);
 
   return (

@@ -120,11 +120,14 @@ export function GuideEditor({
             <button
               key={p.id}
               onClick={() => add(p)}
-              className="w-full text-left p-2 hover:bg-bg-secondary flex justify-between text-sm"
+              className="w-full text-left p-2 hover:bg-bg-secondary flex justify-between items-center text-sm"
             >
               <span>
                 {p.name}
                 {p.pack_size ? <span className="text-xs text-ink-secondary"> · {p.pack_size}</span> : null}
+                {!p.available_b2b ? (
+                  <span className="ml-2 badge badge-gold">Not live</span>
+                ) : null}
               </span>
               <span className="text-xs text-ink-secondary">{CATEGORY_LABELS[p.category]}</span>
             </button>
@@ -141,7 +144,12 @@ export function GuideEditor({
               <div key={r.id} className="p-3 space-y-2">
                 <div className="flex justify-between items-baseline">
                   <div>
-                    <div className="font-medium">{r.product.name}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {r.product.name}
+                      {!r.product.available_b2b ? (
+                        <span className="badge badge-gold">Not live</span>
+                      ) : null}
+                    </div>
                     <div className="text-xs text-ink-secondary">
                       {r.product.pack_size ?? ""} {r.product.sku ? `· ${r.product.sku}` : ""}
                     </div>

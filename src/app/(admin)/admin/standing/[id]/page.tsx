@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Account, Product, Profile, StandingOrder, StandingOrderItem } from "@/lib/supabase/types";
+import { adminPickerProductsQuery } from "@/lib/products/queries";
 import { StandingOrderEditor } from "@/components/standing/StandingOrderEditor";
 
 export default async function AdminStandingDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,7 @@ export default async function AdminStandingDetail({ params }: { params: Promise<
   // Load all active accounts and their B2B buyers for the account picker
   const { data: accountRows } = await svc
     .from("accounts")
-    .select("id, name, enabled_categories")
+    .select("id, name, buyer_type, enabled_categories")
     .eq("status", "active")
     .order("name");
   const accountIds = (accountRows as any[] | null)?.map((a) => a.id) ?? [];
@@ -33,24 +34,23 @@ export default async function AdminStandingDetail({ params }: { params: Promise<
   const accounts = (accountRows as any[] | null ?? []).map((a) => ({
     id: a.id,
     name: a.name,
+    buyer_type: a.buyer_type as string | null,
     enabled_categories: a.enabled_categories,
     buyers: ((buyerRows as any[] | null) ?? [])
       .filter((b) => b.account_id === a.id)
       .map((b) => ({ id: b.id, name: `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim() || b.id })),
   }));
 
-  // For product list, use the buying profile of the selected account if editing;
-  // otherwise show union of all categories (admin can pick any).
-  const allCats: string[] = so
-    ? (accounts.find((a) => a.id === so.account_id)?.enabled_categories ?? ["beef", "pork", "eggs", "dairy", "produce"])
-    : ["beef", "pork", "eggs", "dairy", "produce"];
-  const { data: products } = await svc
-    .from("products")
-    .select("*")
-    .eq("is_active", true)
-    .eq("available_b2b", true)
-    .in("category", allCats)
-    .order("sort_order");
+  // Scope product picker to the selected account's buyer_type if editing;
+  // otherwise show the union (admin can assign any). Standing orders are
+  // B2B-only so we keep the available_b2b filter.
+  const selectedAccountBuyerType = so
+    ? accounts.find((a) => a.id === so.account_id)?.buyer_type ?? null
+    : null;
+  const { data: products } = await adminPickerProductsQuery(svc, {
+    buyerType: selectedAccountBuyerType,
+    onlyAvailableB2B: true,
+  }).order("sort_order");
 
   return (
     <div className="max-w-2xl">
