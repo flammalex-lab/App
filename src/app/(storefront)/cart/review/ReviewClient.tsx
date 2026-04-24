@@ -7,6 +7,7 @@ import { useCart } from "@/lib/cart/store";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
 import { money, dateLong } from "@/lib/utils/format";
+import { LineItem } from "@/components/products/LineItem";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface Props {
@@ -135,26 +136,24 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
           <span className="text-ink-tertiary">{itemsOpen ? "▾" : "›"}</span>
         </button>
         {itemsOpen ? (
-          <ul className="divide-y divide-black/5 animate-slide-up">
+          <div className="divide-y divide-black/5 animate-slide-up">
             {lines.map((l) => (
-              <li key={l.productId} className="flex items-start p-3 text-sm">
-                <div className="mono text-center w-10 font-semibold">{l.quantity}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium">{l.name}</div>
-                  <div className="text-xs text-ink-secondary">
-                    {l.packSize ? `${l.packSize} · ` : ""}
-                    <span className="mono">{money(l.unitPrice)} / {l.unit}</span>
-                  </div>
-                  {l.notes ? (
-                    <div className="text-xs text-ink-tertiary italic mt-1">“{l.notes}”</div>
-                  ) : null}
-                </div>
-                <div className="mono text-sm font-semibold shrink-0">
-                  {money(l.unitPrice * l.quantity)}
-                </div>
-              </li>
+              <LineItem
+                key={l.productId}
+                data={{
+                  id: l.productId,
+                  name: l.name,
+                  packSize: l.packSize,
+                  unit: l.unit,
+                  unitPrice: l.unitPrice,
+                  quantity: l.quantity,
+                  notes: l.notes,
+                  priceByWeight: l.priceByWeight,
+                }}
+                mode="review"
+              />
             ))}
-          </ul>
+          </div>
         ) : null}
       </section>
 

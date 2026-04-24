@@ -5,6 +5,7 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Order, OrderItem, Product, Profile } from "@/lib/supabase/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, dateLong, money } from "@/lib/utils/format";
+import { LineItem } from "@/components/products/LineItem";
 import Link from "next/link";
 import { OrderPlacedHero } from "./OrderPlacedHero";
 
@@ -115,28 +116,22 @@ export default async function OrderDetail({
 
       <div className="card mt-3 divide-y divide-black/5 overflow-hidden">
         {filteredRows.map((r) => (
-          <div key={r.id} className="p-3 flex items-center gap-3">
-            <div className="h-8 w-8 shrink-0 rounded-md bg-bg-secondary text-ink-secondary flex items-center justify-center mono text-xs font-semibold">
-              {Number(r.quantity)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">{r.product.name}</div>
-              <div className="text-xs text-ink-secondary mono">
-                {r.pack_variant_sku ?? r.product.sku ?? "—"}
-                {r.pack_variant_key ? ` · ${r.pack_variant_key}` : ""}
-                <span className="block uppercase text-[10px] tracking-wide text-ink-tertiary">
-                  {r.product.pack_size ?? r.product.unit}
-                </span>
-                <span className="block">
-                  {money(r.unit_price)} / {r.product.unit}
-                </span>
-              </div>
-              {r.notes ? (
-                <div className="text-xs text-ink-secondary italic mt-1">&ldquo;{r.notes}&rdquo;</div>
-              ) : null}
-            </div>
-            <div className="mono text-sm font-semibold">{money(r.line_total)}</div>
-          </div>
+          <LineItem
+            key={r.id}
+            data={{
+              id: r.id,
+              name: r.product.name,
+              sku: r.pack_variant_sku ?? r.product.sku ?? null,
+              variantLabel: r.pack_variant_key ?? null,
+              packSize: r.product.pack_size,
+              unit: r.product.unit,
+              unitPrice: Number(r.unit_price),
+              quantity: Number(r.quantity),
+              lineTotal: Number(r.line_total),
+              notes: r.notes,
+            }}
+            mode="history"
+          />
         ))}
         {filteredRows.length === 0 ? (
           <div className="p-6 text-center text-sm text-ink-secondary">

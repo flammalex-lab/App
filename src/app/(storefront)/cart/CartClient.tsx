@@ -7,6 +7,7 @@ import { useCart, type CartLine } from "@/lib/cart/store";
 import { money, dateLong } from "@/lib/utils/format";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
+import { LineItem } from "@/components/products/LineItem";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface NextDelivery {
@@ -145,50 +146,30 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
             className="input mb-2"
           />
         ) : null}
-        <ul className="card divide-y divide-black/5 overflow-hidden">
+        <div className="card divide-y divide-black/5 overflow-hidden">
           {visibleLines.map((l) => (
-            <li key={`${l.productId}:${l.variantKey ?? ""}`} className="p-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">{l.name}</div>
-                <div className="text-xs text-ink-secondary">
-                  {l.packSize ? `${l.packSize} · ` : ""}
-                  <span className="mono">{money(l.unitPrice)} / {l.unit}</span>
-                  {l.priceByWeight ? (
-                    <span className="ml-1 text-accent-gold">· est.</span>
-                  ) : null}
-                </div>
-                {l.notes ? (
-                  <div className="text-[11px] text-ink-tertiary italic mt-1">“{l.notes}”</div>
-                ) : null}
-              </div>
-              <div className="shrink-0 flex items-center gap-1">
-                <button
-                  onClick={() => setQty(l.productId, l.quantity - 1, l.variantKey)}
-                  className="h-9 w-9 rounded-full border border-black/10 flex items-center justify-center hover:bg-bg-secondary"
-                >
-                  −
-                </button>
-                <div className="min-w-[56px] px-2 py-1.5 text-center border border-black/10 rounded-md bg-white">
-                  <span className="mono text-sm font-semibold block leading-none">{l.quantity}</span>
-                  <span className="text-[10px] text-ink-secondary uppercase tracking-wide">
-                    {l.unit}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setQty(l.productId, l.quantity + 1, l.variantKey)}
-                  className="h-9 w-9 rounded-full bg-brand-blue text-white flex items-center justify-center hover:bg-brand-blue-dark"
-                >
-                  +
-                </button>
-              </div>
-            </li>
+            <LineItem
+              key={`${l.productId}:${l.variantKey ?? ""}`}
+              data={{
+                id: l.productId,
+                name: l.name,
+                packSize: l.packSize,
+                unit: l.unit,
+                unitPrice: l.unitPrice,
+                quantity: l.quantity,
+                notes: l.notes,
+                priceByWeight: l.priceByWeight,
+              }}
+              mode="edit"
+              onQty={(q) => setQty(l.productId, q, l.variantKey)}
+            />
           ))}
           {visibleLines.length === 0 ? (
-            <li className="p-6 text-center text-sm text-ink-secondary">
+            <div className="p-6 text-center text-sm text-ink-secondary">
               Nothing matches &ldquo;{search}&rdquo;.
-            </li>
+            </div>
           ) : null}
-        </ul>
+        </div>
       </div>
 
       {/* Totals */}
