@@ -259,7 +259,7 @@ export default async function CatalogPage({
   let query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B });
   if (groupFilter) query = query.eq("product_group", groupFilter);
   if (q) query = query.or(`name.ilike.%${q}%,producer.ilike.%${q}%`);
-  if (producerFilter) query = query.eq("producer", producerFilter);
+  if (producerFilter) query = query.ilike("producer", producerFilter);
 
   if (isBest) query = query.order("sort_order", { ascending: true });
   else if (sort === "price_asc") query = query.order("wholesale_price", { ascending: true, nullsFirst: false });

@@ -90,7 +90,7 @@ export function ProductCard({
             className="max-h-full max-w-full object-contain mix-blend-multiply"
           />
           {!product.available_this_week ? (
-            <span className="absolute top-1 right-1 badge-gray bg-white/90 text-[9px]">limited</span>
+            <span className="absolute top-1 right-1 badge-gray bg-white/90 text-[9px]">week off</span>
           ) : null}
           {cartQty > 0 ? (
             <span className="absolute top-1 left-1 min-w-[18px] h-[18px] px-1 rounded bg-accent-gold text-white text-[10px] font-semibold flex items-center justify-center tabular">

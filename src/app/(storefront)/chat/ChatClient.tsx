@@ -139,7 +139,7 @@ function SystemBubble({ message }: { message: Message }) {
           <div className="border-t border-black/10">
             <Row label="Order status" value={<StatusDot label="Pending" />} />
             {deliver ? (
-              <Row label="Requested delivery" value={<span className="font-medium">{deliver}</span>} />
+              <Row label="Delivery date" value={<span className="font-medium">{deliver}</span>} />
             ) : null}
             <Row
               label="Ordered products"

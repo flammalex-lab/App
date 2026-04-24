@@ -28,7 +28,15 @@ export default async function AdminStandingPage() {
                 {s.next_run_date ? ` · next ${dateShort(s.next_run_date)}` : ""}
               </div>
             </div>
-            <span className={s.active ? "badge-green" : "badge-gray"}>{s.active ? "active" : "off"}</span>
+            {(() => {
+              const paused = Boolean(s.pause_until) && new Date(s.pause_until!) > new Date();
+              if (paused) return <span className="badge-gold">paused</span>;
+              return (
+                <span className={s.active ? "badge-green" : "badge-gray"}>
+                  {s.active ? "active" : "off"}
+                </span>
+              );
+            })()}
           </Link>
         ))}
         {!((data as any[]) ?? []).length ? (

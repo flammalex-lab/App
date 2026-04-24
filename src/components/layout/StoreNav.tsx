@@ -13,34 +13,62 @@ interface StoreNavProps {
 }
 
 /**
- * Top header: logo (home) · account switcher (center) · cart + profile (right)
- * Bottom tabs: Guide · Catalog · Orders · Chat   (B2B)
- *              Shop  · Catalog · Orders · Chat   (DTC)
- * Account moves to the profile sheet (top-right avatar) — Pepper-style.
+ * Responsive shell:
+ *   - Mobile: top header (logo · account · cart · profile) + bottom tab bar.
+ *   - md+:    top header grows a horizontal nav strip; bottom tabs hide.
+ *
+ * B2B buyers home on /guide; DTC customers on /catalog. The DTC layout
+ * previously had both "Shop" and "Catalog" tabs pointing to /catalog —
+ * collapsed to a single "Catalog" tab.
  */
 export function StoreNav({ profile, activeAccount, memberships }: StoreNavProps) {
   const isB2B = profile.role === "b2b_buyer";
   const home = isB2B ? "/guide" : "/catalog";
+  const tabs = navTabs(isB2B);
   return (
     <>
       <TopHeader
         home={home}
+        tabs={tabs}
         profile={profile}
         activeAccount={activeAccount}
         memberships={memberships}
       />
-      <BottomTabs isB2B={isB2B} />
+      <BottomTabs tabs={tabs} />
     </>
   );
 }
 
+interface NavTab {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
+function navTabs(isB2B: boolean): NavTab[] {
+  return isB2B
+    ? [
+        { href: "/guide", label: "Guide", icon: <GuideIcon /> },
+        { href: "/catalog", label: "Catalog", icon: <CatalogIcon /> },
+        { href: "/orders", label: "Orders", icon: <OrdersIcon /> },
+        { href: "/chat", label: "Chat", icon: <ChatIcon /> },
+      ]
+    : [
+        { href: "/catalog", label: "Catalog", icon: <CatalogIcon /> },
+        { href: "/orders", label: "Orders", icon: <OrdersIcon /> },
+        { href: "/chat", label: "Chat", icon: <ChatIcon /> },
+      ];
+}
+
 function TopHeader({
   home,
+  tabs,
   profile,
   activeAccount,
   memberships,
 }: {
   home: string;
+  tabs: NavTab[];
   profile: Profile;
   activeAccount: Account | null;
   memberships: Account[];
@@ -51,7 +79,22 @@ function TopHeader({
         <Link href={home} className="shrink-0" aria-label="Home">
           <BrandLogo size={28} />
         </Link>
-        <div className="flex-1 min-w-0 flex justify-center">
+
+        {/* Desktop horizontal nav strip — hidden on mobile */}
+        <nav className="hidden md:flex items-center gap-1 ml-4">
+          {tabs.map((t) => (
+            <Link
+              key={t.href}
+              href={t.href}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-ink-secondary hover:text-ink-primary hover:bg-bg-secondary transition"
+            >
+              <span className="h-4 w-4">{t.icon}</span>
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex-1 min-w-0 flex justify-center md:justify-end md:pr-2">
           {activeAccount ? (
             <AccountSwitcher active={activeAccount} memberships={memberships} />
           ) : null}
@@ -65,33 +108,26 @@ function TopHeader({
   );
 }
 
-function BottomTabs({ isB2B }: { isB2B: boolean }) {
+function BottomTabs({ tabs }: { tabs: NavTab[] }) {
   return (
-    <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe">
+    <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe md:hidden">
       <ViewOrderBar />
-      <nav className="mx-auto max-w-3xl grid grid-cols-4 text-[11px]">
-        {isB2B ? (
-          <Tab href="/guide" label="Guide" icon={<GuideIcon />} />
-        ) : (
-          <Tab href="/catalog" label="Shop" icon={<CatalogIcon />} />
-        )}
-        <Tab href="/catalog" label="Catalog" icon={<CatalogIcon />} />
-        <Tab href="/orders" label="Orders" icon={<OrdersIcon />} />
-        <Tab href="/chat" label="Chat" icon={<ChatIcon />} />
+      <nav
+        className="mx-auto max-w-3xl grid text-[11px]"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+      >
+        {tabs.map((t) => (
+          <Link
+            key={t.href}
+            href={t.href}
+            className="flex flex-col items-center justify-center gap-0.5 pt-2 pb-2 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition"
+          >
+            <span className="h-5 w-5">{t.icon}</span>
+            <span className="leading-none">{t.label}</span>
+          </Link>
+        ))}
       </nav>
     </div>
-  );
-}
-
-function Tab({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="flex flex-col items-center justify-center gap-0.5 pt-2 pb-2 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition"
-    >
-      <span className="h-5 w-5">{icon}</span>
-      <span className="leading-none">{label}</span>
-    </Link>
   );
 }
 
