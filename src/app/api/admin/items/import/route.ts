@@ -42,6 +42,28 @@ function guessBrand(hint: string | undefined, name: string): Brand {
   return "fingerlakes_farms";
 }
 
+/**
+ * Derive the buyer-facing product_group from category + name. Mirrors the
+ * backfill logic in migration 0006 — any change to one MUST change the other
+ * or fresh imports will fall out of catalog/guide filters (which key on
+ * product_group, not category).
+ *
+ * Cheese is split out of dairy by name keyword so specialty cheese buyers get
+ * their own guide. Everything not fitting falls to 'grocery'.
+ */
+function deriveProductGroup(category: Category, name: string): ProductGroup {
+  if (category === "beef" || category === "pork" || category === "lamb") return "meat";
+  if (category === "produce") return "produce";
+  if (category === "pantry" || category === "beverages") return "grocery";
+  // dairy / eggs — split cheese out by name
+  if (/\b(cheese|cheddar|brie|feta|gouda|mozzarella|parm(?:igiano|esan)?|manchego|gruyere|chevre|ricotta|blue)\b/i.test(name)) {
+    return "cheese";
+  }
+  return "dairy";
+}
+
+type ProductGroup = "meat" | "grocery" | "produce" | "dairy" | "cheese";
+
 export async function POST(request: Request) {
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const { rows } = (await request.json()) as { rows: Row[] };
@@ -71,6 +93,7 @@ export async function POST(request: Request) {
     }
     const existing = existingRows?.[0];
 
+    const category = guessCategory(r.category_hint, r.name);
     const payload: Record<string, unknown> = {
       sku: r.sku,
       upc: r.upc ?? null,
@@ -83,7 +106,10 @@ export async function POST(request: Request) {
       case_pack: r.case_pack ?? null,
       producer: r.producer ?? null,
       qb_income_account: r.income_account ?? null,
-      category: guessCategory(r.category_hint, r.name),
+      category,
+      // product_group drives every catalog + guide query — must be set on
+      // insert or items silently disappear from the UI (see 0006 backfill).
+      product_group: deriveProductGroup(category, r.name),
       brand: guessBrand(r.brand_hint, r.name),
       available_b2b: true,
       is_active: true,
