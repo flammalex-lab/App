@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 
-// Vision + heavy prompts — give the route room on Vercel Pro (60s cap).
-export const maxDuration = 60;
+// Vercel Hobby caps at 10s; Pro allows up to 60. We ask for 10 to document
+// the Hobby target — Haiku vision matches a single image + compact candidate
+// list in 2-4s typically, well inside the budget.
+export const maxDuration = 10;
 
 interface MatchBody {
   filename: string;
@@ -111,7 +113,11 @@ export async function POST(request: Request) {
     .join("\n");
 
   const visionResponse = await client.messages.create({
-    model: "claude-opus-4-7",
+    // Haiku 4.5: fast + cheap for the "which of these products is this?"
+    // task. Vision call stays well under the 10s Hobby cap. Override via
+    // CLAUDE_VISION_MATCH_MODEL if the catalog gets big enough that you
+    // want a stronger model and you're on Pro.
+    model: process.env.CLAUDE_VISION_MATCH_MODEL ?? "claude-haiku-4-5",
     max_tokens: 512,
     messages: [
       {

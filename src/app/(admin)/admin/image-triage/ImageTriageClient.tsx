@@ -93,23 +93,44 @@ export function ImageTriageClient() {
   }
 
   /**
-   * Server-side background removal via Replicate (rembg / BRIA RMBG).
-   * Returns a transparent PNG blob.
+   * Server-side background removal via Replicate. Broken into
+   * start-prediction + poll-status so each HTTP round-trip stays under
+   * the 10s Vercel Hobby cap.
    */
   async function stripBackground(file: File): Promise<File> {
+    // 1. Kick off the prediction.
     const form = new FormData();
     form.append("image", file);
-    const res = await fetch("/api/admin/image-triage/strip-bg", {
+    const startRes = await fetch("/api/admin/image-triage/strip-bg", {
       method: "POST",
       body: form,
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "strip-bg failed" }));
-      throw new Error(err.error ?? `strip-bg ${res.status}`);
+    if (!startRes.ok) {
+      const err = await startRes.json().catch(() => ({ error: "strip-bg start failed" }));
+      throw new Error(err.error ?? `strip-bg ${startRes.status}`);
     }
-    const blob = await res.blob();
-    const pngName = file.name.replace(/\.[^.]+$/, "") + ".png";
-    return new File([blob], pngName, { type: "image/png" });
+    const { predictionId } = (await startRes.json()) as { predictionId: string };
+
+    // 2. Poll until the status route returns image bytes. Capped at ~60s
+    //    total (30 polls × 2s).
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const statusRes = await fetch(
+        `/api/admin/image-triage/strip-bg/status?id=${encodeURIComponent(predictionId)}`,
+      );
+      const ct = statusRes.headers.get("content-type") ?? "";
+      if (statusRes.ok && ct.startsWith("image/")) {
+        const blob = await statusRes.blob();
+        const pngName = file.name.replace(/\.[^.]+$/, "") + ".png";
+        return new File([blob], pngName, { type: "image/png" });
+      }
+      if (statusRes.status >= 400) {
+        const err = await statusRes.json().catch(() => ({}));
+        throw new Error(err.error ?? `strip-bg status ${statusRes.status}`);
+      }
+      // Otherwise still processing — loop.
+    }
+    throw new Error("bg removal timed out after ~60s");
   }
 
   async function processAll() {
