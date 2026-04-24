@@ -13,6 +13,8 @@ interface Row {
   retail_price?: number;
   unit?: string;
   pack_size?: string;
+  case_pack?: string;
+  producer?: string;
   income_account?: string;
   category_hint?: string;
   brand_hint?: string;
@@ -75,10 +77,12 @@ export function ItemsImportClient() {
                 <th className="p-2">SKU</th>
                 <th className="p-2">UPC</th>
                 <th className="p-2">Name</th>
+                <th className="p-2">Producer</th>
+                <th className="p-2">Pack</th>
+                <th className="p-2">Case</th>
                 <th className="p-2">Wholesale</th>
                 <th className="p-2">Retail</th>
                 <th className="p-2">Unit</th>
-                <th className="p-2">Income Acct</th>
               </tr>
             </thead>
             <tbody>
@@ -87,10 +91,12 @@ export function ItemsImportClient() {
                   <td className="p-2 tabular">{r.sku}</td>
                   <td className="p-2 tabular">{r.upc ?? ""}</td>
                   <td className="p-2">{r.name}</td>
+                  <td className="p-2">{r.producer ?? ""}</td>
+                  <td className="p-2">{r.pack_size ?? ""}</td>
+                  <td className="p-2">{r.case_pack ?? ""}</td>
                   <td className="p-2 tabular">{r.wholesale_price ?? ""}</td>
                   <td className="p-2 tabular">{r.retail_price ?? ""}</td>
                   <td className="p-2">{r.unit ?? ""}</td>
-                  <td className="p-2">{r.income_account ?? ""}</td>
                 </tr>
               ))}
             </tbody>
@@ -113,18 +119,21 @@ export function ItemsImportClient() {
       </div>
 
       <details className="text-xs text-ink-secondary">
-        <summary>Expected column headers (any of these match)</summary>
-        <p className="mt-1 leading-relaxed">
-          <strong>SKU:</strong> Item, Item Name, Name, Number, Item Number, SKU.
-          <strong> UPC:</strong> UPC, Barcode, EAN, GTIN.
-          <strong> Name:</strong> Description, Sales Description, Item Description.
-          <strong> Wholesale price:</strong> Price, Sales Price, Rate, Cost.
-          <strong> Retail price:</strong> Retail, Retail Price.
-          <strong> Unit:</strong> U/M, UOM, Unit, Unit of Measure.
-          <strong> Income account:</strong> Account, Income Account.
-          <strong> Category hint:</strong> Type, Category, Item Type.
-          The importer is forgiving — partial data is fine, missing fields stay empty.
-        </p>
+        <summary>Expected column headers (any of these match — header row is case-insensitive)</summary>
+        <div className="mt-1 leading-relaxed space-y-1">
+          <p><strong>SKU</strong> (required): <code>SKU</code>, <code>Item</code>, <code>Item Name</code>, <code>Item Number</code>, <code>Number</code>, <code>Name</code>.</p>
+          <p><strong>UPC</strong>: <code>UPC</code>, <code>Barcode</code>, <code>EAN</code>, <code>GTIN</code>.</p>
+          <p><strong>Name</strong>: <code>Description</code>, <code>Sales Description</code>, <code>Item Description</code>.</p>
+          <p><strong>Producer / farm</strong>: <code>Producer</code>, <code>Farm</code>, <code>Vendor</code>, <code>Supplier</code>, <code>Source</code>. (Shown on every product card.)</p>
+          <p><strong>Pack size</strong>: <code>Pack Size</code>, <code>Pack</code>, <code>Size</code>. (Per-unit weight, e.g. &ldquo;10 LB&rdquo;.)</p>
+          <p><strong>Case pack</strong>: <code>Case</code>, <code>Case Pack</code>, <code>Case Format</code>, <code>Pack Format</code>. (e.g. &ldquo;2X12LB AVG&rdquo;.)</p>
+          <p><strong>Wholesale price</strong>: <code>Price</code>, <code>Sales Price</code>, <code>Rate</code>, <code>Cost</code>.</p>
+          <p><strong>Retail price</strong>: <code>Retail</code>, <code>Retail Price</code>.</p>
+          <p><strong>Unit</strong>: <code>Unit</code>, <code>U/M</code>, <code>UOM</code>, <code>Unit of Measure</code>.</p>
+          <p><strong>Income account</strong>: <code>Account</code>, <code>Income Account</code>.</p>
+          <p><strong>Category hint</strong>: <code>Category</code>, <code>Type</code>, <code>Item Type</code>. Auto-classified into beef / pork / produce / etc. when the item name contains a known keyword.</p>
+          <p className="pt-1">Partial data is fine. Existing items match by SKU and update in place — missing CSV columns leave the existing values intact.</p>
+        </div>
       </details>
     </div>
   );
@@ -144,9 +153,11 @@ function parseCSV(text: string): Row[] {
     retail_price: find(["retail"]),
     unit: find(["u/m", "uom", "unit of measure", "unit"]),
     pack_size: find(["pack size", "pack", "size"]),
+    case_pack: find(["case pack", "case format", "pack format", "case"]),
+    producer: find(["producer", "farm", "supplier", "source", "vendor"]),
     income_account: find(["income account", "account"]),
     category_hint: find(["type", "category", "item type"]),
-    brand_hint: find(["manufacturer", "vendor", "brand"]),
+    brand_hint: find(["manufacturer", "brand"]),
   };
   const out: Row[] = [];
   for (let i = 1; i < lines.length; i++) {
@@ -163,6 +174,8 @@ function parseCSV(text: string): Row[] {
       retail_price: retailRaw && !isNaN(Number(retailRaw)) ? Number(retailRaw) : undefined,
       unit: cells[h.unit]?.trim(),
       pack_size: cells[h.pack_size]?.trim(),
+      case_pack: cells[h.case_pack]?.trim() || undefined,
+      producer: cells[h.producer]?.trim() || undefined,
       income_account: cells[h.income_account]?.trim(),
       category_hint: cells[h.category_hint]?.trim(),
       brand_hint: cells[h.brand_hint]?.trim(),

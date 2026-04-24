@@ -12,6 +12,8 @@ interface Row {
   retail_price?: number;
   unit?: string;
   pack_size?: string;
+  case_pack?: string;
+  producer?: string;
   income_account?: string;
   category_hint?: string;
   brand_hint?: string;
@@ -60,6 +62,8 @@ export async function POST(request: Request) {
       retail_price: r.retail_price ?? null,
       unit: r.unit?.toLowerCase() || "each",
       pack_size: r.pack_size ?? null,
+      case_pack: r.case_pack ?? null,
+      producer: r.producer ?? null,
       qb_income_account: r.income_account ?? null,
       category: guessCategory(r.category_hint, r.name),
       brand: guessBrand(r.brand_hint, r.name),
@@ -78,6 +82,8 @@ export async function POST(request: Request) {
         qb_income_account: payload.qb_income_account,
       };
       if (r.upc) updatePayload.upc = r.upc;
+      if (r.case_pack) updatePayload.case_pack = r.case_pack;
+      if (r.producer) updatePayload.producer = r.producer;
       if (r.description) updatePayload.description = r.description;
       const { error } = await svc.from("products").update(updatePayload).eq("id", (existing as any).id);
       if (error) { skipped++; continue; }
