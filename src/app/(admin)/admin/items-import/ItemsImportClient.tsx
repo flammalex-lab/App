@@ -127,7 +127,7 @@ export function ItemsImportClient() {
           <p><strong>Producer / farm</strong>: <code>Producer</code>, <code>Farm</code>, <code>Vendor</code>, <code>Supplier</code>, <code>Source</code>. (Shown on every product card.)</p>
           <p><strong>Pack size</strong>: <code>Pack Size</code>, <code>Pack</code>, <code>Size</code>. (Per-unit weight, e.g. &ldquo;10 LB&rdquo;.)</p>
           <p><strong>Case pack</strong>: <code>Case</code>, <code>Case Pack</code>, <code>Case Format</code>, <code>Pack Format</code>. (e.g. &ldquo;2X12LB AVG&rdquo;.)</p>
-          <p><strong>Wholesale price</strong>: <code>Price</code>, <code>Sales Price</code>, <code>Rate</code>, <code>Cost</code>.</p>
+          <p><strong>Wholesale price</strong>: <code>Case Cost</code>, <code>Wholesale Cost</code>, <code>Wholesale Price</code>, <code>Price</code>, <code>Sales Price</code>, <code>Rate</code>, <code>Cost</code>. (B2B-specific headers take priority when multiple match.)</p>
           <p><strong>Retail price</strong>: <code>Retail</code>, <code>Retail Price</code>.</p>
           <p><strong>Unit</strong>: <code>Unit</code>, <code>U/M</code>, <code>UOM</code>, <code>Unit of Measure</code>.</p>
           <p><strong>Income account</strong>: <code>Account</code>, <code>Income Account</code>.</p>
@@ -145,11 +145,24 @@ function parseCSV(text: string): Row[] {
   const headers = splitCSVLine(lines[0]).map((h) => h.trim().toLowerCase());
   const find = (keys: string[]) =>
     headers.findIndex((h) => keys.some((k) => h === k || h.includes(k)));
+  // Preferred → fallback lookup. Returns the first key group that finds a
+  // column, so B2B-specific headers like "Case Cost" take priority over
+  // generic "Price" when both are present.
+  const findPreferred = (...groups: string[][]): number => {
+    for (const g of groups) {
+      const idx = find(g);
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
   const h = {
     sku: find(["item name", "item number", "sku", "item", "number", "name"]),
     upc: find(["upc", "barcode", "ean", "gtin"]),
     name: find(["description", "sales description", "item description"]),
-    wholesale_price: find(["sales price", "price", "rate", "cost"]),
+    wholesale_price: findPreferred(
+      ["case cost", "wholesale cost", "wholesale price", "wholesale"],
+      ["sales price", "price", "rate", "cost"],
+    ),
     retail_price: find(["retail"]),
     unit: find(["u/m", "uom", "unit of measure", "unit"]),
     pack_size: find(["pack size", "pack", "size"]),
