@@ -45,7 +45,7 @@ export function ScrollStrip({
       {subtitle ? (
         <p className="text-xs text-ink-secondary px-4 md:px-0 mb-2">{subtitle}</p>
       ) : null}
-      <div className="flex gap-3 overflow-x-auto px-4 md:px-0 pb-2 snap-x -mx-0">
+      <div className="flex gap-3 overflow-x-auto px-4 md:px-0 pb-2 snap-x">
         {products.map((p) => (
           <StripCard key={p.id} product={p} />
         ))}
@@ -87,72 +87,114 @@ function StripCard({ product }: { product: PricedProduct }) {
   }
 
   return (
-    <div className="shrink-0 w-[150px] snap-start card overflow-hidden relative hover:shadow-lg transition">
-      {/* Stub link covers whole card; producer + cart buttons opt back in. */}
+    <div className="shrink-0 w-[172px] snap-start relative rounded-xl border border-black/[0.06] bg-bg-primary overflow-hidden transition hover:border-black/10 hover:shadow-[0_2px_10px_rgba(22,22,22,0.05)]">
+      {/* Stub link covers the whole card; producer + cart buttons opt back in. */}
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-      <div className="relative aspect-square bg-bg-secondary pointer-events-none">
+      {/* Text block — producer (brand) · name · pack size */}
+      <div className="relative px-3 pt-3 pb-1 pointer-events-none">
+        {product.producer && producerHref ? (
+          <Link
+            href={producerHref}
+            className="block max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-brand-green-dark hover:underline pointer-events-auto"
+          >
+            {product.producer}
+          </Link>
+        ) : (
+          <div className="h-[14px]" />
+        )}
+        <div className="display text-[13px] font-semibold leading-snug text-ink-primary line-clamp-2 min-h-[34px] mt-0.5">
+          {product.name}
+        </div>
+        <div className="text-[10px] uppercase tracking-wide text-ink-tertiary mt-0.5">
+          {product.pack_size ?? product.unit}
+        </div>
+      </div>
+
+      {/* Image — blends into card bg */}
+      <div className="relative aspect-[5/4] flex items-center justify-center p-3 pointer-events-none">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={productImage(product)}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+          className="max-h-full max-w-full object-contain mix-blend-multiply"
         />
         {!product.available_this_week ? (
-          <span className="absolute top-1.5 right-1.5 badge-gray text-[9px] bg-white/90">
-            limited
-          </span>
+          <span className="absolute top-1 right-2 badge-gray text-[9px] bg-white/90">limited</span>
         ) : null}
         {isRecent(product.created_at) ? (
-          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
+          <span className="absolute top-1 left-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-accent-gold text-white shadow-sm">
             New
           </span>
         ) : null}
-      </div>
-      <div className="relative p-2 pr-9 pointer-events-none">
-        <div className="text-[12px] font-medium leading-tight line-clamp-2">{product.name}</div>
-        {product.producer && producerHref ? (
-          <Link
-            href={producerHref}
-            className="mt-0.5 inline-block max-w-full truncate text-[10px] text-ink-tertiary hover:text-ink-secondary hover:underline transition pointer-events-auto"
-          >
-            {product.producer}
-          </Link>
+        {cartQty > 0 ? (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-accent-gold/90 text-white text-[11px] font-semibold rounded-full h-14 w-14 flex flex-col items-center justify-center leading-tight shadow-sm pointer-events-none">
+            <span className="tabular">{cartQty}</span>
+            <span className="text-[9px] font-normal opacity-90">in cart</span>
+          </div>
         ) : null}
-        <div className="tabular text-[12px] mt-1">
-          {product.unitPrice != null ? money(product.unitPrice) : "—"}
-          <span className="text-ink-tertiary text-[10px]"> / {product.unit}</span>
-        </div>
       </div>
-      {available ? (
-        cartQty > 0 ? (
-          <div className="absolute bottom-2 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-card border border-black/5 px-1 py-0.5 z-10">
+
+      {/* Bottom action row */}
+      <div className="relative border-t border-black/[0.06] px-3 py-2 flex items-center justify-between gap-2 pointer-events-auto">
+        {cartQty > 0 ? (
+          <>
             <button
               onClick={sub}
-              className="h-6 w-6 rounded-full flex items-center justify-center text-sm hover:bg-bg-secondary"
-              aria-label="Remove one"
+              className="h-7 w-7 rounded-full flex items-center justify-center text-brand-green-dark hover:bg-brand-green-tint transition"
+              aria-label={cartQty === 1 ? "Remove from cart" : "Remove one"}
             >
-              {cartQty === 1 ? "🗑" : "−"}
+              {cartQty === 1 ? (
+                <TrashIcon />
+              ) : (
+                <span className="text-base leading-none">−</span>
+              )}
             </button>
-            <span className="tabular font-semibold text-xs w-4 text-center">{cartQty}</span>
+            <span className="tabular text-sm font-semibold text-ink-primary">{cartQty}</span>
             <button
               onClick={addOne}
-              className="h-6 w-6 rounded-full bg-brand-green text-white flex items-center justify-center text-sm hover:bg-brand-green-dark transition"
+              disabled={!available}
+              className="h-7 w-7 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-sm hover:bg-brand-green-dark/90 transition disabled:opacity-40"
               aria-label="Add one"
             >
               +
             </button>
-          </div>
+          </>
         ) : (
-          <button
-            onClick={addOne}
-            className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-brand-green text-white text-lg flex items-center justify-center hover:bg-brand-green-dark shadow-card transition z-10"
-            aria-label="Add to cart"
-          >
-            +
-          </button>
-        )
-      ) : null}
+          <>
+            <div className="flex items-center gap-1.5 text-brand-green-dark">
+              <CartIcon />
+              <span className="text-[10px] uppercase tracking-widest font-semibold">Cart</span>
+            </div>
+            <button
+              onClick={addOne}
+              disabled={!available}
+              className="h-7 w-7 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-base leading-none transition disabled:opacity-40 hover:bg-brand-green-dark/90"
+              aria-label="Add to cart"
+            >
+              +
+            </button>
+          </>
+        )}
+      </div>
     </div>
+  );
+}
+
+function CartIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 4h2l2.5 11a2 2 0 0 0 2 1.5h7.3a2 2 0 0 0 2-1.4L21 8H6" />
+      <circle cx="10" cy="20" r="1.2" />
+      <circle cx="17" cy="20" r="1.2" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </svg>
   );
 }
