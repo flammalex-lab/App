@@ -37,12 +37,12 @@ const config: Config = {
         },
       },
       fontFamily: {
-        // Bricolage Grotesque — geometric, has chunk, modern but not precious;
-        // matches the bold/confident feel of the FLF logo
-        display: ['"Bricolage Grotesque"', "Georgia", "serif"],
-        serif: ['"Bricolage Grotesque"', "Georgia", "serif"], // alias for legacy
-        sans: ['"Inter"', "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
-        mono: ['"Inter"', "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        // Loaded via next/font in src/app/layout.tsx and exposed as CSS
+        // variables. Falls back to the system stack while loading.
+        display: ["var(--font-display)", "Georgia", "serif"],
+        serif: ["var(--font-display)", "Georgia", "serif"], // alias for legacy
+        sans: ["var(--font-sans)", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        mono: ["var(--font-sans)", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
       },
       letterSpacing: {
         tight: "-0.015em",

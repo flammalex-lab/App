@@ -83,15 +83,15 @@ export function ProductCard({
 
   if (variant === "grid") {
     return (
-      <div className={`relative rounded-lg border border-black/10 bg-white overflow-hidden transition hover:border-black/20 flex flex-col ${paused ? "opacity-70" : ""}`}>
+      <div className={`group/card relative rounded-lg border border-black/10 bg-white overflow-hidden flex flex-col transition-all duration-150 [@media(hover:hover)]:hover:-translate-y-px [@media(hover:hover)]:hover:border-black/20 [@media(hover:hover)]:hover:shadow-card ${paused ? "opacity-70" : ""}`}>
         <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-        <div className="relative aspect-[2/1] flex items-center justify-center p-1 pointer-events-none">
+        <div className="relative aspect-[2/1] flex items-center justify-center p-1 pointer-events-none bg-gradient-radial-soft">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
             alt=""
-            className="max-h-full max-w-full object-contain mix-blend-multiply"
+            className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
           />
           {paused ? (
             <span className="absolute top-1 right-1 badge badge-gold text-[9px]">Paused</span>
@@ -146,11 +146,11 @@ export function ProductCard({
 
   // compact
   return (
-    <div className={`w-full h-full relative rounded-lg border border-black/10 bg-white overflow-hidden transition hover:border-black/20 ${paused ? "opacity-70" : ""}`}>
+    <div className={`group/card w-full h-full relative rounded-lg border border-black/10 bg-white overflow-hidden transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 ${paused ? "opacity-70" : ""}`}>
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
       <div className="relative flex gap-2 p-1.5 pointer-events-none">
-        <div className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden bg-black/[0.04] flex items-center justify-center">
+        <div className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden bg-gradient-radial-soft flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}

@@ -19,17 +19,17 @@
     color: var(--ink-primary);
   }
   body {
-    font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-family: var(--font-sans), system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
   h1, h2, h3, h4 {
-    font-family: "Bricolage Grotesque", Georgia, serif;
+    font-family: var(--font-display), Georgia, serif;
     letter-spacing: -0.015em;
     font-weight: 700;
   }
   .display {
-    font-family: "Bricolage Grotesque", Georgia, serif;
+    font-family: var(--font-display), Georgia, serif;
     font-weight: 800;
     letter-spacing: -0.025em;
   }
@@ -80,6 +80,17 @@
   }
   .card-hover {
     @apply hover:border-black/[0.16];
+  }
+
+  /* Subtle radial wash behind product images so the cutout doesn't sit
+     on stark white. Center stays bright; edges fade to the neutral wash. */
+  .bg-gradient-radial-soft {
+    background-image: radial-gradient(
+      ellipse at center,
+      #ffffff 0%,
+      #fbfaf8 60%,
+      #f4f4f1 100%
+    );
   }
   .divider {
     @apply border-t border-black/5 my-4;

@@ -4,6 +4,7 @@ import { BrandLogo } from "@/components/Brand";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { ViewOrderBar } from "./ViewOrderBar";
+import { NavLink } from "./NavLink";
 import type { Account, Profile } from "@/lib/supabase/types";
 
 interface StoreNavProps {
@@ -83,14 +84,15 @@ function TopHeader({
         {/* Desktop horizontal nav strip — hidden on mobile */}
         <nav className="hidden md:flex items-center gap-1 ml-4">
           {tabs.map((t) => (
-            <Link
+            <NavLink
               key={t.href}
               href={t.href}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-ink-secondary hover:text-ink-primary hover:bg-bg-secondary transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-ink-secondary hover:text-ink-primary hover:bg-bg-secondary transition-colors duration-150"
+              activeClassName="!text-ink-primary !bg-bg-secondary"
             >
               <span className="h-4 w-4">{t.icon}</span>
               {t.label}
-            </Link>
+            </NavLink>
           ))}
         </nav>
 
@@ -117,14 +119,15 @@ function BottomTabs({ tabs }: { tabs: NavTab[] }) {
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
         {tabs.map((t) => (
-          <Link
+          <NavLink
             key={t.href}
             href={t.href}
-            className="flex flex-col items-center justify-center gap-0.5 pt-2 pb-2 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition"
+            className="flex flex-col items-center justify-center gap-0.5 pt-2 pb-2 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition-colors duration-150"
+            activeClassName="!text-ink-primary"
           >
             <span className="h-5 w-5">{t.icon}</span>
             <span className="leading-none">{t.label}</span>
-          </Link>
+          </NavLink>
         ))}
       </nav>
     </div>

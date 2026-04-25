@@ -75,8 +75,51 @@ export default async function StorefrontLayout({
       <main className="flex-1 px-0 md:px-6 lg:px-8 py-1 pb-32">{children}</main>
       <StickyCartBar />
       {modal}
-      <footer className="hidden md:block px-6 py-8 text-xs text-ink-secondary border-t border-black/5">
-        © Fingerlakes Farms — ilovenyfarms.com
+      <footer className="hidden md:block border-t border-black/[0.06] mt-8 bg-white">
+        <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+          <div className="col-span-2 md:col-span-1">
+            <div className="display text-base tracking-tight">Fingerlakes Farms</div>
+            <p className="text-xs text-ink-secondary mt-2 leading-relaxed max-w-xs">
+              Local connection to great-tasting, healthy food from the
+              Finger Lakes region. Trust our process. Trust your food.
+            </p>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary mb-2">
+              Shop
+            </div>
+            <ul className="space-y-1.5 text-ink-secondary">
+              <li><a href="/catalog" className="hover:text-ink-primary">Catalog</a></li>
+              <li><a href="/guide" className="hover:text-ink-primary">My order guide</a></li>
+              <li><a href="/orders" className="hover:text-ink-primary">My orders</a></li>
+              <li><a href="/standing" className="hover:text-ink-primary">Standing orders</a></li>
+            </ul>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary mb-2">
+              Support
+            </div>
+            <ul className="space-y-1.5 text-ink-secondary">
+              <li><a href="/chat" className="hover:text-ink-primary">Chat with your rep</a></li>
+              <li><a href="mailto:alex@ilovenyfarms.com" className="hover:text-ink-primary">alex@ilovenyfarms.com</a></li>
+            </ul>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary mb-2">
+              Legal
+            </div>
+            <ul className="space-y-1.5 text-ink-secondary">
+              <li><a href="/privacy" className="hover:text-ink-primary">Privacy Policy</a></li>
+              <li><a href="/terms" className="hover:text-ink-primary">Terms</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-black/[0.06]">
+          <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-4 text-xs text-ink-tertiary flex flex-wrap justify-between gap-2">
+            <span>© {new Date().getFullYear()} Fingerlakes Farms · ilovenyfarms.com</span>
+            <span>Made in the Finger Lakes, NY</span>
+          </div>
+        </div>
       </footer>
     </div>
   );
