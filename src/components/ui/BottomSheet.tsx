@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+
+// Use layout effect on the client; fall back to plain effect during SSR
+// so React doesn't warn. The lock has to run synchronously after render
+// and before paint to avoid the page briefly snapping to top on open.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
  * Mobile-first bottom sheet. Slides up from the bottom edge, supports
@@ -52,29 +57,39 @@ export function BottomSheet({
   }
 
   // Lock body scroll while open WITHOUT jumping the underlying page.
-  // The naive approach (overflow: hidden on body) makes iOS Safari
-  // reset scrollTop to 0 and bounce back when restored — feels jumpy.
-  // Instead, capture the current scroll, pin the body via fixed
-  // positioning at top:-Y, then restore both on unlock.
-  useEffect(() => {
+  // useLayoutEffect (synced before paint) so the lock applies in the
+  // same frame as the sheet rendering — otherwise iOS Safari paints
+  // one frame of unlocked body, which reads as a scroll-to-top jump.
+  useIsoLayoutEffect(() => {
     if (!open) return;
     const scrollY = window.scrollY;
     const body = document.body;
-    const prevPosition = body.style.position;
-    const prevTop = body.style.top;
-    const prevWidth = body.style.width;
-    const prevOverflow = body.style.overflow;
+    const html = document.documentElement;
+    const prev = {
+      bodyPos: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyOverflow: body.style.overflow,
+      htmlOverflow: html.style.overflow,
+    };
+    // Pin the body so the visual position stays where the user left it.
     body.style.position = "fixed";
     body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
     body.style.width = "100%";
     body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
     return () => {
-      body.style.position = prevPosition;
-      body.style.top = prevTop;
-      body.style.width = prevWidth;
-      body.style.overflow = prevOverflow;
-      // Restore exact scrollY using auto behavior so there's no
-      // perceptible scroll animation.
+      body.style.position = prev.bodyPos;
+      body.style.top = prev.bodyTop;
+      body.style.left = prev.bodyLeft;
+      body.style.right = prev.bodyRight;
+      body.style.width = prev.bodyWidth;
+      body.style.overflow = prev.bodyOverflow;
+      html.style.overflow = prev.htmlOverflow;
       window.scrollTo({ top: scrollY, left: 0, behavior: "auto" });
     };
   }, [open]);
@@ -152,9 +167,9 @@ export function BottomSheet({
     }
   }
   function onTouchEnd() {
-    const fullPx = vh(FULL_VH);
     const peekPx = vh(PEEK_VH);
-    // Dismiss if dragged the WHOLE sheet down past threshold
+    // Dismiss if dragged the WHOLE sheet down past threshold (only the
+    // dismiss gesture; height stays wherever the user released).
     if (dragOffset > 0) {
       const threshold = Math.min(100, peekPx * 0.25);
       if (dragOffset > threshold) {
@@ -165,11 +180,9 @@ export function BottomSheet({
       }
       setDragOffset(0);
     }
-    // Snap height to the nearest detent
-    if (heightPx != null) {
-      const mid = (peekPx + fullPx) / 2;
-      setHeightPx(heightPx >= mid ? fullPx : peekPx);
-    }
+    // Intentionally NO height snap — sheet stays at whatever height
+    // the user released at, anywhere between peek and full. Feels
+    // continuous, not detent-y.
     startY.current = null;
     dragSource.current = null;
   }

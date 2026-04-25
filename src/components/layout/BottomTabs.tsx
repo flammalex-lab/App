@@ -31,7 +31,7 @@ export function BottomTabs({ tabs }: { tabs: NavTab[] }) {
           <NavLink
             key={t.href}
             href={t.href}
-            className="flex flex-col items-center justify-center gap-0.5 pt-2 pb-2 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition-colors duration-150"
+            className="flex flex-col items-center justify-center gap-0.5 pt-1.5 pb-1 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition-colors duration-150"
             activeClassName="!text-ink-primary"
           >
             <span className="h-5 w-5">{t.icon}</span>

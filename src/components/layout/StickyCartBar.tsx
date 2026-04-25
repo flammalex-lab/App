@@ -32,8 +32,8 @@ export function StickyCartBar() {
     <div
       className={`fixed inset-x-0 z-20 px-3 md:px-6 pointer-events-none transition-[bottom] duration-200 md:bottom-6 ${
         navHidden
-          ? "bottom-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]"
-          : "bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]"
+          ? "bottom-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]"
+          : "bottom-[calc(env(safe-area-inset-bottom,0px)+3.5rem)]"
       }`}
     >
       <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
