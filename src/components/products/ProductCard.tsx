@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import type { Product } from "@/lib/supabase/types";
+import type { PackOption, Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { productImage } from "@/lib/utils/product-image";
 import { money } from "@/lib/utils/format";
+import { NumpadSheet } from "@/components/ui/NumpadSheet";
+import { VariantPickerSheet } from "@/components/products/VariantPickerSheet";
 
 export type PricedProduct = Product & { unitPrice: number | null };
 
@@ -34,12 +37,26 @@ export function ProductCard({
 }) {
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
-  const cartQty = useCart(
+  // Sum across every variant of this product so the card reflects total
+  // quantity, not just the default pack. For a buyer who picked 3 cases
+  // and 2 singles via the variant sheet, the card should say "5".
+  const cartQtyTotal = useCart((s) =>
+    s.lines
+      .filter((l) => l.productId === product.id)
+      .reduce((sum, l) => sum + l.quantity, 0),
+  );
+  const cartQtyDefault = useCart(
     (s) =>
       s.lines.find((l) => l.productId === product.id && l.variantKey === null)?.quantity ?? 0,
   );
+  const cartQty = cartQtyTotal;
   const paused = product.available_b2b === false;
   const available = product.available_this_week && product.unitPrice != null && !paused;
+  const packOptions = (product.pack_options as PackOption[] | null) ?? [];
+  const hasVariants = packOptions.length > 0;
+
+  const [variantOpen, setVariantOpen] = useState(false);
+  const [numpadOpen, setNumpadOpen] = useState(false);
 
   const detailHref = fromGroup
     ? `/catalog/${product.id}?from=${fromGroup}`
@@ -52,6 +69,13 @@ export function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     if (!available) return;
+    // Multi-variant products → open the picker instead of silently +1ing
+    // the default pack (which is rarely what the buyer wants when they
+    // could be buying by the case).
+    if (hasVariants) {
+      setVariantOpen(true);
+      return;
+    }
     haptic(8);
     add({
       productId: product.id,
@@ -69,8 +93,52 @@ export function ProductCard({
   function sub(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (hasVariants) {
+      setVariantOpen(true);
+      return;
+    }
     haptic(6);
-    setQty(product.id, Math.max(0, cartQty - 1), null);
+    setQty(product.id, Math.max(0, cartQtyDefault - 1), null);
+  }
+  function openQtyPad(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!available) return;
+    if (hasVariants) {
+      setVariantOpen(true);
+      return;
+    }
+    setNumpadOpen(true);
+  }
+  function applyDirectQty(n: number) {
+    if (n === 0) {
+      setQty(product.id, 0, null);
+      return;
+    }
+    if (cartQtyDefault === 0) {
+      add({
+        productId: product.id,
+        variantKey: null,
+        variantSku: null,
+        sku: product.sku,
+        name: product.name,
+        packSize: product.pack_size,
+        unit: product.unit,
+        unitPrice: product.unitPrice!,
+        priceByWeight: Boolean(product.price_by_weight),
+        quantity: n,
+      });
+    } else {
+      setQty(product.id, n, null);
+    }
+  }
+
+  // Resolve per-variant prices once so VariantPickerSheet doesn't duplicate
+  // the resolvePrice machinery. Falls back to wholesale_price if the parent
+  // didn't override.
+  const defaultVariantPrices: Record<string, number | null> = {};
+  for (const opt of packOptions) {
+    defaultVariantPrices[opt.key] = opt.wholesale_price ?? opt.retail_price ?? null;
   }
 
   const richSize = product.case_pack ?? product.pack_size;
@@ -84,6 +152,7 @@ export function ProductCard({
   // ───────── Compact (vertical scroll-strip card) ─────────
   if (variant === "compact") {
     return (
+      <>
       <div
         className={`group/card relative w-full h-full flex flex-col rounded-xl border border-black/10 bg-white overflow-hidden snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 ${paused ? "opacity-70" : ""}`}
       >
@@ -135,16 +204,20 @@ export function ProductCard({
             cartQty={cartQty}
             onAdd={addOne}
             onSub={sub}
+            onQtyTap={openQtyPad}
             fullWidth
           />
         </div>
       </div>
+      <SheetPortal />
+      </>
     );
   }
 
   // ───────── Grid variant ─────────
   if (variant === "grid") {
     return (
+      <>
       <div
         className={`group/card relative rounded-xl border border-black/10 bg-white overflow-hidden flex flex-col transition-all duration-150 [@media(hover:hover)]:hover:-translate-y-px [@media(hover:hover)]:hover:border-black/20 [@media(hover:hover)]:hover:shadow-card ${paused ? "opacity-70" : ""}`}
       >
@@ -196,10 +269,13 @@ export function ProductCard({
             cartQty={cartQty}
             onAdd={addOne}
             onSub={sub}
+            onQtyTap={openQtyPad}
             fullWidth
           />
         </div>
       </div>
+      <SheetPortal />
+      </>
     );
   }
 
@@ -247,10 +323,45 @@ export function ProductCard({
       </div>
 
       <div className="relative shrink-0 pointer-events-auto">
-        <Stepper available={available} cartQty={cartQty} onAdd={addOne} onSub={sub} />
+        <Stepper
+          available={available}
+          cartQty={cartQty}
+          onAdd={addOne}
+          onSub={sub}
+          onQtyTap={openQtyPad}
+        />
       </div>
+      <SheetPortal />
     </div>
   );
+
+  // Helper rendered in every variant so the picker + numpad sheets are
+  // available regardless of layout (declared once below; closes over
+  // local state).
+  function SheetPortal() {
+    return (
+      <>
+        {hasVariants ? (
+          <VariantPickerSheet
+            open={variantOpen}
+            onClose={() => setVariantOpen(false)}
+            product={product}
+            defaultUnitPrice={product.unitPrice}
+            defaultVariantPrices={defaultVariantPrices}
+          />
+        ) : null}
+        <NumpadSheet
+          open={numpadOpen}
+          onClose={() => setNumpadOpen(false)}
+          initial={cartQtyDefault}
+          unitHint={product.unit}
+          productName={product.name}
+          packLabel={product.pack_size ?? null}
+          onSet={applyDirectQty}
+        />
+      </>
+    );
+  }
 }
 
 function Badge({ paused, weekOff }: { paused: boolean; weekOff: boolean }) {
@@ -277,12 +388,15 @@ function Stepper({
   cartQty,
   onAdd,
   onSub,
+  onQtyTap,
   fullWidth,
 }: {
   available: boolean;
   cartQty: number;
   onAdd: (e: React.MouseEvent) => void;
   onSub: (e: React.MouseEvent) => void;
+  /** Tap on the qty digit — opens a numpad or variant picker. */
+  onQtyTap?: (e: React.MouseEvent) => void;
   fullWidth?: boolean;
 }) {
   if (!available) {
@@ -305,9 +419,14 @@ function Stepper({
         >
           {cartQty === 1 ? <TrashIcon /> : <span className="text-xl leading-none">−</span>}
         </button>
-        <span className="flex-1 text-center tabular text-[15px] font-semibold select-none">
+        <button
+          onClick={onQtyTap}
+          disabled={!onQtyTap}
+          className="flex-1 h-12 flex items-center justify-center tabular text-[15px] font-semibold select-none focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:cursor-default"
+          aria-label="Set quantity"
+        >
           {cartQty}
-        </span>
+        </button>
         <button
           onClick={onAdd}
           className="h-12 w-12 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
