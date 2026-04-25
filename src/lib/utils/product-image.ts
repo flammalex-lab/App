@@ -52,10 +52,11 @@ function escapeXml(s: string): string {
 
 /**
  * Returns the best image for a product: real image_url if present, else
- * a category placeholder.
+ * the FLF logo as a placeholder. Used everywhere products render until
+ * we have real product photography uploaded.
  */
 export function productImage(p: { image_url: string | null; category: Category; name: string }): string {
-  return p.image_url ?? categoryPlaceholder(p.category, p.name);
+  return p.image_url ?? "/images/flf-logo.png";
 }
 
 /**

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import type { PackOption, Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { money } from "@/lib/utils/format";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { NumpadSheet } from "@/components/ui/NumpadSheet";
+import { QtyInput } from "@/components/ui/QtyInput";
 
 interface VariantRow {
   variantKey: string | null;
@@ -42,7 +41,6 @@ export function VariantPickerSheet({
   const lines = useCart((s) => s.lines);
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
-  const [numpad, setNumpad] = useState<{ variantKey: string | null; current: number; row: VariantRow } | null>(null);
 
   // Build the variant rows: default first, then each pack_option that has
   // a resolvable price.
@@ -135,25 +133,23 @@ export function VariantPickerSheet({
                         ) : null}
                       </div>
                     </div>
-                    <div className="shrink-0 flex items-center bg-bg-secondary rounded-full">
+                    <div className="shrink-0 flex items-center gap-2">
                       <button
                         onClick={() => commit(row, Math.max(0, qty - 1))}
-                        className="h-12 w-12 flex items-center justify-center rounded-full text-brand-green-dark hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 disabled:opacity-30"
+                        className="h-11 w-11 flex items-center justify-center rounded-full border-2 border-brand-green-dark text-brand-green-dark hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 disabled:opacity-30 active:scale-[0.97]"
                         aria-label="Decrease"
                         disabled={qty === 0}
                       >
                         <span className="text-xl leading-none">−</span>
                       </button>
-                      <button
-                        onClick={() => setNumpad({ variantKey: row.variantKey, current: qty, row })}
-                        className="tabular text-[16px] font-semibold w-10 text-center select-none focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-md py-1.5"
-                        aria-label="Type quantity"
-                      >
-                        {qty}
-                      </button>
+                      <QtyInput
+                        value={qty}
+                        onSet={(n) => commit(row, n)}
+                        ariaLabel={`${row.label} quantity`}
+                      />
                       <button
                         onClick={() => commit(row, qty + 1)}
-                        className="h-12 w-12 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
+                        className="h-11 w-11 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97]"
                         aria-label="Add one"
                       >
                         <span className="text-xl leading-none">+</span>
@@ -166,22 +162,10 @@ export function VariantPickerSheet({
           )}
 
           <p className="text-[12px] text-ink-tertiary text-center px-5 mt-3">
-            Tap the number to type a quantity directly.
+            Tap the number to type any quantity.
           </p>
         </div>
       </BottomSheet>
-
-      {numpad ? (
-        <NumpadSheet
-          open
-          onClose={() => setNumpad(null)}
-          initial={numpad.current}
-          unitHint={numpad.row.unit}
-          productName={product.name}
-          packLabel={numpad.row.label}
-          onSet={(n) => commit(numpad.row, n)}
-        />
-      ) : null}
     </>
   );
 }

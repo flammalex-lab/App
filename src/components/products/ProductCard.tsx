@@ -5,8 +5,9 @@ import Link from "next/link";
 import type { PackOption, Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { productImage } from "@/lib/utils/product-image";
+import { displayProductName } from "@/lib/utils/product-display";
 import { money } from "@/lib/utils/format";
-import { NumpadSheet } from "@/components/ui/NumpadSheet";
+import { QtyInput } from "@/components/ui/QtyInput";
 import { VariantPickerSheet } from "@/components/products/VariantPickerSheet";
 
 export type PricedProduct = Product & { unitPrice: number | null };
@@ -56,7 +57,6 @@ export function ProductCard({
   const hasVariants = packOptions.length > 0;
 
   const [variantOpen, setVariantOpen] = useState(false);
-  const [numpadOpen, setNumpadOpen] = useState(false);
 
   const detailHref = fromGroup
     ? `/catalog/${product.id}?from=${fromGroup}`
@@ -100,16 +100,6 @@ export function ProductCard({
     haptic(6);
     setQty(product.id, Math.max(0, cartQtyDefault - 1), null);
   }
-  function openQtyPad(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!available) return;
-    if (hasVariants) {
-      setVariantOpen(true);
-      return;
-    }
-    setNumpadOpen(true);
-  }
   function applyDirectQty(n: number) {
     if (n === 0) {
       setQty(product.id, 0, null);
@@ -132,6 +122,11 @@ export function ProductCard({
       setQty(product.id, n, null);
     }
   }
+  function openVariantPicker(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setVariantOpen(true);
+  }
 
   // Resolve per-variant prices once so VariantPickerSheet doesn't duplicate
   // the resolvePrice machinery. Falls back to wholesale_price if the parent
@@ -148,6 +143,15 @@ export function ProductCard({
   // which reads as nonsense — middot reads as "for".
   const sep = richSize ? "·" : "/";
   const price = product.unitPrice != null ? money(product.unitPrice) : "—";
+  // Display name with producer prefix + size suffix stripped — both are
+  // shown elsewhere on the card so duplicating them in the title eats
+  // the readable name area.
+  const displayName = displayProductName(
+    product.name,
+    product.producer,
+    product.pack_size,
+    product.case_pack,
+  );
 
   // ───────── Compact (vertical scroll-strip card) ─────────
   if (variant === "compact") {
@@ -190,7 +194,7 @@ export function ProductCard({
             className="text-[14px] font-medium leading-snug text-ink-primary truncate"
             title={product.name}
           >
-            {product.name}
+            {displayName}
           </div>
           <div className="text-[12px] text-ink-secondary truncate mt-0.5">
             <span className="tabular font-medium text-ink-primary">{price}</span>
@@ -204,7 +208,7 @@ export function ProductCard({
             cartQty={cartQty}
             onAdd={addOne}
             onSub={sub}
-            onQtyTap={openQtyPad}
+            onSet={hasVariants ? undefined : applyDirectQty}
             fullWidth
           />
         </div>
@@ -255,7 +259,7 @@ export function ProductCard({
             className="display text-[15px] font-semibold leading-snug text-ink-primary truncate"
             title={product.name}
           >
-            {product.name}
+            {displayName}
           </div>
           <div className="text-[13px] text-ink-secondary truncate mt-0.5">
             <span className="tabular font-semibold text-ink-primary">{price}</span>
@@ -269,7 +273,7 @@ export function ProductCard({
             cartQty={cartQty}
             onAdd={addOne}
             onSub={sub}
-            onQtyTap={openQtyPad}
+            onSet={hasVariants ? undefined : applyDirectQty}
             fullWidth
           />
         </div>
@@ -309,8 +313,8 @@ export function ProductCard({
             {product.producer}
           </Link>
         ) : null}
-        <div className="text-[15px] font-medium leading-snug text-ink-primary line-clamp-1 mt-0.5">
-          {product.name}
+        <div className="text-[15px] font-medium leading-snug text-ink-primary line-clamp-1 mt-0.5" title={product.name}>
+          {displayName}
         </div>
         <div className="text-[13px] text-ink-secondary mt-0.5 truncate">
           <span className="tabular font-medium text-ink-primary">{price}</span>
@@ -328,38 +332,25 @@ export function ProductCard({
           cartQty={cartQty}
           onAdd={addOne}
           onSub={sub}
-          onQtyTap={openQtyPad}
+          onSet={hasVariants ? undefined : applyDirectQty}
         />
       </div>
       <SheetPortal />
     </div>
   );
 
-  // Helper rendered in every variant so the picker + numpad sheets are
-  // available regardless of layout (declared once below; closes over
-  // local state).
+  // Helper rendered in every variant so the picker sheet is available
+  // regardless of card layout. Closes over local state.
   function SheetPortal() {
+    if (!hasVariants) return null;
     return (
-      <>
-        {hasVariants ? (
-          <VariantPickerSheet
-            open={variantOpen}
-            onClose={() => setVariantOpen(false)}
-            product={product}
-            defaultUnitPrice={product.unitPrice}
-            defaultVariantPrices={defaultVariantPrices}
-          />
-        ) : null}
-        <NumpadSheet
-          open={numpadOpen}
-          onClose={() => setNumpadOpen(false)}
-          initial={cartQtyDefault}
-          unitHint={product.unit}
-          productName={product.name}
-          packLabel={product.pack_size ?? null}
-          onSet={applyDirectQty}
-        />
-      </>
+      <VariantPickerSheet
+        open={variantOpen}
+        onClose={() => setVariantOpen(false)}
+        product={product}
+        defaultUnitPrice={product.unitPrice}
+        defaultVariantPrices={defaultVariantPrices}
+      />
     );
   }
 }
@@ -388,15 +379,15 @@ function Stepper({
   cartQty,
   onAdd,
   onSub,
-  onQtyTap,
+  onSet,
   fullWidth,
 }: {
   available: boolean;
   cartQty: number;
   onAdd: (e: React.MouseEvent) => void;
   onSub: (e: React.MouseEvent) => void;
-  /** Tap on the qty digit — opens a numpad or variant picker. */
-  onQtyTap?: (e: React.MouseEvent) => void;
+  /** Inline qty input commit. If omitted, the qty digit is read-only. */
+  onSet?: (next: number) => void;
   fullWidth?: boolean;
 }) {
   if (!available) {
@@ -407,36 +398,32 @@ function Stepper({
     );
   }
 
-  const wrap = fullWidth ? "w-full" : "shrink-0";
+  const wrap = fullWidth ? "w-full justify-between" : "shrink-0";
 
   if (cartQty > 0) {
     return (
-      <div className={`${wrap} h-12 flex items-center bg-bg-secondary rounded-full overflow-hidden`}>
+      <div className={`${wrap} flex items-center gap-2`}>
         <button
           onClick={onSub}
-          className="h-12 w-12 flex items-center justify-center rounded-full text-brand-green-dark hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
+          className="h-11 w-11 flex items-center justify-center rounded-full border-2 border-brand-green-dark text-brand-green-dark hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97] shrink-0"
           aria-label={cartQty === 1 ? "Remove from cart" : "Remove one"}
         >
           {cartQty === 1 ? <TrashIcon /> : <span className="text-xl leading-none">−</span>}
         </button>
-        <button
-          onClick={onQtyTap}
-          disabled={!onQtyTap}
-          className="flex-1 h-12 flex flex-col items-center justify-center select-none focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:cursor-default group/qty"
-          aria-label="Set quantity"
-        >
-          <span className="tabular text-[15px] font-semibold leading-none border-b border-dashed border-ink-tertiary/50 group-hover/qty:border-ink-secondary group-active/qty:border-ink-primary transition-colors duration-150 pb-px">
+        {onSet ? (
+          <QtyInput
+            value={cartQty}
+            onSet={onSet}
+            className="h-11 flex-1 min-w-0 max-w-[64px] text-center tabular text-[15px] font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/30 transition-colors duration-150"
+          />
+        ) : (
+          <div className="h-11 flex-1 min-w-0 max-w-[64px] flex items-center justify-center tabular text-[15px] font-semibold rounded-md border border-black/15 bg-white text-ink-primary">
             {cartQty}
-          </span>
-          {onQtyTap ? (
-            <span className="text-[8px] uppercase tracking-wider text-ink-tertiary mt-0.5 leading-none">
-              tap
-            </span>
-          ) : null}
-        </button>
+          </div>
+        )}
         <button
           onClick={onAdd}
-          className="h-12 w-12 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
+          className="h-11 w-11 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97] shrink-0"
           aria-label="Add one"
         >
           <span className="text-xl leading-none">+</span>
@@ -447,7 +434,7 @@ function Stepper({
   return (
     <button
       onClick={onAdd}
-      className={`${wrap} h-12 flex items-center justify-center gap-1.5 rounded-full bg-brand-green-dark text-white text-[14px] font-semibold hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.98] ${fullWidth ? "" : "w-12"}`}
+      className={`${fullWidth ? "w-full" : "w-11 shrink-0"} h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-green-dark text-white text-[14px] font-semibold hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97]`}
       aria-label="Add to cart"
     >
       <span className="text-lg leading-none">+</span>
