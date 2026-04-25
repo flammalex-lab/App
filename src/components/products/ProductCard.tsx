@@ -15,11 +15,13 @@ type Variant = "grid" | "compact" | "row";
  * availability logic; they differ only in layout.
  *
  *   - grid:    flat tile in a column grid (catalog grid view)
- *   - compact: horizontal scroll-strip card (catalog landing strips)
+ *   - compact: vertical card for horizontal scroll strips
+ *              (image-on-top, info+stepper below)
  *   - row:     full-width list row (producer-grouped category view)
  *
- * All three meet 36pt minimum tap targets on stepper controls; titles
- * are 14-15px floor for readability.
+ * Stepper sized at 48dp / 48 CSS px — meets Material 3 (48) and exceeds
+ * iOS HIG (44). Full-width pill on cards so the hit target is generous
+ * without dominating the card frame; right-edge pill on rows.
  */
 export function ProductCard({
   product,
@@ -36,9 +38,6 @@ export function ProductCard({
     (s) =>
       s.lines.find((l) => l.productId === product.id && l.variantKey === null)?.quantity ?? 0,
   );
-  // "Paused" = admin has toggled this product off since it was added to
-  // this buyer's guide/standing order. Render but gray out + block add
-  // so buyers see why the item no longer works.
   const paused = product.available_b2b === false;
   const available = product.available_this_week && product.unitPrice != null && !paused;
 
@@ -76,8 +75,68 @@ export function ProductCard({
 
   const richSize = product.case_pack ?? product.pack_size;
   const sizeLabel = richSize ?? product.unit;
-
   const price = product.unitPrice != null ? money(product.unitPrice) : "—";
+
+  // ───────── Compact (vertical scroll-strip card) ─────────
+  if (variant === "compact") {
+    return (
+      <div
+        className={`group/card relative w-full h-full flex flex-col rounded-xl border border-black/10 bg-white overflow-hidden snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 ${paused ? "opacity-70" : ""}`}
+      >
+        <Link
+          href={detailHref}
+          aria-label={product.name}
+          className="absolute inset-x-0 top-0 bottom-[64px] z-0"
+        />
+
+        <div className="relative aspect-[4/3] flex items-center justify-center bg-gradient-radial-soft pointer-events-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={productImage(product)}
+            alt=""
+            className="max-h-[88%] max-w-[88%] object-contain mix-blend-multiply"
+          />
+          <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
+          {cartQty > 0 ? (
+            <span className="absolute top-2 left-2 min-w-[22px] h-[22px] px-1.5 rounded-md bg-accent-gold text-white text-[12px] font-semibold flex items-center justify-center tabular shadow-sm">
+              {cartQty}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="relative px-3 pt-2 pb-2 flex flex-col gap-0.5 pointer-events-none">
+          {product.producer && producerHref ? (
+            <Link
+              href={producerHref}
+              className="text-[11px] font-medium uppercase tracking-wider text-brand-green-dark truncate hover:underline pointer-events-auto"
+            >
+              {product.producer}
+            </Link>
+          ) : null}
+          <div
+            className="text-[14px] font-medium leading-snug text-ink-primary line-clamp-2 min-h-[2.5em]"
+            title={product.name}
+          >
+            {product.name}
+          </div>
+          <div className="text-[12px] text-ink-secondary truncate mt-0.5">
+            <span className="tabular font-medium text-ink-primary">{price}</span>
+            <span className="text-ink-tertiary"> / {sizeLabel}</span>
+          </div>
+        </div>
+
+        <div className="relative pointer-events-auto px-2 pb-2 mt-auto">
+          <Stepper
+            available={available}
+            cartQty={cartQty}
+            onAdd={addOne}
+            onSub={sub}
+            fullWidth
+          />
+        </div>
+      </div>
+    );
+  }
 
   // ───────── Grid variant ─────────
   if (variant === "grid") {
@@ -85,9 +144,13 @@ export function ProductCard({
       <div
         className={`group/card relative rounded-xl border border-black/10 bg-white overflow-hidden flex flex-col transition-all duration-150 [@media(hover:hover)]:hover:-translate-y-px [@media(hover:hover)]:hover:border-black/20 [@media(hover:hover)]:hover:shadow-card ${paused ? "opacity-70" : ""}`}
       >
-        <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
+        <Link
+          href={detailHref}
+          aria-label={product.name}
+          className="absolute inset-x-0 top-0 bottom-[64px] z-0"
+        />
 
-        <div className="relative aspect-[2/1] flex items-center justify-center p-2 pointer-events-none bg-gradient-radial-soft">
+        <div className="relative aspect-[4/3] flex items-center justify-center p-3 pointer-events-none bg-gradient-radial-soft">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
@@ -96,155 +159,91 @@ export function ProductCard({
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
           {cartQty > 0 ? (
-            <span className="absolute top-1.5 left-1.5 min-w-[20px] h-[20px] px-1.5 rounded-md bg-accent-gold text-white text-[11px] font-semibold flex items-center justify-center tabular shadow-sm">
+            <span className="absolute top-2 left-2 min-w-[22px] h-[22px] px-1.5 rounded-md bg-accent-gold text-white text-[12px] font-semibold flex items-center justify-center tabular shadow-sm">
               {cartQty}
             </span>
           ) : null}
         </div>
 
-        <div className="relative px-3 pt-2 pb-2.5 pointer-events-none flex flex-col gap-0.5">
-          <div
-            className="display text-sm font-semibold leading-snug text-ink-primary line-clamp-2 min-h-[2.5em]"
-            title={product.name}
-          >
-            {product.name}
-          </div>
+        <div className="relative px-3 pt-2 pb-2 flex flex-col gap-0.5 pointer-events-none">
           {product.producer && producerHref ? (
             <Link
               href={producerHref}
-              className="block max-w-full truncate text-[11px] font-medium uppercase tracking-wider text-brand-green-dark hover:underline pointer-events-auto"
+              className="text-[11px] font-medium uppercase tracking-wider text-brand-green-dark truncate hover:underline pointer-events-auto"
             >
               {product.producer}
             </Link>
           ) : null}
-          <div className="mt-1.5 flex items-center justify-between gap-1 pointer-events-auto">
-            <div className="min-w-0 truncate pointer-events-none">
-              <span className="tabular text-sm font-semibold text-ink-primary">{price}</span>
-              <span className="text-[11px] text-ink-tertiary ml-1.5">
-                / {sizeLabel}
-              </span>
-            </div>
-            <Stepper
-              size="md"
-              available={available}
-              cartQty={cartQty}
-              onAdd={addOne}
-              onSub={sub}
-            />
+          <div
+            className="display text-[15px] font-semibold leading-snug text-ink-primary line-clamp-2 min-h-[2.5em]"
+            title={product.name}
+          >
+            {product.name}
           </div>
+          <div className="text-[13px] text-ink-secondary truncate mt-0.5">
+            <span className="tabular font-semibold text-ink-primary">{price}</span>
+            <span className="text-ink-tertiary"> / {sizeLabel}</span>
+          </div>
+        </div>
+
+        <div className="relative pointer-events-auto px-3 pb-3 mt-auto">
+          <Stepper
+            available={available}
+            cartQty={cartQty}
+            onAdd={addOne}
+            onSub={sub}
+            fullWidth
+          />
         </div>
       </div>
     );
   }
 
   // ───────── Row variant (full-width list row) ─────────
-  if (variant === "row") {
-    return (
-      <div
-        className={`group/card relative flex items-center gap-3 px-3 py-3 bg-white border-b border-black/[0.06] transition-colors duration-150 active:bg-bg-secondary ${paused ? "opacity-70" : ""}`}
-      >
-        <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
-
-        <div className="relative h-14 w-14 shrink-0 rounded-md overflow-hidden bg-gradient-radial-soft flex items-center justify-center pointer-events-none">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={productImage(product)}
-            alt=""
-            className="max-h-full max-w-full object-contain mix-blend-multiply"
-          />
-          {cartQty > 0 ? (
-            <span className="absolute top-0 left-0 min-w-[18px] h-[18px] px-1 rounded-br bg-accent-gold text-white text-[10px] font-semibold flex items-center justify-center tabular">
-              {cartQty}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="flex-1 min-w-0 pointer-events-none">
-          <div className="text-[15px] font-medium leading-snug text-ink-primary line-clamp-1">
-            {product.name}
-          </div>
-          {product.producer && producerHref ? (
-            <Link
-              href={producerHref}
-              className="block max-w-full truncate text-[11px] font-medium uppercase tracking-wider text-brand-green-dark mt-0.5 hover:underline pointer-events-auto"
-            >
-              {product.producer}
-            </Link>
-          ) : null}
-          <div className="text-[13px] text-ink-secondary mt-0.5 truncate">
-            <span className="tabular font-medium text-ink-primary">{price}</span>
-            <span className="text-ink-tertiary"> / {sizeLabel}</span>
-            {paused ? <span className="ml-2 badge badge-gold">Paused</span> : null}
-            {!product.available_this_week && !paused ? (
-              <span className="ml-2 badge badge-gray">Week off</span>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="relative shrink-0 pointer-events-auto">
-          <Stepper size="md" available={available} cartQty={cartQty} onAdd={addOne} onSub={sub} />
-        </div>
-      </div>
-    );
-  }
-
-  // ───────── Compact variant (horizontal scroll-strip card) ─────────
   return (
     <div
-      className={`group/card w-full h-full relative rounded-xl border border-black/10 bg-white overflow-hidden transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 ${paused ? "opacity-70" : ""}`}
+      className={`group/card relative flex items-center gap-3 px-4 py-3 bg-white border-b border-black/[0.06] transition-colors duration-150 active:bg-bg-secondary ${paused ? "opacity-70" : ""}`}
     >
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-      <div className="relative flex gap-2.5 p-2 pointer-events-none">
-        <div className="relative h-14 w-14 shrink-0 rounded-md overflow-hidden bg-gradient-radial-soft flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={productImage(product)}
-            alt=""
-            className="max-h-full max-w-full object-contain mix-blend-multiply"
-          />
-          {paused ? (
-            <span className="absolute top-0 right-0 min-w-[16px] h-[16px] px-1 rounded-bl bg-accent-gold text-white text-[9px] font-semibold flex items-center justify-center uppercase tracking-wide">
-              off
-            </span>
-          ) : cartQty > 0 ? (
-            <span className="absolute top-0 left-0 min-w-[16px] h-[16px] px-1 rounded-br bg-accent-gold text-white text-[10px] font-semibold flex items-center justify-center tabular">
-              {cartQty}
-            </span>
-          ) : null}
-        </div>
+      <div className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden bg-gradient-radial-soft flex items-center justify-center pointer-events-none">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={productImage(product)}
+          alt=""
+          className="max-h-[88%] max-w-[88%] object-contain mix-blend-multiply"
+        />
+        {cartQty > 0 ? (
+          <span className="absolute top-0 left-0 min-w-[18px] h-[18px] px-1 rounded-br bg-accent-gold text-white text-[11px] font-semibold flex items-center justify-center tabular">
+            {cartQty}
+          </span>
+        ) : null}
+      </div>
 
-        <div className="flex-1 min-w-0">
-          <div
-            className="text-[14px] font-medium leading-snug text-ink-primary line-clamp-2"
-            title={product.name}
+      <div className="flex-1 min-w-0 pointer-events-none">
+        {product.producer && producerHref ? (
+          <Link
+            href={producerHref}
+            className="block max-w-full truncate text-[11px] font-medium uppercase tracking-wider text-brand-green-dark hover:underline pointer-events-auto"
           >
-            {product.name}
-          </div>
-          {product.producer && producerHref ? (
-            <Link
-              href={producerHref}
-              className="block max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-brand-green-dark mt-0.5 hover:underline pointer-events-auto"
-            >
-              {product.producer}
-            </Link>
-          ) : null}
-          <div className="mt-1 flex items-center justify-between gap-1">
-            <div className="min-w-0 truncate">
-              <span className="tabular text-[13px] font-semibold text-ink-primary">{price}</span>
-              <span className="text-[10px] text-ink-tertiary ml-1">/ {sizeLabel}</span>
-            </div>
-            <div className="pointer-events-auto">
-              <Stepper
-                size="md"
-                available={available}
-                cartQty={cartQty}
-                onAdd={addOne}
-                onSub={sub}
-              />
-            </div>
-          </div>
+            {product.producer}
+          </Link>
+        ) : null}
+        <div className="text-[15px] font-medium leading-snug text-ink-primary line-clamp-1 mt-0.5">
+          {product.name}
         </div>
+        <div className="text-[13px] text-ink-secondary mt-0.5 truncate">
+          <span className="tabular font-medium text-ink-primary">{price}</span>
+          <span className="text-ink-tertiary"> / {sizeLabel}</span>
+          {paused ? <span className="ml-2 badge badge-gold">Paused</span> : null}
+          {!product.available_this_week && !paused ? (
+            <span className="ml-2 badge badge-gray">Week off</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="relative shrink-0 pointer-events-auto">
+        <Stepper available={available} cartQty={cartQty} onAdd={addOne} onSub={sub} />
       </div>
     </div>
   );
@@ -253,11 +252,11 @@ export function ProductCard({
 function Badge({ paused, weekOff }: { paused: boolean; weekOff: boolean }) {
   if (paused)
     return (
-      <span className="absolute top-1.5 right-1.5 badge badge-gold text-[10px]">Paused</span>
+      <span className="absolute top-2 right-2 badge badge-gold text-[10px]">Paused</span>
     );
   if (weekOff)
     return (
-      <span className="absolute top-1.5 right-1.5 badge-gray bg-white/90 text-[10px]">
+      <span className="absolute top-2 right-2 badge-gray bg-white/90 text-[10px]">
         Week off
       </span>
     );
@@ -265,49 +264,52 @@ function Badge({ paused, weekOff }: { paused: boolean; weekOff: boolean }) {
 }
 
 /**
- * Combined −/qty/+ control. ~36pt tall, 8pt horizontal padding inside,
- * making each tap zone about 36×36 — meets iOS HIG (44) for the
- * combined pill and Material 3 (48) is a stretch but acceptable for
- * inline list controls.
+ * 48dp stepper. Two states:
+ *   qty = 0  → single "+ Add" button (full-width when fullWidth, square otherwise)
+ *   qty > 0  → −/N/+ pill (full-width when fullWidth, fixed-width otherwise)
  */
 function Stepper({
-  size,
   available,
   cartQty,
   onAdd,
   onSub,
+  fullWidth,
 }: {
-  size: "sm" | "md";
   available: boolean;
   cartQty: number;
   onAdd: (e: React.MouseEvent) => void;
   onSub: (e: React.MouseEvent) => void;
+  fullWidth?: boolean;
 }) {
-  if (!available) return <span className="text-[10px] text-ink-tertiary">—</span>;
-  const pill = "h-9 rounded-full bg-brand-green-dark text-white";
-  const ghost = "h-9 rounded-full bg-bg-secondary text-brand-green-dark";
+  if (!available) {
+    return (
+      <div className="h-12 flex items-center justify-center text-[12px] text-ink-tertiary">
+        Unavailable
+      </div>
+    );
+  }
+
+  const wrap = fullWidth ? "w-full" : "shrink-0";
 
   if (cartQty > 0) {
     return (
-      <div
-        className={`${ghost} flex items-center transition-colors duration-150 hover:bg-brand-green-tint shrink-0`}
-      >
+      <div className={`${wrap} h-12 flex items-center bg-bg-secondary rounded-full overflow-hidden`}>
         <button
           onClick={onSub}
-          className="h-9 w-9 flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-brand-green/40"
+          className="h-12 w-12 flex items-center justify-center rounded-full text-brand-green-dark hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
           aria-label={cartQty === 1 ? "Remove from cart" : "Remove one"}
         >
-          {cartQty === 1 ? <TrashIcon /> : <span className="text-base leading-none">−</span>}
+          {cartQty === 1 ? <TrashIcon /> : <span className="text-xl leading-none">−</span>}
         </button>
-        <span className="tabular text-[13px] font-semibold w-5 text-center select-none">
+        <span className="flex-1 text-center tabular text-[15px] font-semibold select-none">
           {cartQty}
         </span>
         <button
           onClick={onAdd}
-          className="h-9 w-9 flex items-center justify-center rounded-full bg-brand-green-dark text-white focus:outline-none focus:ring-2 focus:ring-brand-green/40"
+          className="h-12 w-12 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
           aria-label="Add one"
         >
-          <span className="text-base leading-none">+</span>
+          <span className="text-xl leading-none">+</span>
         </button>
       </div>
     );
@@ -315,10 +317,11 @@ function Stepper({
   return (
     <button
       onClick={onAdd}
-      className={`${pill} h-9 w-9 flex items-center justify-center hover:bg-brand-green-dark/90 transition-colors duration-150 shrink-0 focus:outline-none focus:ring-2 focus:ring-brand-green/40`}
+      className={`${wrap} h-12 flex items-center justify-center gap-1.5 rounded-full bg-brand-green-dark text-white text-[14px] font-semibold hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.98] ${fullWidth ? "" : "w-12"}`}
       aria-label="Add to cart"
     >
-      <span className="text-base leading-none">+</span>
+      <span className="text-lg leading-none">+</span>
+      {fullWidth ? <span>Add</span> : null}
     </button>
   );
 }
@@ -326,8 +329,8 @@ function Stepper({
 function TrashIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -341,8 +344,7 @@ function TrashIcon() {
 }
 
 /**
- * Best-effort haptic tick. Silent no-op on iOS Safari (which doesn't
- * support navigator.vibrate); useful on Android Chrome to confirm taps.
+ * Best-effort haptic tick. Silent no-op on iOS Safari.
  */
 function haptic(ms: number) {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {

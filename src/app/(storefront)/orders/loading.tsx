@@ -1,7 +1,7 @@
 export default function OrdersLoading() {
   return (
     <div className="max-w-screen-xl mx-auto animate-pulse">
-      <div className="h-8 w-32 rounded bg-black/5 mx-4 md:mx-0 mb-4" />
+      <div className="h-8 w-32 rounded bg-black/5 md:mx-0 mb-4" />
       <div className="card divide-y divide-black/5 overflow-hidden">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="p-3">

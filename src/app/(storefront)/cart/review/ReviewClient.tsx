@@ -27,7 +27,9 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
   const clear = useCart((s) => s.clear);
 
   const [placing, setPlacing] = useState(false);
-  const [itemsOpen, setItemsOpen] = useState(false);
+  // Items default to OPEN — buyer should clearly see what they're confirming
+  // before tapping "Order now". Toggle still available to collapse.
+  const [itemsOpen, setItemsOpen] = useState(true);
 
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   const pickup = pickupLocations.find((p) => p.id === pickupLocationId) ?? null;
@@ -82,25 +84,26 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
       <Link href="/cart" className="text-sm text-ink-secondary hover:underline">
         ← Back to cart
       </Link>
-      <h1 className="display text-3xl uppercase tracking-tight text-brand-blue mt-2 mb-6">
-        Looking good — ready?
+      <h1 className="display text-2xl md:text-3xl tracking-tight mt-2 mb-1">
+        Review your order
       </h1>
-
       {accountName ? (
-        <div className="text-sm text-ink-secondary mb-3">{accountName}</div>
-      ) : null}
+        <p className="text-[13px] text-ink-secondary mb-5">{accountName}</p>
+      ) : (
+        <div className="mb-5" />
+      )}
 
       {/* When */}
       <section className="card p-4 mb-3">
         <div className="flex items-start gap-3">
-          <span className="h-10 w-10 rounded-lg bg-brand-blue-tint text-brand-blue flex items-center justify-center text-lg">
+          <span aria-hidden className="h-10 w-10 rounded-lg bg-brand-blue-tint text-brand-blue flex items-center justify-center text-lg">
             📅
           </span>
           <div>
-            <div className="text-xs text-ink-secondary uppercase tracking-wide">
+            <div className="text-[11px] text-ink-secondary uppercase tracking-wide font-medium">
               {isB2B ? "Delivery" : "Pickup"}
             </div>
-            <div className="text-base font-medium">
+            <div className="text-[16px] font-medium leading-snug">
               {isB2B
                 ? deliveryDate
                   ? dateLong(deliveryDate)
@@ -110,7 +113,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
                 : "—"}
             </div>
             {pickup ? (
-              <div className="text-sm text-ink-secondary mt-0.5">
+              <div className="text-[13px] text-ink-secondary mt-0.5">
                 {pickup.name} · {pickup.pickup_window}
               </div>
             ) : null}
@@ -121,8 +124,10 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
       {/* Order note */}
       {orderNote ? (
         <section className="card p-4 mb-3">
-          <div className="text-xs text-ink-secondary uppercase tracking-wide mb-1">Note</div>
-          <p className="text-sm">{orderNote}</p>
+          <div className="text-[11px] text-ink-secondary uppercase tracking-wide font-medium mb-1">
+            Note
+          </div>
+          <p className="text-[14px] leading-relaxed">{orderNote}</p>
         </section>
       ) : null}
 
@@ -130,10 +135,10 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
       <section className="card overflow-hidden mb-3">
         <button
           onClick={() => setItemsOpen((o) => !o)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-secondary transition"
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-secondary transition-colors duration-150"
         >
-          <span className="font-serif text-lg">Your items ({lines.length})</span>
-          <span className="text-ink-tertiary">{itemsOpen ? "▾" : "›"}</span>
+          <span className="display text-lg">Your items ({lines.length})</span>
+          <span className="text-ink-tertiary text-xl">{itemsOpen ? "▾" : "›"}</span>
         </button>
         {itemsOpen ? (
           <div className="divide-y divide-black/5 animate-slide-up">
@@ -160,10 +165,10 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
       {/* Total */}
       <section className="mb-6 px-1">
         <div className="flex items-baseline justify-between">
-          <span className="font-serif text-xl">Estimated order total</span>
-          <span className="mono text-2xl font-semibold">{money(subtotal)}</span>
+          <span className="display text-lg tracking-tight">Estimated total</span>
+          <span className="tabular text-2xl font-semibold">{money(subtotal)}</span>
         </div>
-        <p className="text-xs text-ink-tertiary mt-1">
+        <p className="text-[12px] text-ink-tertiary mt-1">
           Prices may be subject to change based on final weight at delivery.
         </p>
       </section>
@@ -174,7 +179,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
           onClick={() => placeOrder("invoice")}
           size="lg"
           loading={placing}
-          className="w-full uppercase tracking-wide"
+          className="w-full"
         >
           Order now
         </Button>
@@ -184,7 +189,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
             onClick={() => placeOrder("stripe")}
             size="lg"
             loading={placing}
-            className="w-full uppercase tracking-wide"
+            className="w-full"
           >
             Pay with card
           </Button>

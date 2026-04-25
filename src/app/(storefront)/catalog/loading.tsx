@@ -5,11 +5,11 @@
 export default function CatalogLoading() {
   return (
     <div className="max-w-screen-xl mx-auto pb-8 animate-pulse">
-      <div className="px-4 md:px-0 mb-3">
+      <div className="mb-3">
         <div className="h-10 rounded-md bg-black/5" />
       </div>
       {[0, 1, 2].map((i) => (
-        <section key={i} className="mb-4 px-4 md:px-0">
+        <section key={i} className="mb-4 ">
           <div className="h-4 w-32 rounded bg-black/5 mb-2" />
           <div className="grid grid-flow-col auto-cols-[200px] gap-2" style={{ gridTemplateRows: "1fr 1fr" }}>
             {Array.from({ length: 8 }).map((_, j) => (

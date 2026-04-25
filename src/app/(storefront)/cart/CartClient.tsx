@@ -98,7 +98,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
   if (lines.length === 0) {
     return (
       <EmptyState
-        className="card mx-4 md:mx-0"
+        className="card md:mx-0"
         icon={<div className="text-5xl opacity-30">🛒</div>}
         title="Nothing in your cart yet"
         body={isB2B ? "Head back to your guide to start building an order." : "Browse the catalog to pick something fresh."}
@@ -111,7 +111,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
   }
 
   return (
-    <div className="space-y-4 px-4 md:px-0">
+    <div className="space-y-4 ">
       {/* Delivery / Note rows (Choco-style) */}
       <div className="card divide-y divide-black/5 overflow-hidden">
         <DeliveryRow

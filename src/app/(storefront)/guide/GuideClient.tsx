@@ -41,7 +41,7 @@ export function GuideClient({ items }: Props) {
 
   return (
     <>
-      <div className="px-4 md:px-0 mb-3">
+      <div className="mb-3">
         <div className="relative">
           <input
             type="search"
@@ -62,7 +62,7 @@ export function GuideClient({ items }: Props) {
       </div>
 
       {visibleCount === 0 ? (
-        <div className="px-4 md:px-0 py-8 text-center text-sm text-ink-secondary">
+        <div className="py-8 text-center text-sm text-ink-secondary">
           No items match &ldquo;{search}&rdquo;.
         </div>
       ) : (

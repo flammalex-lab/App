@@ -138,7 +138,7 @@ export default async function ProductDetail({
 
   return (
     <div className="max-w-5xl mx-auto pb-8">
-      <div className="px-4 md:px-0 pt-4">
+      <div className="pt-4">
         <Link href={backHref} className="text-sm text-ink-secondary hover:underline">
           ← {backLabel}
         </Link>
@@ -153,7 +153,7 @@ export default async function ProductDetail({
       </div>
 
       {history.length > 0 ? (
-        <section className="mt-8 px-4 md:px-0">
+        <section className="mt-8 ">
           <h2 className="display text-xl mb-2">Your order history</h2>
           <div className="card divide-y divide-black/[0.06] overflow-hidden">
             {history.map((h) => (

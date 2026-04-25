@@ -193,7 +193,7 @@ export default async function CatalogPage({
           </div>
         </section>
 
-        <form action="/catalog" className="px-4 md:px-0 mb-3">
+        <form action="/catalog" className="mb-3">
           <CatalogSearchInput datalistId="catalog-suggest" />
           <datalist id="catalog-suggest">
             {suggestions.map((s) => (
@@ -205,7 +205,7 @@ export default async function CatalogPage({
         <CategoryChips
           groups={groupCounts}
           active={null}
-          className="mb-4 px-4 md:px-0"
+          className="mb-4 "
         />
 
         <ScrollStrip
@@ -233,7 +233,7 @@ export default async function CatalogPage({
 
         {/* Explore / Best Sellers + Group tiles — kept as a fallback grid below strips */}
         {allowed.length > 1 ? (
-          <div className="grid grid-cols-2 gap-3 px-4 md:px-0 mb-3">
+          <div className="grid grid-cols-2 gap-3 mb-3">
             <Link
               href="/catalog?group=explore"
               className="relative rounded-xl overflow-hidden shadow-card hover:shadow-lg transition aspect-[3/1] flex items-center justify-center text-white bg-gradient-to-br from-brand-blue to-brand-blue-dark"
@@ -255,7 +255,7 @@ export default async function CatalogPage({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3 px-4 md:px-0">
+        <div className="grid grid-cols-2 gap-3 ">
           {groupCounts.map(({ group, count }) => (
             <Link
               key={group}
@@ -341,7 +341,7 @@ export default async function CatalogPage({
 
   return (
     <div className="max-w-screen-xl mx-auto pb-8">
-      <div className="px-4 md:px-0 pt-1">
+      <div className="pt-1">
         <Link href="/catalog" className="text-xs text-ink-secondary hover:underline">
           ← Catalog
         </Link>

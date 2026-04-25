@@ -72,7 +72,7 @@ export default async function StorefrontLayout({
         activeAccount={activeAccount}
         memberships={memberships}
       />
-      <main className="flex-1 px-0 md:px-6 lg:px-8 py-1 pb-32">{children}</main>
+      <main className="flex-1 px-4 md:px-6 lg:px-8 py-1 pb-32">{children}</main>
       <StickyCartBar />
       {modal}
       <footer className="hidden md:block border-t border-black/[0.06] mt-8 bg-white">

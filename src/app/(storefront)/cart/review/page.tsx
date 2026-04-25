@@ -30,7 +30,7 @@ export default async function ReviewPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 md:px-0 pt-6 pb-8">
+    <div className="max-w-2xl mx-auto pt-6 pb-8">
       <ReviewClient
         isB2B={isB2B}
         accountName={account?.name ?? null}

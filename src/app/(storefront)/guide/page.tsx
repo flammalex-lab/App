@@ -118,13 +118,13 @@ export default async function GuidePage() {
   return (
     <div className="max-w-screen-xl mx-auto pb-8">
       {/* Personal greeting — single compact line */}
-      <div className="px-4 md:px-0 pt-1 pb-2 text-xs text-ink-secondary">
+      <div className="pt-1 pb-2 text-xs text-ink-secondary">
         {greeting}, <span className="font-medium text-ink-primary">{firstName}</span>.
       </div>
 
       {/* Reorder-last card */}
       {lastOrder ? (
-        <section className="px-4 md:px-0 mb-3">
+        <section className="mb-3">
           <form action={`/api/orders/reorder?orderId=${lastOrder.id}`} method="post">
             <button
               type="submit"
@@ -147,7 +147,7 @@ export default async function GuidePage() {
 
       {items.length === 0 ? (
         <EmptyState
-          className="card mx-4 md:mx-0"
+          className="card md:mx-0"
           icon={<div className="text-5xl opacity-30">☰</div>}
           title="Nothing in your guide yet"
           body="Your rep will build this for you based on what you order. You can also browse the catalog and add items yourself."

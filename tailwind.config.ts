@@ -68,6 +68,7 @@ const config: Config = {
       animation: {
         "fade-in": "fade-in 200ms ease-out",
         "slide-up": "slide-up 250ms cubic-bezier(.2,.8,.2,1)",
+        "sheet-up": "sheet-up 280ms cubic-bezier(.2,.8,.2,1)",
         "scale-in": "scale-in 200ms cubic-bezier(.2,.8,.2,1)",
       },
       keyframes: {
@@ -78,6 +79,13 @@ const config: Config = {
         "slide-up": {
           from: { transform: "translateY(8px)", opacity: "0" },
           to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "sheet-up": {
+          // Used by BottomSheet on mobile — slides the full panel up from
+          // the bottom edge. On md+ the sheet is centered and uses
+          // slide-up instead.
+          from: { transform: "translateY(100%)" },
+          to: { transform: "translateY(0)" },
         },
         "scale-in": {
           from: { transform: "scale(0.97)", opacity: "0" },

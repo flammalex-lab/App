@@ -104,7 +104,7 @@ export function BottomSheet({
           transition: dragOffset > 0 ? "none" : "transform 200ms cubic-bezier(.2,.8,.2,1)",
           maxWidth: desktopMaxWidth,
         }}
-        className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating animate-slide-up max-h-[92vh] flex flex-col"
+        className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating animate-sheet-up md:animate-slide-up max-h-[92vh] flex flex-col"
       >
         {/* Drag handle (mobile) */}
         <div className="md:hidden pt-2 pb-1 flex items-center justify-center">
