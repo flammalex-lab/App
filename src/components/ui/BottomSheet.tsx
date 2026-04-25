@@ -32,12 +32,24 @@ export function BottomSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startY = useRef<number | null>(null);
+  // Source of the gesture: drag handle (always treats as sheet drag) vs
+  // inner scroll area (only treats as sheet drag while inner is at top
+  // and the sheet hasn't reached full).
+  const dragSource = useRef<"handle" | "content" | null>(null);
+  const startHeightPx = useRef<number>(0);
   const [dragOffset, setDragOffset] = useState(0);
-  // Two-detent sheet: opens at "peek" (~75% screen) so the underlying
-  // page is still partially visible. Expands to "full" (~92%) when the
-  // user scrolls inside the sheet content. Mobile only — md+ stays
-  // centered modal sized to fit content.
-  const [detent, setDetent] = useState<"peek" | "full">("peek");
+
+  // Two-detent sheet, but the user's pull is what *grows* the sheet —
+  // it doesn't snap from peek to full mid-scroll. Tracked as a height
+  // in px between PEEK_PX and FULL_PX so animation feels natural.
+  const PEEK_VH = 0.75;
+  const FULL_VH = 0.92;
+  const [heightPx, setHeightPx] = useState<number | null>(null);
+
+  function vh(v: number) {
+    if (typeof window === "undefined") return 600 * v;
+    return window.innerHeight * v;
+  }
 
   // Lock body scroll while open WITHOUT jumping the underlying page.
   // The naive approach (overflow: hidden on body) makes iOS Safari
@@ -77,49 +89,89 @@ export function BottomSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // Reset drag + detent state every time the sheet opens
+  // Reset drag + height every time the sheet opens
   useEffect(() => {
     if (open) {
       setDragOffset(0);
-      setDetent("peek");
+      setHeightPx(vh(PEEK_VH));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Promote peek → full when the user scrolls inside the sheet content
-  // past 8px. Reverting back to peek when scrolled to top is intentionally
-  // disabled — once expanded the user has committed to inspecting; pulling
-  // back down the sheet via the drag handle is the dismiss gesture.
-  useEffect(() => {
-    if (!open) return;
-    const el = scrollRef.current;
-    if (!el) return;
-    function onScroll() {
-      if (el!.scrollTop > 8) setDetent("full");
-    }
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [open]);
-
-  function onTouchStart(e: React.TouchEvent) {
+  // Drag handle: gesture always controls the sheet (grow / shrink / dismiss)
+  function onHandleTouchStart(e: React.TouchEvent) {
     startY.current = e.touches[0].clientY;
+    startHeightPx.current = heightPx ?? vh(PEEK_VH);
+    dragSource.current = "handle";
   }
+  // Inner content: only control the sheet while content is at top and
+  // user is pulling DOWN. Pulling UP while at peek lets the sheet grow.
+  function onContentTouchStart(e: React.TouchEvent) {
+    startY.current = e.touches[0].clientY;
+    startHeightPx.current = heightPx ?? vh(PEEK_VH);
+    dragSource.current = "content";
+  }
+
   function onTouchMove(e: React.TouchEvent) {
-    if (startY.current == null) return;
+    if (startY.current == null || dragSource.current == null) return;
     const dy = e.touches[0].clientY - startY.current;
-    // Only track downward drag; clamp upward to 0 so the sheet doesn't
-    // float up when the user over-pulls.
-    setDragOffset(Math.max(0, dy));
+    const inner = scrollRef.current;
+    const innerAtTop = !inner || inner.scrollTop <= 0;
+    const fullPx = vh(FULL_VH);
+    const peekPx = vh(PEEK_VH);
+
+    if (dragSource.current === "handle") {
+      // Handle drag: dy>0 = pull down → drag whole sheet (potentially dismiss);
+      //              dy<0 = pull up → grow sheet height up to FULL.
+      if (dy > 0) {
+        setDragOffset(dy);
+      } else {
+        const next = Math.min(fullPx, Math.max(peekPx, startHeightPx.current - dy));
+        setHeightPx(next);
+        setDragOffset(0);
+      }
+      return;
+    }
+
+    // Content drag: only intercept while at the top of the inner scroll.
+    if (innerAtTop) {
+      if (dy < 0 && (heightPx ?? peekPx) < fullPx) {
+        // Pulling up while not yet full → grow the sheet at 1:1 with finger.
+        const next = Math.min(fullPx, startHeightPx.current - dy);
+        setHeightPx(next);
+        setDragOffset(0);
+      } else if (dy > 0 && (heightPx ?? peekPx) > peekPx) {
+        // Pulling down while expanded → shrink toward peek (don't dismiss yet).
+        const next = Math.max(peekPx, startHeightPx.current - dy);
+        setHeightPx(next);
+        setDragOffset(0);
+      } else if (dy > 0) {
+        // Already at peek + pulling down further → drag for dismiss.
+        setDragOffset(dy);
+      }
+    }
   }
   function onTouchEnd() {
-    // Threshold: 100px down OR > 25% of sheet height = dismiss
-    const sheetH = sheetRef.current?.offsetHeight ?? 600;
-    const threshold = Math.min(100, sheetH * 0.25);
-    if (dragOffset > threshold) {
-      onClose();
-    } else {
+    const fullPx = vh(FULL_VH);
+    const peekPx = vh(PEEK_VH);
+    // Dismiss if dragged the WHOLE sheet down past threshold
+    if (dragOffset > 0) {
+      const threshold = Math.min(100, peekPx * 0.25);
+      if (dragOffset > threshold) {
+        onClose();
+        startY.current = null;
+        dragSource.current = null;
+        return;
+      }
       setDragOffset(0);
     }
+    // Snap height to the nearest detent
+    if (heightPx != null) {
+      const mid = (peekPx + fullPx) / 2;
+      setHeightPx(heightPx >= mid ? fullPx : peekPx);
+    }
     startY.current = null;
+    dragSource.current = null;
   }
 
   if (!open) return null;
@@ -138,26 +190,26 @@ export function BottomSheet({
     >
       <div
         ref={sheetRef}
-        onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          // Combine drag transform with detent height transition. When
-          // dragging, drop the height transition so the sheet follows the
-          // finger; when releasing, restore both transforms.
-          transition: dragOffset > 0
-            ? "none"
-            : "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
+          // No transition while the finger is on the sheet — the user's
+          // drag is the source of truth. Smooth snap on release only.
+          transition:
+            startY.current !== null
+              ? "none"
+              : "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
           maxWidth: desktopMaxWidth,
-          // Detent only applies on mobile; on md+ the sheet is centered
-          // and sizes to its content (overridden by md:!h-auto below).
-          height: detent === "peek" ? "75vh" : "92vh",
+          height: heightPx != null ? `${heightPx}px` : `${PEEK_VH * 100}vh`,
         }}
         className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating animate-sheet-up md:animate-slide-up md:!h-auto md:max-h-[92vh] flex flex-col"
       >
-        {/* Drag handle (mobile) */}
-        <div className="md:hidden pt-2 pb-1 flex items-center justify-center">
+        {/* Drag handle (mobile) — gestures here always control the sheet */}
+        <div
+          onTouchStart={onHandleTouchStart}
+          className="md:hidden pt-2 pb-2 flex items-center justify-center cursor-grab active:cursor-grabbing"
+        >
           <span aria-hidden className="block h-1 w-10 rounded-full bg-black/15" />
         </div>
 
@@ -174,7 +226,13 @@ export function BottomSheet({
           </div>
         ) : null}
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <div
+          ref={scrollRef}
+          onTouchStart={onContentTouchStart}
+          className="flex-1 overflow-y-auto overscroll-contain"
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

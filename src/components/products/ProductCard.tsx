@@ -166,7 +166,7 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-[4/3] flex items-center justify-center bg-white pointer-events-none p-3">
+        <div className="relative aspect-square flex items-center justify-center bg-white pointer-events-none p-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
@@ -226,7 +226,7 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-[4/3] flex items-center justify-center p-3 pointer-events-none bg-white">
+        <div className="relative aspect-square flex items-center justify-center p-3 pointer-events-none bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
