@@ -166,6 +166,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
               }}
               mode="edit"
               onQty={(q) => setQty(l.productId, q, l.variantKey)}
+              onRemove={() => setQty(l.productId, 0, l.variantKey)}
             />
           ))}
           {visibleLines.length === 0 ? (

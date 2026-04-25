@@ -4,6 +4,7 @@ import { BrandLogo } from "@/components/Brand";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { NavLink } from "./NavLink";
+import { ScrollHideHeader } from "./ScrollHideHeader";
 import type { Account, Profile } from "@/lib/supabase/types";
 
 interface StoreNavProps {
@@ -27,13 +28,15 @@ export function StoreNav({ profile, activeAccount, memberships }: StoreNavProps)
   const tabs = navTabs(isB2B);
   return (
     <>
-      <TopHeader
-        home={home}
-        tabs={tabs}
-        profile={profile}
-        activeAccount={activeAccount}
-        memberships={memberships}
-      />
+      <ScrollHideHeader>
+        <TopHeader
+          home={home}
+          tabs={tabs}
+          profile={profile}
+          activeAccount={activeAccount}
+          memberships={memberships}
+        />
+      </ScrollHideHeader>
       <BottomTabs tabs={tabs} />
     </>
   );
@@ -74,7 +77,7 @@ function TopHeader({
   memberships: Account[];
 }) {
   return (
-    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-black/[0.06] supports-[backdrop-filter]:bg-white/70">
+    <header className="bg-white/80 backdrop-blur-md border-b border-black/[0.06] supports-[backdrop-filter]:bg-white/70">
       <div className="flex items-center gap-2 px-3 md:px-6 py-1.5">
         <Link href={home} className="shrink-0" aria-label="Home">
           <BrandLogo size={28} />
