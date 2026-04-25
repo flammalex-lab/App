@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Wraps a sticky header so it slides out of view on scroll-down past
- * a threshold and slides back in on any scroll-up. Reclaims roughly
- * 56pt of screen real estate while the user is scrolling content,
- * without losing the header on demand.
+ * Tracks scroll direction and returns a boolean for "should this bar hide".
+ * Used by StoreNav so the top header and bottom tab bar can both slide
+ * off-screen when scrolling down past the fold, and slide back in on
+ * any scroll-up. Mobile-only: callers gate the slide off via Tailwind
+ * responsive classes (md:!translate-y-0) so desktop stays pinned.
  *
- * Mobile only — on md+ the header stays pinned (desktop has plenty of
- * room and most apps don't auto-hide nav at wide widths).
+ * Returns true when content has scrolled past 80px AND the user is
+ * scrolling DOWN by ≥6px. Resets to false on any meaningful scroll-up
+ * (≤−4px) or when scrollY drops below 40px.
  */
-export function ScrollHideHeader({ children }: { children: React.ReactNode }) {
+export function useScrollHidden(): boolean {
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
 
@@ -19,9 +21,7 @@ export function ScrollHideHeader({ children }: { children: React.ReactNode }) {
     function onScroll() {
       const y = window.scrollY;
       const dy = y - lastY.current;
-      // Past the fold AND going down ≥ 6px → hide
       if (y > 80 && dy > 6) setHidden(true);
-      // Any meaningful upward scroll → reveal
       else if (dy < -4 || y < 40) setHidden(false);
       lastY.current = y;
     }
@@ -29,10 +29,20 @@ export function ScrollHideHeader({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  return hidden;
+}
+
+/**
+ * Wrapper kept for backwards compatibility — wraps children in a div
+ * that translates up when scrolling down. Use the hook directly for
+ * fixed-position bars (transforming a wrapper of a position:fixed
+ * child breaks the containing block).
+ */
+export function ScrollHideHeader({ children }: { children: React.ReactNode }) {
+  const hidden = useScrollHidden();
   return (
     <div
-      className="sticky top-0 z-30 transition-transform duration-200 will-change-transform md:!translate-y-0"
-      style={{ transform: hidden ? "translateY(-100%)" : "translateY(0)" }}
+      className={`sticky top-0 z-30 transition-transform duration-200 will-change-transform md:!translate-y-0 ${hidden ? "-translate-y-full" : ""}`}
     >
       {children}
     </div>

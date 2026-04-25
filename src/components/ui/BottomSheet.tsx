@@ -33,13 +33,31 @@ export function BottomSheet({
   const startY = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
 
-  // Lock body scroll while open
+  // Lock body scroll while open WITHOUT jumping the underlying page.
+  // The naive approach (overflow: hidden on body) makes iOS Safari
+  // reset scrollTop to 0 and bounce back when restored — feels jumpy.
+  // Instead, capture the current scroll, pin the body via fixed
+  // positioning at top:-Y, then restore both on unlock.
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const prevPosition = body.style.position;
+    const prevTop = body.style.top;
+    const prevWidth = body.style.width;
+    const prevOverflow = body.style.overflow;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = prev;
+      body.style.position = prevPosition;
+      body.style.top = prevTop;
+      body.style.width = prevWidth;
+      body.style.overflow = prevOverflow;
+      // Restore exact scrollY using auto behavior so there's no
+      // perceptible scroll animation.
+      window.scrollTo({ top: scrollY, left: 0, behavior: "auto" });
     };
   }, [open]);
 

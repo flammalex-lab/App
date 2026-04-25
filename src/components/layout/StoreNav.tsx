@@ -5,6 +5,7 @@ import { AccountSwitcher } from "./AccountSwitcher";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { NavLink } from "./NavLink";
 import { ScrollHideHeader } from "./ScrollHideHeader";
+import { BottomTabs, type NavTab } from "./BottomTabs";
 import type { Account, Profile } from "@/lib/supabase/types";
 
 interface StoreNavProps {
@@ -40,12 +41,6 @@ export function StoreNav({ profile, activeAccount, memberships }: StoreNavProps)
       <BottomTabs tabs={tabs} />
     </>
   );
-}
-
-interface NavTab {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
 }
 
 function navTabs(isB2B: boolean): NavTab[] {
@@ -109,29 +104,6 @@ function TopHeader({
         </div>
       </div>
     </header>
-  );
-}
-
-function BottomTabs({ tabs }: { tabs: NavTab[] }) {
-  return (
-    <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe md:hidden">
-      <nav
-        className="mx-auto max-w-3xl grid text-[11px]"
-        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
-      >
-        {tabs.map((t) => (
-          <NavLink
-            key={t.href}
-            href={t.href}
-            className="flex flex-col items-center justify-center gap-0.5 pt-2 pb-2 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition-colors duration-150"
-            activeClassName="!text-ink-primary"
-          >
-            <span className="h-5 w-5">{t.icon}</span>
-            <span className="leading-none">{t.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-    </div>
   );
 }
 
