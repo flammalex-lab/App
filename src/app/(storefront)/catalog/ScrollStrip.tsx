@@ -27,7 +27,7 @@ export function ScrollStrip({
   return (
     <section className="mb-5">
       <div className="flex items-baseline justify-between mb-2">
-        <h2 className="display text-base tracking-tight">
+        <h2 className="display text-[18px] font-bold tracking-tight text-ink-primary">
           {emoji ? <span className="mr-1">{emoji}</span> : null}
           {title}
         </h2>
@@ -38,7 +38,7 @@ export function ScrollStrip({
         ) : null}
       </div>
       {subtitle ? (
-        <p className="text-[12px] text-ink-secondary mb-2">{subtitle}</p>
+        <p className="text-[13px] text-ink-secondary mb-2">{subtitle}</p>
       ) : null}
       <div
         className="overflow-x-auto -mx-4 md:-mx-0 px-4 md:px-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

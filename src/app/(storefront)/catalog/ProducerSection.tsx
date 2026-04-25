@@ -27,7 +27,7 @@ export function ProducerSection({
   return (
     <section className="mb-3">
       <div className="flex items-baseline justify-between px-3 md:px-0 mb-1">
-        <h2 className="display text-base tracking-tight">{label}</h2>
+        <h2 className="display text-[18px] font-bold tracking-tight text-ink-primary">{label}</h2>
         {href ? (
           <Link
             href={href}
