@@ -422,10 +422,17 @@ function Stepper({
         <button
           onClick={onQtyTap}
           disabled={!onQtyTap}
-          className="flex-1 h-12 flex items-center justify-center tabular text-[15px] font-semibold select-none focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:cursor-default"
+          className="flex-1 h-12 flex flex-col items-center justify-center select-none focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:cursor-default group/qty"
           aria-label="Set quantity"
         >
-          {cartQty}
+          <span className="tabular text-[15px] font-semibold leading-none border-b border-dashed border-ink-tertiary/50 group-hover/qty:border-ink-secondary group-active/qty:border-ink-primary transition-colors duration-150 pb-px">
+            {cartQty}
+          </span>
+          {onQtyTap ? (
+            <span className="text-[8px] uppercase tracking-wider text-ink-tertiary mt-0.5 leading-none">
+              tap
+            </span>
+          ) : null}
         </button>
         <button
           onClick={onAdd}
