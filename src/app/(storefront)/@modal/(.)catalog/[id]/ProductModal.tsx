@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/supabase/types";
 import { ProductDetailClient, type PackRow } from "@/app/(storefront)/catalog/[id]/ProductDetailClient";
 import { productImage } from "@/lib/utils/product-image";
 import { BRAND_LABELS } from "@/lib/constants";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 
 export function ProductModal({
   product,
@@ -20,69 +20,32 @@ export function ProductModal({
   inGuideInitial: boolean;
 }) {
   const router = useRouter();
-  const panelRef = useRef<HTMLDivElement>(null);
 
   function close() {
     router.back();
-  }
-
-  // Close on ESC
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Lock body scroll while the modal is open
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  function onBackdropClick(e: React.MouseEvent) {
-    if (panelRef.current && !panelRef.current.contains(e.target as Node)) close();
   }
 
   const brandLabel = BRAND_LABELS[product.brand];
   const producerOrBrand = product.producer ?? brandLabel;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={product.name}
-      onMouseDown={onBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/60 animate-fade-in"
+    <BottomSheet
+      open
+      onClose={close}
+      ariaLabel={product.name}
+      desktopMaxWidth="64rem"
     >
-      <div
-        ref={panelRef}
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl md:max-w-5xl max-h-[92vh] overflow-y-auto animate-slide-up"
-      >
-        <button
-          onClick={close}
-          aria-label="Close"
-          className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-white/80 backdrop-blur hover:bg-white flex items-center justify-center text-xl text-ink-secondary hover:text-ink-primary transition shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/40"
-        >
-          ×
-        </button>
+      <div className="md:grid md:grid-cols-2 md:gap-0">
+        <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-white border-b md:border-b-0 md:border-r border-black/[0.06] bg-gradient-radial-soft">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={productImage(product)}
+            alt=""
+            className="absolute inset-0 w-full h-full object-contain p-6 md:p-12 mix-blend-multiply"
+          />
+        </div>
 
-        <div className="md:grid md:grid-cols-2 md:gap-0">
-          <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-white border-b md:border-b-0 md:border-r border-black/5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={productImage(product)}
-              alt=""
-              className="absolute inset-0 w-full h-full object-contain p-6 md:p-12"
-            />
-          </div>
-
-          <div className="px-5 md:px-8 pb-6 pt-4 md:py-10">
+        <div className="px-5 md:px-8 pb-6 pt-4 md:py-10">
           {producerOrBrand ? (
             <Link
               href={
@@ -111,12 +74,6 @@ export function ProductModal({
             {product.pack_size ? <>Pack Size: {product.pack_size}</> : null}
             {product.pack_size && brandLabel ? <> · </> : null}
             {brandLabel ? <>Brand: {brandLabel.toUpperCase()}</> : null}
-            {product.description ? (
-              <>
-                {" "}
-                | {product.description}
-              </>
-            ) : null}
           </p>
 
           {packs.length > 0 ? (
@@ -133,7 +90,7 @@ export function ProductModal({
           )}
 
           {product.description ? (
-            <section className="mt-6 pt-6 border-t border-black/5">
+            <section className="mt-6 pt-6 border-t border-black/[0.06]">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary mb-2">
                 About
               </h2>
@@ -141,7 +98,7 @@ export function ProductModal({
             </section>
           ) : null}
 
-          <div className="mt-6 pt-4 border-t border-black/5 flex items-center justify-between text-xs text-ink-tertiary">
+          <div className="mt-6 pt-4 border-t border-black/[0.06] flex items-center justify-between text-xs text-ink-tertiary">
             <Link
               href={`/catalog/${product.id}`}
               onClick={close}
@@ -151,9 +108,8 @@ export function ProductModal({
             </Link>
             {product.sku ? <span className="tabular">SKU {product.sku}</span> : null}
           </div>
-          </div>
         </div>
       </div>
-    </div>
+    </BottomSheet>
   );
 }
