@@ -263,37 +263,37 @@ export function BarcodeScanner({
           </div>
         ) : (
           <>
-            <div className="px-5 pt-3 pb-2 text-xs text-ink-secondary flex items-baseline justify-between">
+            <div className="px-5 pt-3 pb-2 text-[13px] text-ink-secondary flex items-baseline justify-between">
               <span>
                 <span className="tabular font-semibold text-ink-primary">{totalQty}</span>{" "}
                 {totalQty === 1 ? "item" : "items"} in cart
               </span>
               <span className="tabular font-semibold text-ink-primary">{money(totalMoney)}</span>
             </div>
-            <ul className="flex-1 overflow-y-auto divide-y divide-black/5 px-2">
+            <ul className="flex-1 overflow-y-auto divide-y divide-black/[0.06] px-2">
               {lines.map((l) => (
-                <li key={`${l.productId}:${l.variantKey ?? "default"}`} className="flex items-center gap-3 py-2 px-1">
+                <li key={`${l.productId}:${l.variantKey ?? "default"}`} className="flex items-center gap-3 py-2.5 px-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={productImage({ id: l.productId, image_url: null, name: l.name } as any)}
                     alt=""
-                    className="h-12 w-12 rounded-md object-cover bg-bg-secondary shrink-0"
+                    className="h-12 w-12 rounded-md object-cover bg-gradient-radial-soft shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{l.name}</div>
-                    <div className="text-[11px] text-ink-secondary tabular">
+                    <div className="text-[14px] font-medium truncate leading-snug">{l.name}</div>
+                    <div className="text-[12px] text-ink-secondary tabular mt-0.5">
                       {money(l.unitPrice)} / {l.unit}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center shrink-0 rounded-full bg-bg-secondary">
                     <button
                       onClick={() => setQty(l.productId, Math.max(0, l.quantity - 1), l.variantKey)}
-                      className="h-7 w-7 rounded-full border border-black/10 flex items-center justify-center text-sm hover:bg-bg-secondary"
+                      className="h-9 w-9 rounded-full flex items-center justify-center text-base hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
                       aria-label="Remove one"
                     >
                       {l.quantity === 1 ? "🗑" : "−"}
                     </button>
-                    <span className="tabular font-semibold w-6 text-center text-sm">{l.quantity}</span>
+                    <span className="tabular font-semibold w-5 text-center text-[13px]">{l.quantity}</span>
                     <button
                       onClick={() =>
                         add({
@@ -309,7 +309,7 @@ export function BarcodeScanner({
                           quantity: 1,
                         })
                       }
-                      className="h-7 w-7 rounded-full bg-brand-green text-white flex items-center justify-center text-sm hover:bg-brand-green-dark transition"
+                      className="h-9 w-9 rounded-full bg-brand-green-dark text-white flex items-center justify-center text-base hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150"
                       aria-label="Add one"
                     >
                       +
@@ -321,13 +321,13 @@ export function BarcodeScanner({
           </>
         )}
 
-        <div className="border-t border-black/5 px-4 py-3 space-y-2">
+        <div className="border-t border-black/[0.06] px-4 py-3 space-y-2 pb-safe">
           <form onSubmit={submitManual} className="flex gap-2">
             <input
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
               placeholder="Type UPC / SKU"
-              className="input flex-1 text-sm"
+              className="input flex-1 text-base"
               inputMode="numeric"
             />
             <button type="submit" className="btn-secondary text-sm">
@@ -335,7 +335,7 @@ export function BarcodeScanner({
             </button>
           </form>
           {lines.length > 0 ? (
-            <button onClick={reviewCart} className="btn-primary w-full text-sm">
+            <button onClick={reviewCart} className="btn-primary w-full text-base h-12">
               Review cart · {money(totalMoney)} →
             </button>
           ) : null}

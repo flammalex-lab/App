@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { LineItem } from "@/components/products/LineItem";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface NextDelivery {
@@ -262,44 +263,56 @@ function DeliveryRow({
   return (
     <>
       <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-secondary transition"
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-secondary transition-colors duration-150"
       >
-        <span className="h-9 w-9 rounded-lg bg-brand-blue-tint text-brand-blue flex items-center justify-center">
+        <span aria-hidden className="h-10 w-10 rounded-lg bg-brand-blue-tint text-brand-blue flex items-center justify-center text-lg">
           📅
         </span>
         <span className="flex-1 min-w-0">
-          <span className="text-xs text-ink-secondary uppercase tracking-wide block">
+          <span className="text-[11px] text-ink-secondary uppercase tracking-wide block font-medium">
             {isB2B ? "Delivery date" : "Pickup"}
           </span>
-          <span className="text-sm font-medium">{display}</span>
+          <span className="text-[15px] font-medium">{display}</span>
         </span>
-        <span className="text-ink-tertiary">{open ? "▾" : "›"}</span>
+        <span className="text-ink-tertiary">›</span>
       </button>
-      {open ? (
-        <div className="px-4 py-3 bg-bg-secondary/50 animate-slide-up space-y-3">
+      <BottomSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={isB2B ? "Delivery date" : "Pickup details"}
+      >
+        <div className="px-5 py-5 space-y-4">
           {isB2B ? (
             <>
               {nextDelivery ? (
-                <p className="text-xs text-ink-secondary">
-                  Earliest available: <strong>{dateLong(nextDelivery.deliveryDate)}</strong>
+                <p className="text-[13px] text-ink-secondary">
+                  Earliest available:{" "}
+                  <strong className="text-ink-primary">
+                    {dateLong(nextDelivery.deliveryDate)}
+                  </strong>
                 </p>
               ) : null}
-              <input
-                type="date"
-                className="input"
-                value={deliveryDate ?? ""}
-                onChange={(e) => onSetDelivery(e.target.value)}
-              />
+              <label className="block">
+                <span className="text-[11px] text-ink-secondary uppercase tracking-wide font-medium block mb-1.5">
+                  Pick a date
+                </span>
+                <input
+                  type="date"
+                  className="input text-base"
+                  value={deliveryDate ?? ""}
+                  onChange={(e) => onSetDelivery(e.target.value)}
+                />
+              </label>
             </>
           ) : (
             <>
               <label className="block">
-                <span className="text-xs text-ink-secondary uppercase tracking-wide">
+                <span className="text-[11px] text-ink-secondary uppercase tracking-wide font-medium block mb-1.5">
                   Location
                 </span>
                 <select
-                  className="input mt-1"
+                  className="input text-base"
                   value={pickupLocationId ?? ""}
                   onChange={(e) => onSetPickup(pickupDate, e.target.value || null)}
                 >
@@ -312,20 +325,26 @@ function DeliveryRow({
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs text-ink-secondary uppercase tracking-wide">
+                <span className="text-[11px] text-ink-secondary uppercase tracking-wide font-medium block mb-1.5">
                   Pickup date
                 </span>
                 <input
                   type="date"
-                  className="input mt-1"
+                  className="input text-base"
                   value={pickupDate ?? ""}
                   onChange={(e) => onSetPickup(e.target.value || null, pickupLocationId)}
                 />
               </label>
             </>
           )}
+          <button
+            onClick={() => setOpen(false)}
+            className="btn-primary w-full mt-2"
+          >
+            Done
+          </button>
         </div>
-      ) : null}
+      </BottomSheet>
     </>
   );
 }
@@ -346,32 +365,49 @@ function NoteRow({
   return (
     <>
       <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-secondary transition"
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-secondary transition-colors duration-150"
       >
-        <span className="h-9 w-9 rounded-lg bg-brand-blue-tint text-brand-blue flex items-center justify-center">
+        <span aria-hidden className="h-10 w-10 rounded-lg bg-brand-blue-tint text-brand-blue flex items-center justify-center text-lg">
           💬
         </span>
         <span className="flex-1 min-w-0">
-          <span className="text-xs text-ink-secondary uppercase tracking-wide block">
+          <span className="text-[11px] text-ink-secondary uppercase tracking-wide block font-medium">
             Order note
           </span>
-          <span className="text-sm font-medium text-ink-secondary">
-            {note ? `“${note.slice(0, 50)}${note.length > 50 ? "…" : ""}”` : "Add a note (optional)"}
+          <span className="text-[15px] font-medium text-ink-primary truncate block">
+            {note
+              ? `“${note.slice(0, 50)}${note.length > 50 ? "…" : ""}”`
+              : <span className="text-ink-secondary">Add a note (optional)</span>}
           </span>
         </span>
-        <span className="text-ink-tertiary">{open ? "▾" : "›"}</span>
+        <span className="text-ink-tertiary">›</span>
       </button>
-      {open ? (
-        <div className="px-4 py-3 bg-bg-secondary/50 animate-slide-up">
+      <BottomSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Order note"
+      >
+        <div className="px-5 py-5 space-y-3">
+          <p className="text-[13px] text-ink-secondary">
+            Anything we should know? Back-of-house delivery, cut thickness,
+            substitution preferences, etc.
+          </p>
           <Textarea
             value={note}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Anything we should know? e.g. back-of-house delivery, cut thickness"
-            rows={3}
+            placeholder="Type a note…"
+            rows={5}
+            className="text-base"
           />
+          <button
+            onClick={() => setOpen(false)}
+            className="btn-primary w-full"
+          >
+            Save note
+          </button>
         </div>
-      ) : null}
+      </BottomSheet>
     </>
   );
 }

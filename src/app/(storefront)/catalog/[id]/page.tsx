@@ -5,10 +5,9 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, AccountPricing, PackOption, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
-import { CATEGORY_LABELS, GROUP_LABELS, allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
-import { productImage } from "@/lib/utils/product-image";
+import { GROUP_LABELS, allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
 import { dateShort, money } from "@/lib/utils/format";
-import { ProductDetailClient } from "./ProductDetailClient";
+import { ProductDetailContent } from "./ProductDetailContent";
 import { defaultPackRow, optionPackRow, type PackRow } from "./packs";
 
 export default async function ProductDetail({
@@ -138,92 +137,38 @@ export default async function ProductDetail({
     : "Catalog";
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-0 pt-4">
-      <Link href={backHref} className="text-sm text-ink-secondary hover:underline">
-        ← {backLabel}
-      </Link>
-      <div className="grid md:grid-cols-2 gap-6 mt-3">
-        <div className="relative aspect-square bg-bg-secondary rounded-xl overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={productImage(p)} alt={p.name} className="w-full h-full object-cover" />
-        </div>
-        <div>
-          <div className="text-sm text-ink-secondary">{CATEGORY_LABELS[p.category]}</div>
-          <h1 className="display text-3xl mt-1 tracking-tight">{p.name}</h1>
-          {p.producer ? (
-            <Link
-              href={`/catalog?producer=${encodeURIComponent(p.producer)}`}
-              className="inline-block mt-1 text-sm text-brand-blue hover:underline"
-            >
-              More from {p.producer} →
-            </Link>
-          ) : null}
-          {p.description ? <p className="text-ink-secondary mt-3">{p.description}</p> : null}
-          <dl className="grid grid-cols-2 gap-y-1 gap-x-4 mt-4 text-sm">
-            {p.sku ? (
-              <>
-                <dt className="text-ink-secondary">SKU</dt>
-                <dd className="mono">{p.sku}</dd>
-              </>
-            ) : null}
-            {p.pack_size ? (
-              <>
-                <dt className="text-ink-secondary">Pack</dt>
-                <dd>{p.pack_size}</dd>
-              </>
-            ) : null}
-            {p.case_pack ? (
-              <>
-                <dt className="text-ink-secondary">Case</dt>
-                <dd>{p.case_pack}</dd>
-              </>
-            ) : null}
-            {p.avg_weight_lbs ? (
-              <>
-                <dt className="text-ink-secondary">Avg weight</dt>
-                <dd>{p.avg_weight_lbs} lb</dd>
-              </>
-            ) : null}
-            {p.primal ? (
-              <>
-                <dt className="text-ink-secondary">Primal</dt>
-                <dd>{p.primal}</dd>
-              </>
-            ) : null}
-          </dl>
-
-          {packs.length > 0 ? (
-            <ProductDetailClient
-              product={p}
-              packs={packs}
-              showAddToGuide={isB2B}
-              inGuideInitial={inGuide}
-            />
-          ) : (
-            <p className="mt-4 text-sm text-ink-secondary">
-              Contact your rep for pricing on this item.
-            </p>
-          )}
-        </div>
+    <div className="max-w-5xl mx-auto pb-8">
+      <div className="px-4 md:px-0 pt-4">
+        <Link href={backHref} className="text-sm text-ink-secondary hover:underline">
+          ← {backLabel}
+        </Link>
+      </div>
+      <div className="md:rounded-2xl md:border md:border-black/[0.06] md:bg-white md:overflow-hidden mt-3">
+        <ProductDetailContent
+          product={p}
+          packs={packs}
+          isB2B={isB2B}
+          inGuide={inGuide}
+        />
       </div>
 
       {history.length > 0 ? (
-        <section className="mt-8">
+        <section className="mt-8 px-4 md:px-0">
           <h2 className="display text-xl mb-2">Your order history</h2>
-          <div className="card divide-y divide-black/5 overflow-hidden">
+          <div className="card divide-y divide-black/[0.06] overflow-hidden">
             {history.map((h) => (
               <Link
                 key={h.id}
                 href={`/orders/${h.orderId}`}
-                className="flex items-center px-4 py-3 hover:bg-bg-secondary"
+                className="flex items-center px-4 py-3 hover:bg-bg-secondary transition-colors duration-150"
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium">{dateShort(h.date)}</div>
-                  <div className="text-xs text-ink-secondary mono">
+                  <div className="text-xs text-ink-secondary tabular">
                     {h.orderNumber} · {h.qty} × {money(h.unitPrice)}
                   </div>
                 </div>
-                <div className="mono text-sm">{money(h.total)}</div>
+                <div className="tabular text-sm font-semibold">{money(h.total)}</div>
               </Link>
             ))}
           </div>
