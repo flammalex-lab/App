@@ -53,7 +53,9 @@ export function ScrollStrip({
           {products.map((p) => (
             <div
               key={p.id}
-              className="w-[44vw] max-w-[200px] min-w-[160px] shrink-0"
+              // Narrower than half the viewport so the next card peeks at
+              // the right edge — visual affordance that the strip scrolls.
+              className="w-[40vw] max-w-[170px] min-w-[140px] shrink-0"
             >
               <ProductCard product={p} variant="compact" />
             </div>
