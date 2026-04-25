@@ -75,6 +75,10 @@ export function ProductCard({
 
   const richSize = product.case_pack ?? product.pack_size;
   const sizeLabel = richSize ?? product.unit;
+  // Switch the prefix to a middot when the size already contains its own
+  // slash (e.g. "4 / gallon" or "9/10 oz"). Avoids "$20.00 / 4 / gallon"
+  // which reads as nonsense — middot reads as "for".
+  const sep = richSize ? "·" : "/";
   const price = product.unitPrice != null ? money(product.unitPrice) : "—";
 
   // ───────── Compact (vertical scroll-strip card) ─────────
@@ -114,14 +118,14 @@ export function ProductCard({
             </Link>
           ) : null}
           <div
-            className="text-[14px] font-medium leading-snug text-ink-primary line-clamp-2 min-h-[2.5em]"
+            className="text-[14px] font-medium leading-snug text-ink-primary truncate"
             title={product.name}
           >
             {product.name}
           </div>
           <div className="text-[12px] text-ink-secondary truncate mt-0.5">
             <span className="tabular font-medium text-ink-primary">{price}</span>
-            <span className="text-ink-tertiary"> / {sizeLabel}</span>
+            <span className="text-ink-tertiary"> {sep} {sizeLabel}</span>
           </div>
         </div>
 
@@ -175,14 +179,14 @@ export function ProductCard({
             </Link>
           ) : null}
           <div
-            className="display text-[15px] font-semibold leading-snug text-ink-primary line-clamp-2 min-h-[2.5em]"
+            className="display text-[15px] font-semibold leading-snug text-ink-primary truncate"
             title={product.name}
           >
             {product.name}
           </div>
           <div className="text-[13px] text-ink-secondary truncate mt-0.5">
             <span className="tabular font-semibold text-ink-primary">{price}</span>
-            <span className="text-ink-tertiary"> / {sizeLabel}</span>
+            <span className="text-ink-tertiary"> {sep} {sizeLabel}</span>
           </div>
         </div>
 

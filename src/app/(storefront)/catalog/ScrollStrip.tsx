@@ -43,9 +43,11 @@ export function ScrollStrip({
       <div
         className="overflow-x-auto -mx-4 md:-mx-0 px-4 md:px-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{
-          scrollSnapType: "x mandatory",
+          // proximity (not mandatory) — snaps near a card but lets the
+          // user freely scroll past it without the snap fighting their
+          // momentum. Mandatory was too aggressive on touch.
+          scrollSnapType: "x proximity",
           scrollPaddingLeft: "1rem",
-          // iOS momentum (Safari)
           WebkitOverflowScrolling: "touch",
           overscrollBehaviorX: "contain",
         }}
