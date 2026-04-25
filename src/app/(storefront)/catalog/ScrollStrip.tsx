@@ -26,14 +26,18 @@ export function ScrollStrip({
 
   return (
     <section className="mb-5">
-      <div className="flex items-baseline justify-between mb-2">
-        <h2 className="display text-[18px] font-bold tracking-tight text-ink-primary">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-[17px] font-semibold tracking-tight text-ink-primary leading-tight">
           {emoji ? <span className="mr-1">{emoji}</span> : null}
           {title}
         </h2>
         {href ? (
-          <Link href={href} className="text-[13px] text-brand-blue hover:underline font-medium">
-            See all →
+          <Link
+            href={href}
+            className="inline-flex items-center gap-0.5 text-[13px] font-medium text-ink-secondary hover:text-ink-primary transition-colors duration-150"
+          >
+            See all
+            <span aria-hidden className="text-base leading-none">›</span>
           </Link>
         ) : null}
       </div>
