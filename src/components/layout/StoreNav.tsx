@@ -3,7 +3,6 @@ import { CartIconWithBadge } from "./CartIconWithBadge";
 import { BrandLogo } from "@/components/Brand";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { ViewOrderBar } from "./ViewOrderBar";
 import { NavLink } from "./NavLink";
 import type { Account, Profile } from "@/lib/supabase/types";
 
@@ -113,7 +112,6 @@ function TopHeader({
 function BottomTabs({ tabs }: { tabs: NavTab[] }) {
   return (
     <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe md:hidden">
-      <ViewOrderBar />
       <nav
         className="mx-auto max-w-3xl grid text-[11px]"
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
