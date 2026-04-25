@@ -3,12 +3,18 @@
 import { useRouter } from "next/navigation";
 
 /**
- * Back button used at the top of the cart page. Prefers router.back()
- * so the user lands wherever they came from (catalog, guide, product
- * detail, etc.). Falls back to the role-appropriate home if there's
- * no history (deep-link / refresh scenario).
+ * Smart back button used on slide-in detail screens (cart, producer
+ * page, etc.). Prefers router.back() so the user lands wherever they
+ * came from. Falls back to the given href if there's no history
+ * (deep-link or hard refresh).
  */
-export function CartBackButton({ fallbackHref }: { fallbackHref: string }) {
+export function BackButton({
+  fallbackHref,
+  label = "Back",
+}: {
+  fallbackHref: string;
+  label?: string;
+}) {
   const router = useRouter();
 
   function go() {
@@ -22,11 +28,11 @@ export function CartBackButton({ fallbackHref }: { fallbackHref: string }) {
   return (
     <button
       onClick={go}
-      aria-label="Back"
+      aria-label={label}
       className="inline-flex items-center gap-1 text-[13px] text-ink-secondary hover:text-ink-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-md py-1 -ml-1 px-1"
     >
       <span aria-hidden className="text-base leading-none">←</span>
-      <span>Back</span>
+      <span>{label}</span>
     </button>
   );
 }

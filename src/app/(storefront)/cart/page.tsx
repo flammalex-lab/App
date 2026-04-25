@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { CartClient } from "./CartClient";
-import { CartBackButton } from "./CartBackButton";
+import { BackButton } from "@/components/layout/BackButton";
 import type { Account, DeliveryZoneRow, PickupLocation } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import type { CartLine } from "@/lib/cart/store";
@@ -60,7 +60,7 @@ export default async function CartPage() {
     <div className="overflow-x-clip">
       <div className="max-w-5xl mx-auto animate-slide-in-right">
       <div className="pt-3">
-        <CartBackButton fallbackHref={isB2B ? "/guide" : "/catalog"} />
+        <BackButton fallbackHref={isB2B ? "/guide" : "/catalog"} />
       </div>
       <h1 className="display text-3xl mb-1 pt-2">Let&apos;s get this order in.</h1>
       {account ? (

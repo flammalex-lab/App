@@ -19,6 +19,7 @@ import { ProducerSection } from "./ProducerSection";
 import { SortSheet, type SortKey } from "./SortSheet";
 import { CatalogSearchInput } from "./CatalogSearchInput";
 import { CategoryChips } from "./CategoryChips";
+import { BackButton } from "@/components/layout/BackButton";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
@@ -339,13 +340,21 @@ export default async function CatalogPage({
   const producerSections = showProducerSections ? groupByProducer(priced) : [];
   const fromGroupLabel = groupFilter ?? (isExplore ? "explore" : isBest ? "best" : null);
 
+  // Producer detail "slides in from the right" with a back button — same
+  // pattern as /cart, gives the buyer a clear way back to where they were.
+  const isProducerView = Boolean(producerFilter);
+
   return (
-    <div className="max-w-screen-xl mx-auto pb-8">
-      <div className="pt-1">
-        <Link href="/catalog" className="text-xs text-ink-secondary hover:underline">
-          ← Catalog
-        </Link>
-        <h1 className="display text-xl mt-0.5 mb-1">{headerTitle}</h1>
+    <div className={`max-w-screen-xl mx-auto pb-8 ${isProducerView ? "animate-slide-in-right" : ""}`}>
+      <div className="pt-3">
+        {isProducerView ? (
+          <BackButton fallbackHref="/catalog" />
+        ) : (
+          <Link href="/catalog" className="text-xs text-ink-secondary hover:underline">
+            ← Catalog
+          </Link>
+        )}
+        <h1 className="display text-xl mt-1 mb-1">{headerTitle}</h1>
         {producerFilter ? (
           <p className="text-xs text-ink-secondary mb-2">All items from {producerFilter}</p>
         ) : null}
