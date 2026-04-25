@@ -62,26 +62,27 @@ export function ProductModal({
     >
       <div
         ref={panelRef}
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto animate-slide-up"
+        className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl md:max-w-5xl max-h-[92vh] overflow-y-auto animate-slide-up"
       >
         <button
           onClick={close}
           aria-label="Close"
-          className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-white/80 backdrop-blur hover:bg-white flex items-center justify-center text-xl text-ink-secondary hover:text-ink-primary transition shadow-sm"
+          className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-white/80 backdrop-blur hover:bg-white flex items-center justify-center text-xl text-ink-secondary hover:text-ink-primary transition shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/40"
         >
           ×
         </button>
 
-        <div className="relative aspect-[4/3] sm:aspect-[16/10] bg-white">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={productImage(product)}
-            alt=""
-            className="absolute inset-0 w-full h-full object-contain p-8"
-          />
-        </div>
+        <div className="md:grid md:grid-cols-2 md:gap-0">
+          <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-white border-b md:border-b-0 md:border-r border-black/5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={productImage(product)}
+              alt=""
+              className="absolute inset-0 w-full h-full object-contain p-6 md:p-12"
+            />
+          </div>
 
-        <div className="px-5 md:px-7 pb-6 pt-4">
+          <div className="px-5 md:px-8 pb-6 pt-4 md:py-10">
           {producerOrBrand ? (
             <Link
               href={
@@ -149,6 +150,7 @@ export function ProductModal({
               Open full page →
             </Link>
             {product.sku ? <span className="tabular">SKU {product.sku}</span> : null}
+          </div>
           </div>
         </div>
       </div>

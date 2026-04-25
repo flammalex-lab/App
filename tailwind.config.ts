@@ -51,10 +51,24 @@ const config: Config = {
       boxShadow: {
         card: "0 1px 2px rgba(22,22,22,0.04), 0 4px 12px rgba(22,22,22,0.06)",
         sticky: "0 -8px 24px rgba(22,22,22,0.06)",
+        // Used on the sticky cart bar + dropdowns. Slightly stronger so
+        // the floating element reads above the white surface.
+        floating:
+          "0 1px 2px rgba(22,22,22,0.06), 0 8px 24px rgba(22,22,22,0.10), 0 16px 40px rgba(22,22,22,0.06)",
+      },
+      transitionTimingFunction: {
+        // Project-wide standards. Hover/press = quick ease-out;
+        // state changes (modal open, slide-up) = the gentler curve below.
+        fluent: "cubic-bezier(.2,.8,.2,1)",
+      },
+      transitionDuration: {
+        150: "150ms",
+        250: "250ms",
       },
       animation: {
-        "fade-in": "fade-in 0.2s ease-out",
-        "slide-up": "slide-up 0.25s cubic-bezier(.2,.8,.2,1)",
+        "fade-in": "fade-in 200ms ease-out",
+        "slide-up": "slide-up 250ms cubic-bezier(.2,.8,.2,1)",
+        "scale-in": "scale-in 200ms cubic-bezier(.2,.8,.2,1)",
       },
       keyframes: {
         "fade-in": {
@@ -64,6 +78,10 @@ const config: Config = {
         "slide-up": {
           from: { transform: "translateY(8px)", opacity: "0" },
           to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "scale-in": {
+          from: { transform: "scale(0.97)", opacity: "0" },
+          to: { transform: "scale(1)", opacity: "1" },
         },
       },
     },

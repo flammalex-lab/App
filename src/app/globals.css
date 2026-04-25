@@ -49,7 +49,7 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-medium transition-colors duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-brand-blue/40;
   }
   .btn-primary {
     @apply btn bg-brand-blue text-white hover:bg-brand-blue-dark;
@@ -68,15 +68,18 @@
   }
 
   .input {
-    @apply w-full rounded-md border border-black/10 px-3 py-2 outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue;
+    @apply w-full rounded-md border border-black/10 px-3 py-2 outline-none transition-colors duration-150 focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue placeholder:text-ink-tertiary;
   }
   .label {
     @apply block text-sm font-medium text-ink-primary mb-1;
   }
   .card {
-    /* On pure white surfaces a thin hairline reads better than a shadow.
-       Shadow is kept lighter for floating affordances (modals, sticky bars). */
-    @apply rounded-xl bg-white border border-black/[0.08];
+    /* Hairline border on white. Shadow reserved for floating affordances
+       (modal, sticky cart bar). Hover deepens the border subtly. */
+    @apply rounded-xl bg-white border border-black/[0.08] transition-colors duration-150;
+  }
+  .card-hover {
+    @apply hover:border-black/[0.16];
   }
   .divider {
     @apply border-t border-black/5 my-4;

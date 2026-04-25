@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { StoreNav } from "@/components/layout/StoreNav";
+import { StickyCartBar } from "@/components/layout/StickyCartBar";
 import { CutoffClock } from "@/components/CutoffClock";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import type { DeliveryZoneRow, Profile } from "@/lib/supabase/types";
@@ -72,6 +73,7 @@ export default async function StorefrontLayout({
         memberships={memberships}
       />
       <main className="flex-1 px-0 md:px-6 lg:px-8 py-1 pb-32">{children}</main>
+      <StickyCartBar />
       {modal}
       <footer className="hidden md:block px-6 py-8 text-xs text-ink-secondary border-t border-black/5">
         © Fingerlakes Farms — ilovenyfarms.com

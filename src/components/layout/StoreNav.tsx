@@ -74,7 +74,7 @@ function TopHeader({
   memberships: Account[];
 }) {
   return (
-    <header className="sticky top-0 z-30 bg-bg-primary/90 backdrop-blur border-b border-black/5">
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-black/[0.06] supports-[backdrop-filter]:bg-white/70">
       <div className="flex items-center gap-2 px-3 md:px-6 py-1.5">
         <Link href={home} className="shrink-0" aria-label="Home">
           <BrandLogo size={28} />

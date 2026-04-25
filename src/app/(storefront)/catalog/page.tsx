@@ -17,6 +17,7 @@ import { CatalogGrid } from "./CatalogGrid";
 import { ScrollStrip } from "./ScrollStrip";
 import { SortSheet, type SortKey } from "./SortSheet";
 import { CatalogSearchInput } from "./CatalogSearchInput";
+import { CategoryChips } from "./CategoryChips";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
@@ -169,6 +170,28 @@ export default async function CatalogPage({
 
     return (
       <div className="max-w-screen-xl mx-auto pb-8">
+        {/* Editorial hero — sets the brand tone before the buyer hits the
+            scroll strips. Single full-bleed photo, restrained overlay text. */}
+        <section className="relative overflow-hidden md:rounded-2xl mb-4 mx-0 md:mx-0">
+          <div className="relative aspect-[16/7] md:aspect-[21/8]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/IMG_7794-scaled-3.jpg"
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-black/10" />
+            <div className="absolute inset-x-0 bottom-0 p-4 md:p-8 text-white">
+              <p className="display text-2xl md:text-4xl tracking-tight leading-tight max-w-xl drop-shadow">
+                This week from Fingerlakes Farms
+              </p>
+              <p className="text-sm md:text-base text-white/85 mt-1 drop-shadow max-w-xl">
+                Trust our process. Trust your food.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <form action="/catalog" className="px-4 md:px-0 mb-3">
           <CatalogSearchInput datalistId="catalog-suggest" />
           <datalist id="catalog-suggest">
@@ -177,6 +200,12 @@ export default async function CatalogPage({
             ))}
           </datalist>
         </form>
+
+        <CategoryChips
+          groups={groupCounts}
+          active={null}
+          className="mb-4 px-4 md:px-0"
+        />
 
         <ScrollStrip
           title="This week"
@@ -318,6 +347,13 @@ export default async function CatalogPage({
         <h1 className="display text-xl mt-0.5 mb-1">{headerTitle}</h1>
         {producerFilter ? (
           <p className="text-xs text-ink-secondary mb-2">All items from {producerFilter}</p>
+        ) : null}
+        {!producerFilter ? (
+          <CategoryChips
+            groups={allowed.map((g) => ({ group: g }))}
+            active={(groupFilter as ProductGroup | null) ?? (isExplore ? "explore" : isBest ? "best" : null)}
+            className="mb-3"
+          />
         ) : null}
         <form action="/catalog" className="mb-3 flex gap-2">
           <CatalogSearchInput
