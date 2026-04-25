@@ -17,6 +17,10 @@
   html, body {
     background: var(--bg-primary);
     color: var(--ink-primary);
+    /* Disable iOS rubber-band over-scroll at the page edges + the
+       pull-to-refresh gesture. Internal scroll containers keep their
+       own overscroll-behavior settings. */
+    overscroll-behavior-y: none;
   }
   body {
     font-family: var(--font-sans), system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
