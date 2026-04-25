@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
 import { money } from "@/lib/utils/format";
+import { useScrollHidden } from "./ScrollHideHeader";
 
 /**
  * Sticky cart summary that floats just above the bottom tab bar (mobile)
@@ -21,10 +22,20 @@ export function StickyCartBar() {
   const total = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
 
   const onCartPage = pathname?.startsWith("/cart");
+  // When the bottom tab bar slides off (scroll-down), drop the cart
+  // pill into the slot it just vacated so it stays thumb-reachable
+  // instead of floating in mid-screen.
+  const navHidden = useScrollHidden();
   if (lines.length === 0 || onCartPage) return null;
 
   return (
-    <div className="fixed inset-x-0 z-20 px-3 md:px-6 pointer-events-none bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] md:bottom-6">
+    <div
+      className={`fixed inset-x-0 z-20 px-3 md:px-6 pointer-events-none transition-[bottom] duration-200 md:bottom-6 ${
+        navHidden
+          ? "bottom-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]"
+          : "bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]"
+      }`}
+    >
       <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
         <Link
           href="/cart"

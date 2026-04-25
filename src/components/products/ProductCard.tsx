@@ -171,7 +171,7 @@ export function ProductCard({
           <img
             src={productImage(product)}
             alt=""
-            className="max-h-[88%] max-w-[88%] object-contain mix-blend-multiply"
+            className="max-h-full max-w-full object-contain mix-blend-multiply"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
         </div>
@@ -285,7 +285,7 @@ export function ProductCard({
         <img
           src={productImage(product)}
           alt=""
-          className="max-h-[88%] max-w-[88%] object-contain mix-blend-multiply"
+          className="max-h-full max-w-full object-contain mix-blend-multiply"
         />
         {cartQty > 0 ? (
           <span className="absolute top-0 left-0 min-w-[18px] h-[18px] px-1 rounded-br bg-accent-gold text-white text-[11px] font-semibold flex items-center justify-center tabular">
