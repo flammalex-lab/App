@@ -30,8 +30,14 @@ export function BottomSheet({
   desktopMaxWidth?: string;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const startY = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
+  // Two-detent sheet: opens at "peek" (~75% screen) so the underlying
+  // page is still partially visible. Expands to "full" (~92%) when the
+  // user scrolls inside the sheet content. Mobile only — md+ stays
+  // centered modal sized to fit content.
+  const [detent, setDetent] = useState<"peek" | "full">("peek");
 
   // Lock body scroll while open WITHOUT jumping the underlying page.
   // The naive approach (overflow: hidden on body) makes iOS Safari
@@ -71,9 +77,27 @@ export function BottomSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // Reset drag state every time the sheet opens
+  // Reset drag + detent state every time the sheet opens
   useEffect(() => {
-    if (open) setDragOffset(0);
+    if (open) {
+      setDragOffset(0);
+      setDetent("peek");
+    }
+  }, [open]);
+
+  // Promote peek → full when the user scrolls inside the sheet content
+  // past 8px. Reverting back to peek when scrolled to top is intentionally
+  // disabled — once expanded the user has committed to inspecting; pulling
+  // back down the sheet via the drag handle is the dismiss gesture.
+  useEffect(() => {
+    if (!open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    function onScroll() {
+      if (el!.scrollTop > 8) setDetent("full");
+    }
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, [open]);
 
   function onTouchStart(e: React.TouchEvent) {
@@ -119,10 +143,18 @@ export function BottomSheet({
         onTouchEnd={onTouchEnd}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          transition: dragOffset > 0 ? "none" : "transform 200ms cubic-bezier(.2,.8,.2,1)",
+          // Combine drag transform with detent height transition. When
+          // dragging, drop the height transition so the sheet follows the
+          // finger; when releasing, restore both transforms.
+          transition: dragOffset > 0
+            ? "none"
+            : "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
           maxWidth: desktopMaxWidth,
+          // Detent only applies on mobile; on md+ the sheet is centered
+          // and sizes to its content (overridden by md:!h-auto below).
+          height: detent === "peek" ? "75vh" : "92vh",
         }}
-        className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating animate-sheet-up md:animate-slide-up max-h-[92vh] flex flex-col"
+        className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating animate-sheet-up md:animate-slide-up md:!h-auto md:max-h-[92vh] flex flex-col"
       >
         {/* Drag handle (mobile) */}
         <div className="md:hidden pt-2 pb-1 flex items-center justify-center">
@@ -142,7 +174,7 @@ export function BottomSheet({
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
       </div>
     </div>
   );
