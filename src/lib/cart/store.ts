@@ -10,6 +10,10 @@ export interface CartLine {
   variantKey: string | null;
   /** Variant-specific SKU. Falls back to product.sku when variantKey is null. */
   variantSku: string | null;
+  /** Human-readable variant name ("Case of 16") — only set when
+   *  variantKey is non-null. Rendered as a chip on the cart line so
+   *  buyers see which pack of a multi-variant product they picked. */
+  variantLabel?: string | null;
   sku: string | null;
   name: string;
   packSize: string | null;

@@ -164,6 +164,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
                 quantity: l.quantity,
                 notes: l.notes,
                 priceByWeight: l.priceByWeight,
+                variantLabel: l.variantLabel ?? null,
               }}
               mode="edit"
               onQty={(q) => setQty(l.productId, q, l.variantKey)}

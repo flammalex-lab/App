@@ -144,7 +144,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
           <div className="divide-y divide-black/5 animate-slide-up">
             {lines.map((l) => (
               <LineItem
-                key={l.productId}
+                key={`${l.productId}:${l.variantKey ?? ""}`}
                 data={{
                   id: l.productId,
                   name: l.name,
@@ -154,6 +154,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
                   quantity: l.quantity,
                   notes: l.notes,
                   priceByWeight: l.priceByWeight,
+                  variantLabel: l.variantLabel ?? null,
                 }}
                 mode="review"
               />

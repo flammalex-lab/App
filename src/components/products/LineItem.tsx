@@ -110,18 +110,25 @@ export function LineItem({
       ) : null}
 
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-[15px] flex items-center gap-2 leading-snug">
+        <div className="font-semibold text-[15px] flex items-center gap-2 leading-snug">
           <span className="truncate">{data.name}</span>
           {disabled ? (
             <span className="badge badge-gold shrink-0">Paused</span>
           ) : null}
         </div>
+        {/* Variant label (e.g. "Case of 16", "Half-gallon") gets its own
+            visible chip so buyers with multiple variants of the same
+            product can scan which is which without parsing prose. */}
+        {data.variantLabel ? (
+          <div className="mt-0.5 inline-flex items-center text-[11px] font-medium uppercase tracking-wider text-brand-green-dark bg-brand-green-tint rounded-full px-2 py-0.5">
+            {data.variantLabel}
+          </div>
+        ) : null}
         <div className="text-[13px] text-ink-secondary mt-0.5">
           {mode === "history" ? (
             <>
               <span className="tabular">
                 {data.sku ?? "—"}
-                {data.variantLabel ? ` · ${data.variantLabel}` : ""}
               </span>
               <span className="block uppercase text-[11px] tracking-wide text-ink-tertiary">
                 {data.packSize ?? data.unit}

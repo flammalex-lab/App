@@ -69,34 +69,40 @@ export default async function OrderDetail({
   const totalUnits = rows.reduce((s, r) => s + Number(r.quantity), 0);
 
   return (
-    <div className="max-w-5xl mx-auto pt-3 pb-24">
-      <div className="flex items-center justify-between mb-3">
-        <Link href="/orders" className="text-sm text-ink-secondary hover:underline">
-          ← Orders
+    <div className="max-w-3xl mx-auto pt-3 pb-24">
+      {/* Receipt-style top bar — back left, order number tabular right */}
+      <div className="flex items-center justify-between mb-4">
+        <Link
+          href="/orders"
+          className="inline-flex items-center gap-1 text-[13px] text-ink-secondary hover:text-ink-primary transition-colors duration-150"
+        >
+          <span aria-hidden>←</span> Orders
         </Link>
-        <span className="text-sm text-ink-secondary mono">{o.order_number}</span>
+        <span className="text-[12px] text-ink-tertiary tabular uppercase tracking-wider">
+          {o.order_number}
+        </span>
       </div>
 
-      {/* Big delivery / pickup headline, Pepper-style */}
-      <h1 className="display text-3xl tracking-tight">
-        {o.pickup_date ? "PICKUP" : "DELIVERY"}
-        {deliveryIso ? (
-          <span className="font-semibold"> on {dateShort(deliveryIso)}</span>
-        ) : null}
+      {/* Receipt header: eyebrow + big delivery line + meta row */}
+      <p className="text-[11px] uppercase tracking-[0.18em] text-ink-tertiary mb-1">
+        {o.pickup_date ? "Pickup" : "Delivery"}
+      </p>
+      <h1 className="display text-[28px] md:text-[34px] leading-[1.1] tracking-tight text-ink-primary">
+        {deliveryIso ? dateShort(deliveryIso) : "—"}
       </h1>
 
-      <div className="mt-2 flex items-center gap-2 text-sm">
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
         <StatusBadge status={o.status} />
         {placedBy ? (
           <span className="text-ink-secondary">
-            Placed by {placedBy.first_name ?? "—"} on {dateLong(o.created_at)}
+            Placed by {placedBy.first_name ?? "—"} · {dateLong(o.created_at)}
           </span>
         ) : null}
       </div>
 
       {/* Find-in-order */}
       {rows.length > 3 ? (
-        <form action="" className="mt-4">
+        <form action="" className="mt-5">
           <input
             type="search"
             name="q"
@@ -107,14 +113,17 @@ export default async function OrderDetail({
         </form>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="font-medium">
+      {/* Items header — receipt bookend */}
+      <div className="mt-6 mb-1.5 flex items-baseline justify-between">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-ink-tertiary">
           {totalUnits} {totalUnits === 1 ? "unit" : "units"}
         </span>
-        <span className="mono font-semibold">{money(o.total)}</span>
+        <span className="text-[11px] uppercase tracking-[0.18em] text-ink-tertiary">
+          Line total
+        </span>
       </div>
 
-      <div className="card mt-3 divide-y divide-black/5 overflow-hidden">
+      <div className="card divide-y divide-black/[0.06] overflow-hidden">
         {filteredRows.map((r) => (
           <LineItem
             key={r.id}
@@ -140,16 +149,22 @@ export default async function OrderDetail({
         ) : null}
       </div>
 
-      <div className="card mt-4 p-4 space-y-1 text-sm">
+      {/* Totals — receipt feel: dotted divider before grand total */}
+      <div className="mt-5 px-2 space-y-1.5 text-[14px]">
         <Row label="Subtotal" value={money(o.subtotal)} />
         {o.delivery_fee ? <Row label="Delivery fee" value={money(o.delivery_fee)} /> : null}
         {o.tax ? <Row label="Tax" value={money(o.tax)} /> : null}
+        <div className="border-t border-dashed border-black/15 my-2" />
         <Row label="Total" value={money(o.total)} strong />
         {o.customer_notes ? (
-          <>
-            <div className="divider" />
-            <Row label="Your notes" value={o.customer_notes} />
-          </>
+          <div className="mt-3 pt-3 border-t border-black/[0.06]">
+            <div className="text-[11px] uppercase tracking-wider text-ink-tertiary mb-1">
+              Your notes
+            </div>
+            <p className="text-[13px] text-ink-primary leading-relaxed">
+              {o.customer_notes}
+            </p>
+          </div>
         ) : null}
       </div>
 

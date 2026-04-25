@@ -91,6 +91,7 @@ export function VariantPickerSheet({
         productId: product.id,
         variantKey: row.variantKey,
         variantSku: row.variantSku,
+        variantLabel: row.variantKey ? row.label : null,
         sku: row.sku,
         name: product.name,
         packSize: row.packSize,

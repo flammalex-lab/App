@@ -102,42 +102,66 @@ export default async function ProfileSheetPage() {
       ) : null}
 
       <Section title="Support">
-        <div className="text-sm space-y-2">
-          <a
-            href="sms:+16178660763"
-            className="flex items-center justify-between py-2 hover:text-brand-blue"
-          >
-            <span>Text your rep</span>
-            <span className="text-ink-secondary">(617) 866-0763 →</span>
-          </a>
-          <a
-            href="mailto:alex@ilovenyfarms.com"
-            className="flex items-center justify-between py-2 hover:text-brand-blue"
-          >
-            <span>Email us</span>
-            <span className="text-ink-secondary">alex@ilovenyfarms.com →</span>
-          </a>
-          <a
+        <div className="space-y-1 -mx-1">
+          <SupportRow href="sms:+16178660763" label="Text your rep" trail="(617) 866-0763" />
+          <SupportRow href="mailto:alex@ilovenyfarms.com" label="Email us" trail="alex@ilovenyfarms.com" />
+          <SupportRow
             href="https://ilovenyfarms.com"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-between py-2 hover:text-brand-blue"
-          >
-            <span>About Fingerlakes Farms</span>
-            <span className="text-ink-secondary">ilovenyfarms.com →</span>
-          </a>
+            label="About Fingerlakes Farms"
+            trail="ilovenyfarms.com"
+            external
+          />
         </div>
       </Section>
 
       <Section title="Account">
-        <div className="flex flex-col gap-2">
-          <Link href="/standing" className="btn-ghost text-sm text-left">Standing orders</Link>
-          <form action="/auth/signout" method="post">
-            <button className="btn-secondary w-full">Sign out</button>
-          </form>
+        <div className="space-y-1 -mx-1">
+          <SupportRow href="/standing" label="Standing orders" trail="Manage" />
+          <SupportRow href="/privacy" label="Privacy policy" trail="" />
+          <SupportRow href="/terms" label="Terms" trail="" />
         </div>
+        <form action="/auth/signout" method="post" className="mt-3">
+          <button className="btn-secondary w-full">Sign out</button>
+        </form>
       </Section>
     </div>
+  );
+}
+
+function SupportRow({
+  href,
+  label,
+  trail,
+  external,
+}: {
+  href: string;
+  label: string;
+  trail: string;
+  external?: boolean;
+}) {
+  const className =
+    "flex items-center justify-between gap-3 px-1 py-2.5 rounded-md text-[15px] hover:bg-bg-secondary transition-colors duration-150";
+  const content = (
+    <>
+      <span className="font-medium">{label}</span>
+      <span className="text-ink-secondary text-[13px] flex items-center gap-1 shrink-0">
+        {trail}
+        <span aria-hidden className="text-ink-tertiary">›</span>
+      </span>
+    </>
+  );
+  return external ? (
+    <a href={href} target="_blank" rel="noreferrer" className={className}>
+      {content}
+    </a>
+  ) : href.startsWith("/") ? (
+    <Link href={href} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <a href={href} className={className}>
+      {content}
+    </a>
   );
 }
 
@@ -163,9 +187,9 @@ function Section({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-sm py-1">
+    <div className="flex justify-between text-[15px] py-1.5">
       <span className="text-ink-secondary">{label}</span>
-      <span>{value}</span>
+      <span className="font-medium">{value}</span>
     </div>
   );
 }
