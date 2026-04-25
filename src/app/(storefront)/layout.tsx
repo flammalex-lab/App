@@ -72,7 +72,13 @@ export default async function StorefrontLayout({
         activeAccount={activeAccount}
         memberships={memberships}
       />
-      <main className="flex-1 px-4 md:px-6 lg:px-8 py-1 pb-32">{children}</main>
+      {/* overflow-x-clip on main so the bleed-out scroll strips
+          (-mx-4 inside ScrollStrip / CategoryChips) don't cause the
+          whole page to scroll horizontally. The strips themselves
+          still scroll internally via overflow-x-auto. */}
+      <main className="flex-1 px-4 md:px-6 lg:px-8 py-1 pb-32 overflow-x-clip">
+        {children}
+      </main>
       <StickyCartBar />
       {modal}
       <footer className="hidden md:block border-t border-black/[0.06] mt-8 bg-white">

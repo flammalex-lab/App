@@ -166,7 +166,7 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-[4/3] flex items-center justify-center bg-gradient-radial-soft pointer-events-none">
+        <div className="relative aspect-[4/3] flex items-center justify-center bg-white pointer-events-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
@@ -174,11 +174,6 @@ export function ProductCard({
             className="max-h-[88%] max-w-[88%] object-contain mix-blend-multiply"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
-          {cartQty > 0 ? (
-            <span className="absolute top-2 left-2 min-w-[22px] h-[22px] px-1.5 rounded-md bg-accent-gold text-white text-[12px] font-semibold flex items-center justify-center tabular shadow-sm">
-              {cartQty}
-            </span>
-          ) : null}
         </div>
 
         <div className="relative px-3 pt-2 pb-2 flex flex-col gap-0.5 pointer-events-none">
@@ -231,7 +226,7 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-[4/3] flex items-center justify-center p-3 pointer-events-none bg-gradient-radial-soft">
+        <div className="relative aspect-[4/3] flex items-center justify-center p-3 pointer-events-none bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
@@ -239,11 +234,6 @@ export function ProductCard({
             className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
-          {cartQty > 0 ? (
-            <span className="absolute top-2 left-2 min-w-[22px] h-[22px] px-1.5 rounded-md bg-accent-gold text-white text-[12px] font-semibold flex items-center justify-center tabular shadow-sm">
-              {cartQty}
-            </span>
-          ) : null}
         </div>
 
         <div className="relative px-3 pt-2 pb-2 flex flex-col gap-0.5 pointer-events-none">
@@ -290,7 +280,7 @@ export function ProductCard({
     >
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-      <div className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden bg-gradient-radial-soft flex items-center justify-center pointer-events-none">
+      <div className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden bg-white flex items-center justify-center pointer-events-none">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={productImage(product)}
