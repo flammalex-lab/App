@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/Input";
 import { LineItem } from "@/components/products/LineItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { useScrollHidden } from "@/components/layout/ScrollHideHeader";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface NextDelivery {
@@ -198,23 +199,55 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
         </div>
       ) : null}
 
-      {/* Sticky Checkout CTA */}
-      <div className="fixed bottom-[80px] md:bottom-6 inset-x-0 px-4 md:px-6 z-20 pointer-events-none">
-        <div className="max-w-5xl mx-auto pointer-events-auto">
-          <Button
-            onClick={goToReview}
-            size="lg"
-            disabled={underMinimum}
-            className="w-full shadow-sticky"
-          >
-            <span className="flex-1 text-left">Total</span>
-            <span className="mono">{money(total)}</span>
-            <span className="ml-2">Review →</span>
-          </Button>
-        </div>
-      </div>
+      <CheckoutBar
+        total={total}
+        disabled={underMinimum}
+        onClick={goToReview}
+      />
       {/* Bottom-of-page spacer so nothing hides under the sticky CTA */}
-      <div className="h-20" />
+      <div className="h-24" />
+    </div>
+  );
+}
+
+/**
+ * Sticky checkout bar at the bottom of the cart page. Pill-shaped to
+ * match the StickyCartBar aesthetic (which itself doesn't render on
+ * /cart so they never stack). Drops to the bottom edge when the
+ * mobile nav slides out on scroll.
+ */
+function CheckoutBar({
+  total,
+  disabled,
+  onClick,
+}: {
+  total: number;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const navHidden = useScrollHidden();
+  return (
+    <div
+      className={`fixed inset-x-0 z-20 px-3 md:px-6 pointer-events-none transition-[bottom] duration-200 md:bottom-6 ${
+        navHidden
+          ? "bottom-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]"
+          : "bottom-[calc(env(safe-area-inset-bottom,0px)+3.5rem)]"
+      }`}
+    >
+      <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-full bg-brand-green-dark text-white shadow-floating hover:bg-brand-green-dark/90 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-brand-green/60 transition-colors duration-150 disabled:bg-ink-tertiary disabled:cursor-not-allowed"
+        >
+          <span className="text-[13px] uppercase tracking-wider opacity-80">Total</span>
+          <span className="tabular text-[16px] font-semibold">{money(total)}</span>
+          <span className="flex items-center gap-1 text-[15px] font-semibold">
+            Review
+            <span aria-hidden>→</span>
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
