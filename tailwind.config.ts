@@ -69,6 +69,7 @@ const config: Config = {
         "fade-in": "fade-in 200ms ease-out",
         "slide-up": "slide-up 250ms cubic-bezier(.2,.8,.2,1)",
         "sheet-up": "sheet-up 280ms cubic-bezier(.2,.8,.2,1)",
+        "slide-in-right": "slide-in-right 280ms cubic-bezier(.2,.8,.2,1)",
         "scale-in": "scale-in 200ms cubic-bezier(.2,.8,.2,1)",
       },
       keyframes: {
@@ -86,6 +87,14 @@ const config: Config = {
           // slide-up instead.
           from: { transform: "translateY(100%)" },
           to: { transform: "translateY(0)" },
+        },
+        "slide-in-right": {
+          // Cart entrance: slides in from off-screen right with a small
+          // opacity fade so the edge isn't a hard line. Applied to the
+          // cart page's outer wrapper; layout chrome (header, tabs)
+          // stays put.
+          from: { transform: "translateX(100%)", opacity: "0.4" },
+          to: { transform: "translateX(0)", opacity: "1" },
         },
         "scale-in": {
           from: { transform: "scale(0.97)", opacity: "0" },
