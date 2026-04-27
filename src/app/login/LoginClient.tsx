@@ -20,7 +20,7 @@ export function LoginClient() {
             onClick={() => setShowAdmin(true)}
             className="text-xs text-ink-tertiary hover:text-ink-secondary underline"
           >
-            Admin / email sign-in
+            Sign in with email instead
           </button>
         </div>
       ) : null}
@@ -135,16 +135,29 @@ function AdminPasswordForm({ onBack }: { onBack: () => void }) {
     setErr(null);
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setLoading(false); setErr(error.message); return; }
+
+    // Route by role so a tester with a b2b_buyer profile lands directly
+    // on /guide instead of bouncing through /dashboard's admin redirect.
+    let dest = nextParam || "/guide";
+    if (!nextParam && data.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      const role = (profile as { role?: string } | null)?.role;
+      dest = role === "admin" ? "/dashboard" : role === "dtc_customer" ? "/catalog" : "/guide";
+    }
     setLoading(false);
-    if (error) { setErr(error.message); return; }
-    window.location.assign(nextParam || "/dashboard");
+    window.location.assign(dest);
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-lg">Admin sign-in</h2>
+        <h2 className="font-semibold text-lg">Sign in with email</h2>
         <button onClick={onBack} className="text-sm text-ink-secondary underline">
           Back to phone
         </button>
