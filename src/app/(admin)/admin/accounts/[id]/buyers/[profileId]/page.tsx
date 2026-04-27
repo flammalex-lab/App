@@ -9,6 +9,7 @@ import { dateShort, money } from "@/lib/utils/format";
 import { BuyerForm } from "./BuyerForm";
 import { DeleteBuyerButton } from "./DeleteBuyerButton";
 import { SigninLinkButton } from "./SigninLinkButton";
+import { SetPasswordButton } from "./SetPasswordButton";
 import { TemplateSyncPanel, type TemplateLite } from "./TemplateSyncPanel";
 import { computeGuideDrift } from "@/lib/order-guides/templates";
 
@@ -116,14 +117,26 @@ export default async function BuyerEditPage({
 
       <BuyerForm profile={p} accountBuyerType={a.buyer_type} />
 
-      <section className="card p-4">
-        <h2 className="display text-lg mb-1">Sign-in link</h2>
-        <p className="text-xs text-ink-secondary mb-3">
-          Generate a single-use magic link to log this buyer in. Useful while
-          SMS OTP is pending carrier approval — paste the link into a personal
-          text or email. Link expires in about an hour.
-        </p>
-        <SigninLinkButton profileId={p.id} />
+      <section className="card p-4 space-y-5">
+        <div>
+          <h2 className="display text-lg mb-1">Sign-in link</h2>
+          <p className="text-xs text-ink-secondary mb-3">
+            Generate a single-use magic link to log this buyer in. Useful while
+            SMS OTP is pending carrier approval — paste the link into a personal
+            text or email. Link expires in about an hour.
+          </p>
+          <SigninLinkButton profileId={p.id} />
+        </div>
+        <div className="border-t border-black/[0.06] pt-4">
+          <h2 className="display text-lg mb-1">Set password</h2>
+          <p className="text-xs text-ink-secondary mb-3">
+            Set or reset this buyer&rsquo;s password directly. Bypasses the
+            recovery-email flow (which expires fast and is often prefetched
+            by mail clients). They can then sign in via the &ldquo;Sign in
+            with email&rdquo; option on /login.
+          </p>
+          <SetPasswordButton profileId={p.id} />
+        </div>
       </section>
 
       <section>
