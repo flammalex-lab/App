@@ -76,11 +76,12 @@ function PhoneOtpForm() {
             />
           </Field>
           <p className="text-xs text-ink-secondary leading-relaxed">
-            By continuing, you agree to receive SMS one-time login codes and
-            order updates from Fingerlakes Farms at the phone number provided.
-            Msg &amp; data rates may apply. Msg frequency varies. Reply{" "}
-            <strong>STOP</strong> to opt out, <strong>HELP</strong> for help.
-            See our{" "}
+            By continuing, you agree to receive transactional SMS from
+            Fingerlakes Farms — login verification codes and order /
+            delivery updates only. We do not send marketing or
+            promotional texts. Msg &amp; data rates may apply. Msg
+            frequency varies. Reply <strong>STOP</strong> to opt out,{" "}
+            <strong>HELP</strong> for help. See our{" "}
             <Link href="/privacy" className="underline hover:text-ink-primary">
               Privacy Policy
             </Link>{" "}

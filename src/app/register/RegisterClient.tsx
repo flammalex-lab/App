@@ -55,10 +55,12 @@ export function RegisterClient() {
         <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
       </Field>
       <p className="text-xs text-ink-secondary leading-relaxed">
-        By creating an account, you agree to receive SMS one-time login codes
-        and order updates from Fingerlakes Farms at the phone number provided.
-        Msg &amp; data rates may apply. Msg frequency varies. Reply{" "}
-        <strong>STOP</strong> to opt out, <strong>HELP</strong> for help. See our{" "}
+        By creating an account, you agree to receive transactional SMS
+        from Fingerlakes Farms — login verification codes and order /
+        delivery updates only. We do not send marketing or promotional
+        texts. Msg &amp; data rates may apply. Msg frequency varies.
+        Reply <strong>STOP</strong> to opt out, <strong>HELP</strong> for
+        help. See our{" "}
         <Link href="/privacy" className="underline hover:text-ink-primary">
           Privacy Policy
         </Link>{" "}

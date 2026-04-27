@@ -64,14 +64,24 @@ export default function TermsPage() {
             <strong>Program name:</strong> {PROGRAM_NAME}.
           </p>
           <p>
-            <strong>Description:</strong> {COMPANY_NAME} uses SMS to send one-time
-            login codes, order confirmations, delivery updates, and direct messages
-            between you and your account representative.
+            <strong>Description:</strong> {COMPANY_NAME} uses SMS only for
+            transactional communication: (1) one-time login verification
+            codes, (2) order confirmations and delivery status updates for
+            orders you have placed, and (3) direct customer-care messages
+            between you and your account representative about specific
+            orders.
+          </p>
+          <p>
+            <strong>No marketing.</strong> This SMS program is transactional
+            only. {COMPANY_NAME} does not send marketing, promotional, or
+            automated bulk messages, and we do not use your phone number for
+            marketing purposes.
           </p>
           <p>
             <strong>How to opt in:</strong> by entering your mobile phone number at
-            sign-in or account setup, you consent to receive SMS from us related to
-            your account and orders.
+            sign-in or account setup, you consent to receive transactional SMS
+            from us related to your account and orders. Marketing consent is
+            not collected because we do not market via SMS.
           </p>
           <p>
             <strong>Message frequency:</strong> recurring, varies by your ordering
