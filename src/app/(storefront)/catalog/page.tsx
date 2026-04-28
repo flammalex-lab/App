@@ -353,10 +353,24 @@ export default async function CatalogPage({
             ← Catalog
           </Link>
         )}
-        <h1 className="display text-xl mt-1 mb-1">{headerTitle}</h1>
-        {producerFilter ? (
-          <p className="text-xs text-ink-secondary mb-2">All items from {producerFilter}</p>
-        ) : null}
+        {isProducerView ? (
+          /* Editorial centered hero — Baldor-style "IN SEASON NOW / From X"
+             treatment. Uppercase eyebrow above, big display name, count
+             below. The back button stays at the top-left for navigation. */
+          <div className="text-center my-6 md:my-10">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-ink-tertiary mb-2">
+              All items from
+            </p>
+            <h1 className="display text-3xl md:text-5xl tracking-tight leading-[1.05]">
+              {producerFilter}
+            </h1>
+            <p className="text-[13px] text-ink-secondary mt-3">
+              {priced.length} {priced.length === 1 ? "item" : "items"}
+            </p>
+          </div>
+        ) : (
+          <h1 className="display text-xl mt-1 mb-1">{headerTitle}</h1>
+        )}
         {!producerFilter ? (
           <CategoryChips
             groups={allowed.map((g) => ({ group: g }))}
