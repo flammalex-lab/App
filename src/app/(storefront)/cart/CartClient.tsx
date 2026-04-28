@@ -112,9 +112,30 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
   }
 
   return (
-    <div className="space-y-4 ">
-      {/* Delivery / Note rows (Choco-style) */}
-      <div className="card divide-y divide-black/5 overflow-hidden">
+    <div className="space-y-3">
+      {/* Search-in-cart, always visible (Pepper pattern) — finding a line
+          in a 30-item cart is the most common reason a buyer reopens it. */}
+      {lines.length > 1 ? (
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Find in this cart"
+          className="input"
+        />
+      ) : null}
+
+      {/* Minimum warning — yellow chip near the top, not a separate red
+          card buried at the bottom. Buyer should know immediately. */}
+      {underMinimum ? (
+        <div className="rounded-md bg-accent-gold/15 text-[#7a5a12] text-[13px] px-3 py-2 leading-snug">
+          <strong>Order minimum is {money(accountMinimum)}</strong> —{" "}
+          {money(accountMinimum - subtotal)} more to meet it.
+        </div>
+      ) : null}
+
+      {/* Delivery / Note rows */}
+      <div className="card divide-y divide-black/[0.06] overflow-hidden">
         <DeliveryRow
           isB2B={isB2B}
           deliveryDate={deliveryDate}
@@ -137,22 +158,19 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
 
       {/* Items */}
       <div>
-        <div className="flex items-center justify-between mb-2 px-1">
-          <h2 className="font-serif text-lg">Your items ({lines.length})</h2>
-          <button onClick={clear} className="text-xs text-feedback-error uppercase tracking-wide">
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <h2 className="text-[13px] uppercase tracking-wider text-ink-tertiary font-medium">
+            {lines.length} {lines.length === 1 ? "item" : "items"} ·{" "}
+            <span className="tabular text-ink-secondary">{money(subtotal)}</span>
+          </h2>
+          <button
+            onClick={clear}
+            className="text-[11px] text-feedback-error uppercase tracking-wider font-medium hover:underline"
+          >
             Remove all
           </button>
         </div>
-        {lines.length > 3 ? (
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Find in this cart"
-            className="input mb-2"
-          />
-        ) : null}
-        <div className="card divide-y divide-black/5 overflow-hidden">
+        <div className="card divide-y divide-black/[0.06] overflow-hidden">
           {visibleLines.map((l) => (
             <LineItem
               key={`${l.productId}:${l.variantKey ?? ""}`}
@@ -180,24 +198,19 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
         </div>
       </div>
 
-      {/* Totals */}
-      <div className="card p-4 space-y-1 text-sm">
+      {/* Totals — compact rows, no extra card padding, dashed divider
+          before the grand total like the order receipt. */}
+      <div className="px-2 space-y-1 text-[14px]">
         <Row label="Subtotal" value={money(subtotal)} />
         {effectiveDeliveryFee > 0 ? <Row label="Delivery fee" value={money(effectiveDeliveryFee)} /> : null}
+        <div className="border-t border-dashed border-black/15 my-2" />
         <Row label="Estimated total" value={money(total)} strong />
         {hasCatchWeight ? (
-          <p className="text-[11px] text-ink-tertiary pt-1">
+          <p className="text-[11px] text-ink-tertiary pt-1 leading-snug">
             Final price confirmed by distributor — weight-priced items settle at delivery.
           </p>
         ) : null}
       </div>
-
-      {/* Minimum warning */}
-      {underMinimum ? (
-        <div className="rounded-md bg-feedback-error/5 text-feedback-error text-sm px-3 py-2">
-          Order minimum is {money(accountMinimum)} — {money(accountMinimum - subtotal)} more to meet it.
-        </div>
-      ) : null}
 
       <CheckoutBar
         total={total}

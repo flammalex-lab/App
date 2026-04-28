@@ -55,34 +55,41 @@ export default async function CartPage() {
   }
 
   return (
-    // overflow-x-clip so the offscreen-right starting frame of the
-    // slide-in animation doesn't briefly add a horizontal scrollbar.
     <div className="overflow-x-clip">
-      <div className="max-w-5xl mx-auto animate-slide-in-right">
-      <div className="pt-3">
-        <BackButton fallbackHref={isB2B ? "/guide" : "/catalog"} />
-      </div>
-      <h1 className="display text-3xl mb-1 pt-2">Let&apos;s get this order in.</h1>
-      {account ? (
-        <p className="text-sm text-ink-secondary mb-4 ">{account.name}</p>
-      ) : null}
-      <CartClient
-        isB2B={isB2B}
-        accountMinimum={account?.order_minimum ?? zone?.order_minimum ?? 0}
-        deliveryFee={zone?.delivery_fee ?? 0}
-        nextDelivery={
-          nextDel
-            ? {
-                deliveryDate: nextDel.deliveryDate.toISOString(),
-                cutoffAt: nextDel.cutoffAt.toISOString(),
-                pastCutoff: nextDel.pastCutoff,
-                deliveryDayName: nextDel.deliveryDayName,
-              }
-            : null
-        }
-        pickupLocations={pickups}
-        reorder={reorder}
-      />
+      {/* Tighter Pepper-style side-panel feel. max-w-2xl keeps the cart
+          column compact so the layout reads as a focused order summary,
+          not a spacious page. The slide-in-right entrance reinforces
+          the "flip back and forth" sensation. */}
+      <div className="max-w-2xl mx-auto animate-slide-in-right">
+        <div className="flex items-center justify-between pt-3 pb-1">
+          <BackButton fallbackHref={isB2B ? "/guide" : "/catalog"} label="Keep shopping" />
+          <h1 className="text-[15px] font-semibold tracking-tight text-ink-primary">
+            Order summary
+          </h1>
+          <div className="w-[88px]" aria-hidden />
+        </div>
+        {account ? (
+          <p className="text-[12px] text-ink-tertiary uppercase tracking-wider text-center mb-3">
+            {account.name}
+          </p>
+        ) : null}
+        <CartClient
+          isB2B={isB2B}
+          accountMinimum={account?.order_minimum ?? zone?.order_minimum ?? 0}
+          deliveryFee={zone?.delivery_fee ?? 0}
+          nextDelivery={
+            nextDel
+              ? {
+                  deliveryDate: nextDel.deliveryDate.toISOString(),
+                  cutoffAt: nextDel.cutoffAt.toISOString(),
+                  pastCutoff: nextDel.pastCutoff,
+                  deliveryDayName: nextDel.deliveryDayName,
+                }
+              : null
+          }
+          pickupLocations={pickups}
+          reorder={reorder}
+        />
       </div>
     </div>
   );
