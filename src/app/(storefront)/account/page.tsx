@@ -7,6 +7,7 @@ import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { prettyPhone } from "@/lib/utils/phone";
 import type { Profile } from "@/lib/supabase/types";
 import { NotificationToggles } from "./NotificationToggles";
+import { PasswordCard } from "./PasswordCard";
 
 export const metadata = { title: "Profile — Fingerlakes Farms" };
 
@@ -112,6 +113,10 @@ export default async function ProfileSheetPage() {
             external
           />
         </div>
+      </Section>
+
+      <Section title="Sign-in">
+        <PasswordCard />
       </Section>
 
       <Section title="Account">
