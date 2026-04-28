@@ -15,7 +15,6 @@ import {
 } from "@/lib/constants";
 import { CatalogGrid } from "./CatalogGrid";
 import { ScrollStrip } from "./ScrollStrip";
-import { ProducerSection } from "./ProducerSection";
 import { SortSheet, type SortKey } from "./SortSheet";
 import { CatalogSearchInput } from "./CatalogSearchInput";
 import { CategoryChips } from "./CategoryChips";
@@ -390,13 +389,17 @@ export default async function CatalogPage({
       {priced.length === 0 ? (
         <EmptyState title="No products match" body="Try a different search or clear filters." />
       ) : showProducerSections ? (
-        <div className="md:px-0">
+        <div className="md:px-0 space-y-1">
           {producerSections.map(({ producer, items }) => (
-            <ProducerSection
+            <ScrollStrip
               key={producer ?? "__nofarm"}
-              producer={producer}
+              title={producer ?? "Other"}
+              href={
+                producer
+                  ? `/catalog?producer=${encodeURIComponent(producer)}`
+                  : undefined
+              }
               products={items}
-              fromGroup={fromGroupLabel}
             />
           ))}
         </div>
