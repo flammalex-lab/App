@@ -132,8 +132,12 @@ export function QuickAddBuyerDialog({
       toast.push("Pick or create an account first", "error");
       return;
     }
-    if (!form.name.trim() || !form.phone.trim()) {
-      toast.push("Buyer name and phone required", "error");
+    if (!form.phone.trim()) {
+      toast.push("Phone number is required", "error");
+      return;
+    }
+    if (selectedTemplateIds.length === 0) {
+      toast.push("Pick at least one starter template", "error");
       return;
     }
     setSaving(true);
@@ -141,7 +145,7 @@ export function QuickAddBuyerDialog({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: form.name.trim(),
+        name: form.name.trim() || null,
         phone: form.phone.trim(),
         email: form.email.trim() || null,
         title: form.title.trim() || null,
@@ -282,7 +286,7 @@ export function QuickAddBuyerDialog({
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Name">
+                <Field label="Name (optional)">
                   <Input
                     autoFocus
                     value={form.name}
@@ -290,7 +294,7 @@ export function QuickAddBuyerDialog({
                     placeholder="Chef Hugh"
                   />
                 </Field>
-                <Field label="Title">
+                <Field label="Title (optional)">
                   <Input
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}

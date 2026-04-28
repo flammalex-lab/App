@@ -7,7 +7,8 @@ import { seedGuideFromTemplates } from "@/lib/order-guides/templates";
 
 interface InviteBody {
   phone: string;
-  name: string;
+  /** Optional — if omitted the buyer just shows up as their phone number. */
+  name?: string | null;
   email?: string | null;
   title?: string | null;
   buyer_type?: string | null;
@@ -24,12 +25,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = (await request.json()) as InviteBody;
   const e164 = normalizePhone(body.phone);
   if (!e164) return NextResponse.json({ error: "invalid phone" }, { status: 400 });
-  if (!body.name?.trim()) return NextResponse.json({ error: "name required" }, { status: 400 });
 
   const svc = createServiceClient();
 
-  const firstName = body.name.split(" ")[0] ?? "";
-  const lastName = body.name.split(" ").slice(1).join(" ");
+  // Name is optional. Whatever the admin typed gets split on first space
+  // into first/last; leave both null when not provided so the UI can fall
+  // back to phone or "Buyer".
+  const trimmedName = (body.name ?? "").trim();
+  const firstName = trimmedName ? trimmedName.split(" ")[0] : null;
+  const lastName = trimmedName ? trimmedName.split(" ").slice(1).join(" ") || null : null;
 
   const { data: created, error } = await svc.auth.admin.createUser({
     phone: e164,
