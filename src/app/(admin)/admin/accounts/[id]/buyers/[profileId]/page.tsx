@@ -121,19 +121,18 @@ export default async function BuyerEditPage({
         <div>
           <h2 className="display text-lg mb-1">Sign-in link</h2>
           <p className="text-xs text-ink-secondary mb-3">
-            Generate a single-use magic link to log this buyer in. Useful while
-            SMS OTP is pending carrier approval — paste the link into a personal
-            text or email. Link expires in about an hour.
+            Generate a single-use magic link to log this buyer in without
+            requiring SMS — useful for buyers who can&rsquo;t receive texts,
+            or for staging access. Link expires in about an hour.
           </p>
           <SigninLinkButton profileId={p.id} />
         </div>
         <div className="border-t border-black/[0.06] pt-4">
           <h2 className="display text-lg mb-1">Set password</h2>
           <p className="text-xs text-ink-secondary mb-3">
-            Set or reset this buyer&rsquo;s password directly. Bypasses the
-            recovery-email flow (which expires fast and is often prefetched
-            by mail clients). They can then sign in via the &ldquo;Sign in
-            with email&rdquo; option on /login.
+            Set or reset this buyer&rsquo;s password directly. They can then
+            sign in via the &ldquo;Sign in with email&rdquo; option on the
+            login page using their email + this password.
           </p>
           <SetPasswordButton profileId={p.id} />
         </div>
