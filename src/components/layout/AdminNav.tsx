@@ -31,6 +31,7 @@ const SECTIONS: { title?: string; links: NavLink[] }[] = [
   {
     title: "Tools",
     links: [
+      { href: "/admin/users", label: "Users" },
       { href: "/admin/qb", label: "QuickBooks" },
       { href: "/admin/import", label: "Import customers" },
       { href: "/admin/items-import", label: "Import items (QB)" },
