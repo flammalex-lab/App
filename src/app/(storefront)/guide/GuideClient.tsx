@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { ProductCard, type PricedProduct } from "@/components/products/ProductCard";
+import type { Product } from "@/lib/supabase/types";
+import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import type { GuideRow } from "./page";
 
@@ -10,12 +10,8 @@ interface Props {
   items: GuideRow[];
 }
 
-/**
- * Daily-reorder layout for the buyer's guide. List rows (full width,
- * thumb-left, name + price + stepper) instead of horizontal scroll
- * strips — chefs scanning their guide need maximum information density,
- * not big imagery. ~8-10 items per viewport on a phone.
- */
+type PricedProduct = Product & { unitPrice: number | null };
+
 export function GuideClient({ items }: Props) {
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -70,44 +66,28 @@ export function GuideClient({ items }: Props) {
           No items match &ldquo;{search}&rdquo;.
         </div>
       ) : (
-        <div className="space-y-4">
-          {byProducer.map(({ producer, rows }) => {
-            const filtered = rows.filter(searchMatch);
-            if (filtered.length === 0) return null;
-            const label = producer === "_other" ? "Other" : producer;
-            const href =
-              producer === "_other"
-                ? null
-                : `/catalog?producer=${encodeURIComponent(producer)}`;
-            const products: PricedProduct[] = filtered.map((r) => ({
-              ...r.product,
-              unitPrice: r.unitPrice,
-            }));
-            return (
-              <section key={producer}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <h2 className="text-[17px] font-semibold tracking-tight text-ink-primary leading-tight">
-                    {label}
-                  </h2>
-                  {href ? (
-                    <Link
-                      href={href}
-                      className="inline-flex items-center gap-0.5 text-[13px] font-medium text-ink-secondary hover:text-ink-primary transition-colors duration-150"
-                    >
-                      See all
-                      <span aria-hidden className="text-base leading-none">›</span>
-                    </Link>
-                  ) : null}
-                </div>
-                <div className="md:rounded-xl md:border md:border-black/[0.06] md:bg-white md:overflow-hidden divide-y divide-black/[0.06]">
-                  {products.map((p) => (
-                    <ProductCard key={p.id} product={p} variant="row" />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+        byProducer.map(({ producer, rows }) => {
+          const filtered = rows.filter(searchMatch);
+          if (filtered.length === 0) return null;
+          const label = producer === "_other" ? "Other" : producer;
+          const products: PricedProduct[] = filtered.map((r) => ({
+            ...r.product,
+            unitPrice: r.unitPrice,
+          }));
+          return (
+            <ScrollStrip
+              key={producer}
+              title={label}
+              href={
+                producer === "_other"
+                  ? undefined
+                  : `/catalog?producer=${encodeURIComponent(producer)}`
+              }
+              products={products}
+              density="dense"
+            />
+          );
+        })
       )}
 
       <BarcodeScanner

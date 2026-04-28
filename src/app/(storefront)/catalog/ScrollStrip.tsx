@@ -15,14 +15,23 @@ export function ScrollStrip({
   subtitle,
   products,
   emoji,
+  density = "default",
 }: {
   title: string;
   href?: string;
   subtitle?: string;
   products: PricedProduct[];
   emoji?: string;
+  /** "dense" packs more cards per viewport — used on the Guide where
+   *  buyers scan known items quickly. "default" is the catalog feel. */
+  density?: "default" | "dense";
 }) {
   if (products.length === 0) return null;
+
+  const cardWidth =
+    density === "dense"
+      ? "w-[30vw] max-w-[130px] min-w-[110px]"
+      : "w-[40vw] max-w-[170px] min-w-[140px]";
 
   return (
     <section className="mb-5">
@@ -47,20 +56,13 @@ export function ScrollStrip({
       <div
         className="overflow-x-auto -mx-4 md:-mx-0 px-4 md:px-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{
-          // Free scroll — no snap. Snap (mandatory or proximity) was
-          // hijacking momentum and felt jumpy on iOS.
           WebkitOverflowScrolling: "touch",
           overscrollBehaviorX: "contain",
         }}
       >
         <div className="flex gap-3 min-w-max">
           {products.map((p) => (
-            <div
-              key={p.id}
-              // Narrower than half the viewport so the next card peeks at
-              // the right edge — visual affordance that the strip scrolls.
-              className="w-[40vw] max-w-[170px] min-w-[140px] shrink-0"
-            >
+            <div key={p.id} className={`${cardWidth} shrink-0`}>
               <ProductCard product={p} variant="compact" />
             </div>
           ))}
