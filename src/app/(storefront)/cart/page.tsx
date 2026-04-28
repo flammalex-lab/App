@@ -41,7 +41,9 @@ export default async function CartPage() {
   }
 
   // If the user clicked "Reorder last", the API stashed the previous order's
-  // line items in a short-lived cookie. Read, then clear.
+  // line items in a short-lived cookie. Read it here and let the CartClient
+  // clear it via /api/cart/consume-reorder after hydration — server
+  // components in Next 14 can't mutate cookies directly.
   const cookieStore = cookies();
   let reorder: CartLine[] | null = null;
   const reorderCookie = cookieStore.get("flf-reorder")?.value;
@@ -51,7 +53,6 @@ export default async function CartPage() {
     } catch {
       reorder = null;
     }
-    cookieStore.delete("flf-reorder");
   }
 
   return (

@@ -54,6 +54,12 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
       for (const l of lines) byId.set(l.productId, l);
       for (const l of reorder) byId.set(l.productId, l);
       bulkSet(Array.from(byId.values()));
+      // Clear the short-lived reorder cookie now that we've consumed it.
+      // Server components in Next 14 can't mutate cookies, so we hit a
+      // route handler from the client instead.
+      fetch("/api/cart/consume-reorder", { method: "POST" }).catch(() => {
+        /* ignore — cookie expires in 5min anyway */
+      });
     }
     // Default delivery date to the earliest available if none picked
     if (isB2B && !deliveryDate && nextDelivery && !nextDelivery.pastCutoff) {
