@@ -39,6 +39,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     phone: e164,
     phone_confirm: true,
     email: body.email?.trim() || undefined,
+    // Skip the email-confirmation link flow — admin-created accounts
+    // are pre-confirmed since the admin vouches for the buyer.
+    email_confirm: Boolean(body.email?.trim()),
     user_metadata: {
       first_name: firstName,
       last_name: lastName,

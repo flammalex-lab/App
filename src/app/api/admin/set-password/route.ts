@@ -30,7 +30,13 @@ export async function POST(request: Request) {
   }
 
   const svc = createServiceClient();
-  const { error } = await svc.auth.admin.updateUserById(profileId, { password });
+  // Mark email_confirm so the user can immediately sign in via email +
+  // password. Without this, Supabase's default email-confirmation flow
+  // would require them to click a verification link first.
+  const { error } = await svc.auth.admin.updateUserById(profileId, {
+    password,
+    email_confirm: true,
+  });
   if (error) {
     return NextResponse.json(
       { error: `update failed: ${error.message}` },
