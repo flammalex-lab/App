@@ -30,8 +30,8 @@ export function ScrollStrip({
 
   const cardWidth =
     density === "dense"
-      ? "w-[30vw] max-w-[130px] min-w-[110px]"
-      : "w-[40vw] max-w-[170px] min-w-[140px]";
+      ? "w-[38vw] max-w-[160px] min-w-[140px]"
+      : "w-[44vw] max-w-[180px] min-w-[150px]";
 
   return (
     <section className="mb-5">
