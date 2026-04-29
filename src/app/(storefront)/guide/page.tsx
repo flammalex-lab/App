@@ -89,6 +89,51 @@ export default async function GuidePage() {
     });
   }
 
+  // Per-producer order frequency ranking. Sort the guide's producer
+  // sections by:
+  //   1. how often THIS buyer has ordered from each producer (sum of
+  //      quantities across all their order_items for products of that
+  //      producer);
+  //   2. tie-break (and producers never ordered) by overall popularity
+  //      across all customers.
+  // Both maps are passed to GuideClient as sort hints.
+  const buyerProducerRank: Record<string, number> = {};
+  const globalProducerRank: Record<string, number> = {};
+  if (items.length) {
+    const guideProducers = Array.from(
+      new Set(
+        items
+          .map((i) => i.product.producer?.trim())
+          .filter((p): p is string => Boolean(p)),
+      ),
+    );
+    if (guideProducers.length) {
+      // Buyer's own order frequency per producer
+      const { data: myItems } = await db
+        .from("order_items")
+        .select("quantity, product:products!inner(producer), orders!inner(profile_id)")
+        .eq("orders.profile_id", profileId)
+        .in("product.producer", guideProducers);
+      for (const r of ((myItems as any[] | null) ?? [])) {
+        const prod = r.product?.producer as string | undefined;
+        if (!prod) continue;
+        buyerProducerRank[prod] =
+          (buyerProducerRank[prod] ?? 0) + Number(r.quantity ?? 0);
+      }
+      // Global popularity per producer (anyone, any time)
+      const { data: allItems } = await db
+        .from("order_items")
+        .select("quantity, product:products!inner(producer)")
+        .in("product.producer", guideProducers);
+      for (const r of ((allItems as any[] | null) ?? [])) {
+        const prod = r.product?.producer as string | undefined;
+        if (!prod) continue;
+        globalProducerRank[prod] =
+          (globalProducerRank[prod] ?? 0) + Number(r.quantity ?? 0);
+      }
+    }
+  }
+
   // Latest order to power "reorder last" card
   const { data: lastOrderRow } = await db
     .from("orders")
@@ -154,7 +199,11 @@ export default async function GuidePage() {
           cta={{ href: "/catalog", label: "Browse the catalog" }}
         />
       ) : (
-        <GuideClient items={items} />
+        <GuideClient
+          items={items}
+          buyerProducerRank={buyerProducerRank}
+          globalProducerRank={globalProducerRank}
+        />
       )}
     </div>
   );

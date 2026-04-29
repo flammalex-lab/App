@@ -8,11 +8,19 @@ import type { GuideRow } from "./page";
 
 interface Props {
   items: GuideRow[];
+  /** Sum of quantities this buyer has ordered per producer. */
+  buyerProducerRank?: Record<string, number>;
+  /** Sum of quantities everyone has ordered per producer (tie-break). */
+  globalProducerRank?: Record<string, number>;
 }
 
 type PricedProduct = Product & { unitPrice: number | null };
 
-export function GuideClient({ items }: Props) {
+export function GuideClient({
+  items,
+  buyerProducerRank = {},
+  globalProducerRank = {},
+}: Props) {
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
 
@@ -29,13 +37,23 @@ export function GuideClient({ items }: Props) {
     for (const rows of out.values()) {
       rows.sort((a, b) => a.product.name.localeCompare(b.product.name));
     }
+    // Sort producers by: this buyer's own order frequency (desc) →
+    // global popularity (desc) → name. Producers this buyer has never
+    // ordered from drop to whatever the global rank says, then alpha.
+    // "_other" (no producer) always last.
     const producers = Array.from(out.keys()).sort((a, b) => {
       if (a === "_other") return 1;
       if (b === "_other") return -1;
+      const aMine = buyerProducerRank[a] ?? 0;
+      const bMine = buyerProducerRank[b] ?? 0;
+      if (aMine !== bMine) return bMine - aMine;
+      const aGlobal = globalProducerRank[a] ?? 0;
+      const bGlobal = globalProducerRank[b] ?? 0;
+      if (aGlobal !== bGlobal) return bGlobal - aGlobal;
       return a.localeCompare(b);
     });
     return producers.map((p) => ({ producer: p, rows: out.get(p)! }));
-  }, [items]);
+  }, [items, buyerProducerRank, globalProducerRank]);
 
   const visibleCount = items.filter(searchMatch).length;
 
