@@ -337,18 +337,18 @@ export default async function CatalogPage({
   const showProducerSections =
     Boolean(groupFilter) && !producerFilter && !q && !isBest && !isExplore;
 
-  // Order frequency ranking — same approach as the guide. Sort producer
-  // sections (and products inside each section) by:
+  // Order frequency ranking — applied to every catalog list view (group
+  // filter, producer detail, search, explore, best sellers). Sort by:
   //   1. how often THIS buyer has ordered the product (or producer);
   //   2. tie-break by global popularity across all customers;
   //   3. final tie-break alphabetical.
-  // Only computed when we're rendering producer sections; scoped to the
-  // products actually visible so the queries stay cheap.
+  // Scoped to the products actually returned by the visibility query so
+  // the rank lookup stays bounded.
   const buyerProductRank: Record<string, number> = {};
   const globalProductRank: Record<string, number> = {};
   const buyerProducerRank: Record<string, number> = {};
   const globalProducerRank: Record<string, number> = {};
-  if (showProducerSections && priced.length) {
+  if (priced.length) {
     const pricedIds = priced.map((p) => p.id);
     const [{ data: myItems }, { data: allItems }] = await Promise.all([
       db
@@ -369,7 +369,6 @@ export default async function CatalogPage({
       const pid = r.product_id as string;
       globalProductRank[pid] = (globalProductRank[pid] ?? 0) + Number(r.quantity ?? 0);
     }
-    // Producer-level ranks = sum of their products' product-level ranks
     for (const p of priced) {
       const prod = p.producer?.trim();
       if (!prod) continue;
@@ -380,9 +379,26 @@ export default async function CatalogPage({
     }
   }
 
+  function rankProductSort(
+    a: { id: string; name: string },
+    b: { id: string; name: string },
+  ): number {
+    const aMine = buyerProductRank[a.id] ?? 0;
+    const bMine = buyerProductRank[b.id] ?? 0;
+    if (aMine !== bMine) return bMine - aMine;
+    const aGlobal = globalProductRank[a.id] ?? 0;
+    const bGlobal = globalProductRank[b.id] ?? 0;
+    if (aGlobal !== bGlobal) return bGlobal - aGlobal;
+    return a.name.localeCompare(b.name);
+  }
+
+  // Apply ranking as the default sort. Explicit sort choices (price asc /
+  // desc, name desc) still win over ranking when the user has picked them.
+  const useRanking = sort === "name" || sort === "best" || isBest;
+  if (useRanking) priced.sort(rankProductSort);
+
   const producerSections = showProducerSections ? groupByProducer(priced) : [];
   if (showProducerSections) {
-    // Sort producers
     producerSections.sort((a, b) => {
       if (a.producer === null) return 1;
       if (b.producer === null) return -1;
@@ -394,17 +410,8 @@ export default async function CatalogPage({
       if (aGlobal !== bGlobal) return bGlobal - aGlobal;
       return a.producer.localeCompare(b.producer);
     });
-    // Sort products within each section by their own rank
     for (const section of producerSections) {
-      section.items.sort((a, b) => {
-        const aMine = buyerProductRank[a.id] ?? 0;
-        const bMine = buyerProductRank[b.id] ?? 0;
-        if (aMine !== bMine) return bMine - aMine;
-        const aGlobal = globalProductRank[a.id] ?? 0;
-        const bGlobal = globalProductRank[b.id] ?? 0;
-        if (aGlobal !== bGlobal) return bGlobal - aGlobal;
-        return a.name.localeCompare(b.name);
-      });
+      section.items.sort(rankProductSort);
     }
   }
   const fromGroupLabel = groupFilter ?? (isExplore ? "explore" : isBest ? "best" : null);
