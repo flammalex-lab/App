@@ -336,7 +336,77 @@ export default async function CatalogPage({
   // reverts to the big grid via producerFilter.
   const showProducerSections =
     Boolean(groupFilter) && !producerFilter && !q && !isBest && !isExplore;
+
+  // Order frequency ranking — same approach as the guide. Sort producer
+  // sections (and products inside each section) by:
+  //   1. how often THIS buyer has ordered the product (or producer);
+  //   2. tie-break by global popularity across all customers;
+  //   3. final tie-break alphabetical.
+  // Only computed when we're rendering producer sections; scoped to the
+  // products actually visible so the queries stay cheap.
+  const buyerProductRank: Record<string, number> = {};
+  const globalProductRank: Record<string, number> = {};
+  const buyerProducerRank: Record<string, number> = {};
+  const globalProducerRank: Record<string, number> = {};
+  if (showProducerSections && priced.length) {
+    const pricedIds = priced.map((p) => p.id);
+    const [{ data: myItems }, { data: allItems }] = await Promise.all([
+      db
+        .from("order_items")
+        .select("product_id, quantity, orders!inner(profile_id)")
+        .eq("orders.profile_id", profileId)
+        .in("product_id", pricedIds),
+      db
+        .from("order_items")
+        .select("product_id, quantity")
+        .in("product_id", pricedIds),
+    ]);
+    for (const r of ((myItems as any[] | null) ?? [])) {
+      const pid = r.product_id as string;
+      buyerProductRank[pid] = (buyerProductRank[pid] ?? 0) + Number(r.quantity ?? 0);
+    }
+    for (const r of ((allItems as any[] | null) ?? [])) {
+      const pid = r.product_id as string;
+      globalProductRank[pid] = (globalProductRank[pid] ?? 0) + Number(r.quantity ?? 0);
+    }
+    // Producer-level ranks = sum of their products' product-level ranks
+    for (const p of priced) {
+      const prod = p.producer?.trim();
+      if (!prod) continue;
+      buyerProducerRank[prod] =
+        (buyerProducerRank[prod] ?? 0) + (buyerProductRank[p.id] ?? 0);
+      globalProducerRank[prod] =
+        (globalProducerRank[prod] ?? 0) + (globalProductRank[p.id] ?? 0);
+    }
+  }
+
   const producerSections = showProducerSections ? groupByProducer(priced) : [];
+  if (showProducerSections) {
+    // Sort producers
+    producerSections.sort((a, b) => {
+      if (a.producer === null) return 1;
+      if (b.producer === null) return -1;
+      const aMine = buyerProducerRank[a.producer] ?? 0;
+      const bMine = buyerProducerRank[b.producer] ?? 0;
+      if (aMine !== bMine) return bMine - aMine;
+      const aGlobal = globalProducerRank[a.producer] ?? 0;
+      const bGlobal = globalProducerRank[b.producer] ?? 0;
+      if (aGlobal !== bGlobal) return bGlobal - aGlobal;
+      return a.producer.localeCompare(b.producer);
+    });
+    // Sort products within each section by their own rank
+    for (const section of producerSections) {
+      section.items.sort((a, b) => {
+        const aMine = buyerProductRank[a.id] ?? 0;
+        const bMine = buyerProductRank[b.id] ?? 0;
+        if (aMine !== bMine) return bMine - aMine;
+        const aGlobal = globalProductRank[a.id] ?? 0;
+        const bGlobal = globalProductRank[b.id] ?? 0;
+        if (aGlobal !== bGlobal) return bGlobal - aGlobal;
+        return a.name.localeCompare(b.name);
+      });
+    }
+  }
   const fromGroupLabel = groupFilter ?? (isExplore ? "explore" : isBest ? "best" : null);
 
   // Producer detail "slides in from the right" with a back button — same
