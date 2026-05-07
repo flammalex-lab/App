@@ -12,6 +12,7 @@ export function RegisterClient() {
   const supabase = createClient();
   const router = useRouter();
   const [form, setForm] = useState({ first: "", last: "", email: "", phone: "", password: "" });
+  const [smsConsent, setSmsConsent] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,8 +34,22 @@ export function RegisterClient() {
         },
       },
     });
+    if (error) { setLoading(false); setErr(error.message); return; }
+
+    if (smsConsent) {
+      // Best-effort consent stamp — failure here doesn't block registration.
+      try {
+        await fetch("/api/auth/sms-consent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: "register" }),
+        });
+      } catch {
+        // ignore
+      }
+    }
+
     setLoading(false);
-    if (error) { setErr(error.message); return; }
     router.push("/catalog");
     router.refresh();
   }
@@ -54,22 +69,32 @@ export function RegisterClient() {
       <Field label="Password" hint="At least 8 characters">
         <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
       </Field>
-      <p className="text-xs text-ink-secondary leading-relaxed">
-        By creating an account, you agree to receive transactional SMS
-        from Fingerlakes Farms — login verification codes and order /
-        delivery updates only. We do not send marketing or promotional
-        texts. Msg &amp; data rates may apply. Msg frequency varies.
-        Reply <strong>STOP</strong> to opt out, <strong>HELP</strong> for
-        help. See our{" "}
-        <Link href="/privacy" className="underline hover:text-ink-primary">
-          Privacy Policy
-        </Link>{" "}
-        and{" "}
-        <Link href="/terms" className="underline hover:text-ink-primary">
-          Terms
-        </Link>
-        .
-      </p>
+      <label className="flex items-start gap-2.5 text-xs text-ink-secondary leading-relaxed cursor-pointer">
+        <input
+          type="checkbox"
+          checked={smsConsent}
+          onChange={(e) => setSmsConsent(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-brand-blue"
+        />
+        <span>
+          <strong className="text-ink-primary">Optional:</strong> I agree to
+          receive transactional SMS from Fingerlakes Farms (order
+          confirmations, delivery updates, standing-order reminders) at the
+          phone number above. We do not send marketing or promotional texts.
+          Msg &amp; data rates may apply. Msg frequency varies (approx
+          1–20/month). Reply <strong>STOP</strong> to opt out,{" "}
+          <strong>HELP</strong> for help. See our{" "}
+          <Link href="/privacy" className="underline hover:text-ink-primary">
+            Privacy Policy
+          </Link>{" "}
+          and{" "}
+          <Link href="/terms" className="underline hover:text-ink-primary">
+            Terms
+          </Link>
+          . You can create an account without checking this box; you'll just
+          receive sign-in codes only.
+        </span>
+      </label>
       <Button onClick={submit} loading={loading} className="w-full">Create account</Button>
       {err ? <p className="text-sm text-feedback-error">{err}</p> : null}
       <p className="text-sm text-ink-secondary text-center">

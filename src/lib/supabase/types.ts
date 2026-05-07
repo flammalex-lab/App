@@ -44,6 +44,9 @@ export interface Profile {
   notification_prefs: NotificationPrefs;
   created_at: string;
   updated_at: string;
+  sms_opted_in: boolean;
+  sms_opt_in_at: string | null;
+  sms_opt_in_source: string | null;
 }
 
 export interface ProfileAccount {

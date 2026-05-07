@@ -42,8 +42,23 @@ export async function enqueueAndSend(input: EnqueueInput): Promise<{ ok: boolean
 
   if (insertErr || !row) return { ok: false, error: insertErr?.message ?? "insert failed" };
 
-  // daily SMS cap check
+  // SMS-specific gates: explicit opt-in, then daily cap.
   if (input.channel === "sms") {
+    // TCR / CTIA: do not send transactional 10DLC SMS to a profile that
+    // hasn't actively opted in via /login or /register. (Twilio Verify
+    // OTPs go through supabase.auth.signInWithOtp directly and bypass
+    // this code path entirely, so login codes are unaffected.)
+    if (input.profileId) {
+      const optedIn = await profileOptedInToSms(supabase, input.profileId);
+      if (!optedIn) {
+        await supabase
+          .from("notifications")
+          .update({ status: "skipped", error: "profile not opted in to SMS" })
+          .eq("id", row.id);
+        return { ok: false, id: row.id, error: "profile not opted in to SMS" };
+      }
+    }
+
     const allowed = await smsAllowedToday(supabase);
     if (!allowed) {
       await supabase.from("notifications").update({ status: "skipped", error: "daily cap reached" }).eq("id", row.id);
@@ -81,6 +96,15 @@ async function deliver(input: EnqueueInput): Promise<{ ok: boolean; error?: stri
     return { ok: true };
   }
   return { ok: false, error: "unknown channel" };
+}
+
+async function profileOptedInToSms(supabase: any, profileId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("sms_opted_in")
+    .eq("id", profileId)
+    .maybeSingle();
+  return Boolean(data?.sms_opted_in);
 }
 
 async function smsAllowedToday(supabase: any): Promise<boolean> {

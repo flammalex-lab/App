@@ -12,10 +12,14 @@ export async function POST(request: Request) {
 
   const svc = createServiceClient();
   // Find primary buyer phone
-  const { data: buyers } = await svc.from("profiles").select("id,phone").eq("account_id", accountId).limit(1);
+  const { data: buyers } = await svc.from("profiles").select("id,phone,sms_opted_in").eq("account_id", accountId).limit(1);
   const toProfile = (buyers as any[] | null)?.[0];
 
-  const smsResult = toProfile?.phone ? await sendSms({ to: toProfile.phone, body }) : { ok: false };
+  // Only deliver via SMS if the buyer has explicitly opted in. Otherwise the
+  // message still lands in their in-app thread.
+  const smsResult = toProfile?.phone && toProfile?.sms_opted_in
+    ? await sendSms({ to: toProfile.phone, body })
+    : { ok: false };
 
   await svc.from("messages").insert({
     account_id: accountId,

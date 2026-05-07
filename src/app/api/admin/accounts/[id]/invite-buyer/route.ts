@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizePhone } from "@/lib/utils/phone";
-import { sendSms } from "@/lib/twilio/client";
 import { seedGuideFromTemplates } from "@/lib/order-guides/templates";
 
 interface InviteBody {
@@ -75,10 +74,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     ? await seedGuideFromTemplates(svc, profileId, templateIds)
     : 0;
 
-  await sendSms({
-    to: e164,
-    body: `Welcome to Fingerlakes Farms. Sign in at ${process.env.NEXT_PUBLIC_APP_URL}/login — enter this number to receive a code.`,
-  });
+  // No automatic welcome SMS. TCR / CTIA prohibits third-party-initiated
+  // messaging — the buyer's first SMS must be a direct response to their own
+  // action (the OTP they trigger themselves at /login). The rep should share
+  // the sign-in URL via whatever channel they already have with the buyer.
 
   return NextResponse.json({ ok: true, profileId, seeded });
 }

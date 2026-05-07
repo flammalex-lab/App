@@ -91,15 +91,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
-  // Forward to the recipient via SMS if they have a phone on file.
+  // Forward to the recipient via SMS if they've opted in. Otherwise the
+  // message stays in-app only.
   if (toProfileId) {
     const { data: rep } = await svc
       .from("profiles")
-      .select("phone")
+      .select("phone, sms_opted_in")
       .eq("id", toProfileId)
       .maybeSingle();
     const phone = (rep as any)?.phone as string | null;
-    if (phone) {
+    const optedIn = Boolean((rep as any)?.sms_opted_in);
+    if (phone && optedIn) {
       const prefix = accountName ? `[${accountName}]` : "[no account]";
       await sendSms({
         to: phone,
