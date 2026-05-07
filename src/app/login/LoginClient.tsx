@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
@@ -36,7 +35,6 @@ function PhoneOtpForm() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [smsConsent, setSmsConsent] = useState(false);
 
   async function sendCode() {
     setErr(null);
@@ -56,20 +54,6 @@ function PhoneOtpForm() {
     setLoading(true);
     const { error } = await supabase.auth.verifyOtp({ phone: e164, token: otp, type: "sms" });
     if (error) { setLoading(false); setErr(error.message); return; }
-
-    if (smsConsent) {
-      // Best-effort consent stamp — failure here doesn't block sign-in.
-      try {
-        await fetch("/api/auth/sms-consent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ source: "login" }),
-        });
-      } catch {
-        // ignore
-      }
-    }
-
     setLoading(false);
     window.location.assign(nextParam || "/guide");
   }
@@ -90,35 +74,6 @@ function PhoneOtpForm() {
               className="text-center text-lg py-3"
             />
           </Field>
-          <p className="text-xs text-ink-secondary leading-relaxed">
-            We'll text you a one-time sign-in code (Twilio Verify). Msg
-            &amp; data rates may apply. See our{" "}
-            <Link href="/privacy" className="underline hover:text-ink-primary">
-              Privacy Policy
-            </Link>{" "}
-            and{" "}
-            <Link href="/terms" className="underline hover:text-ink-primary">
-              Terms
-            </Link>
-            .
-          </p>
-          <label className="flex items-start gap-2.5 text-xs text-ink-secondary leading-relaxed cursor-pointer">
-            <input
-              type="checkbox"
-              checked={smsConsent}
-              onChange={(e) => setSmsConsent(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-brand-blue"
-            />
-            <span>
-              <strong className="text-ink-primary">Optional:</strong> Also
-              send me transactional SMS from Fingerlakes Farms — order
-              confirmations, delivery updates, standing-order reminders. No
-              marketing or promotional texts. Msg frequency varies (approx
-              1–20/month). Reply <strong>STOP</strong> to opt out,{" "}
-              <strong>HELP</strong> for help. You can sign in without
-              checking this box — you'll receive sign-in codes only.
-            </span>
-          </label>
           <Button onClick={sendCode} loading={loading} className="w-full" size="lg">
             Text me a code
           </Button>

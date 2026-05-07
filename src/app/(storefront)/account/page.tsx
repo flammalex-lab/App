@@ -8,6 +8,7 @@ import { prettyPhone } from "@/lib/utils/phone";
 import type { Profile } from "@/lib/supabase/types";
 import { NotificationToggles } from "./NotificationToggles";
 import { PasswordCard } from "./PasswordCard";
+import { SmsConsentCard } from "./SmsConsentCard";
 
 export const metadata = { title: "Profile — Fingerlakes Farms" };
 
@@ -57,6 +58,13 @@ export default async function ProfileSheetPage() {
       <Section title="Contact">
         <Row label="Phone" value={prettyPhone(me.phone)} />
         <Row label="Email" value={me.email ?? "—"} />
+      </Section>
+
+      <Section title="SMS preferences">
+        <SmsConsentCard
+          initialOptedIn={Boolean(me.sms_opted_in)}
+          initialOptedInAt={me.sms_opt_in_at}
+        />
       </Section>
 
       <Section title="Notifications">

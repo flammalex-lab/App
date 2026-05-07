@@ -3,15 +3,16 @@ import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /**
- * Record SMS opt-in for the authenticated user.
+ * Record SMS opt-in (or revoke it) for the authenticated user.
  *
- * Called from /register and /login after successful auth, but only when the
- * user actually checked the (unchecked-by-default) consent checkbox on the
- * form. Stamps the timestamp and source so we can produce evidence to TCR
- * for any specific phone number.
+ * Sources:
+ *  - 'register' — DTC retail signup
+ *  - 'account'  — self-service Notifications panel
  *
- * Note: opt-OUT is not handled here — the canonical channel is the user
- * texting STOP, which Twilio's Messaging Service handles natively.
+ * Note: TCR / CTIA also accepts STOP via SMS as the canonical opt-out
+ * channel; Twilio's Messaging Service handles STOP keyword automatically.
+ * This endpoint exists so users (especially B2B buyers, who never see
+ * /register) can opt in/out from inside the app.
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -19,12 +20,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { source } = (await request.json().catch(() => ({}))) as { source?: string };
-  if (source !== "register" && source !== "login") {
+  const { source, opt_in } = (await request.json().catch(() => ({}))) as {
+    source?: string;
+    opt_in?: boolean;
+  };
+  if (source !== "register" && source !== "account") {
     return NextResponse.json({ error: "invalid source" }, { status: 400 });
   }
 
   const svc = createServiceClient();
+
+  if (opt_in === false) {
+    const { error } = await svc
+      .from("profiles")
+      .update({
+        sms_opted_in: false,
+        sms_opt_in_at: null,
+        sms_opt_in_source: null,
+      })
+      .eq("id", session.userId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, opted_in: false });
+  }
+
   const { error } = await svc
     .from("profiles")
     .update({
@@ -35,5 +53,5 @@ export async function POST(request: Request) {
     .eq("id", session.userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, opted_in: true });
 }
