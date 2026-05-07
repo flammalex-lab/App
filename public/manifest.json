@@ -1,0 +1,20 @@
+{
+  "name": "Fingerlakes Farms",
+  "short_name": "FLF",
+  "description": "Order fresh NYS farm products — wholesale and direct.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBFAF6",
+  "theme_color": "#1763B5",
+  "categories": ["food", "business", "shopping"],
+  "icons": [
+    { "src": "/images/flf-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/images/flf-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Order guide", "url": "/guide" },
+    { "name": "Activity", "url": "/activity" }
+  ]
+}
