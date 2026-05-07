@@ -77,7 +77,7 @@ export function SmsConsentCard({ initialOptedIn, initialOptedInAt }: Props) {
         </p>
       ) : (
         <p className="text-[11px] text-ink-tertiary">
-          You'll only receive sign-in codes. The granular toggles below are
+          You&apos;ll only receive sign-in codes. The granular toggles below are
           ignored while this is off.
         </p>
       )}
