@@ -20,9 +20,12 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), interest-cohort=()" },
-  // Conservative starter CSP. 'unsafe-inline' on styles is required by
-  // Tailwind's runtime; scripts use 'unsafe-inline' + 'unsafe-eval' for
-  // Next.js inline boot scripts (drop these once you adopt strict CSP nonces).
+  // Starter CSP. NOTE: `script-src 'unsafe-inline' 'unsafe-eval'` defangs
+  // the XSS-mitigation value of CSP — every other directive (frame-ancestors,
+  // base-uri, form-action) still earns its keep, but inline-script blocking
+  // does not. TODO(audit-H7-followup): adopt nonce-based CSP — generate a
+  // nonce in middleware, attach to <Script nonce>, and Next's auto-injected
+  // inline scripts; then drop 'unsafe-inline' / 'unsafe-eval' from script-src.
   {
     key: "Content-Security-Policy",
     value: [

@@ -1,5 +1,7 @@
 # FLF Portal — Full Project Audit
 
+> **Snapshot — not maintained.** Captured 2026-05-09. Counts ("87 → 65 `as any`"), specific file:line cites, and the "still open" list reflect the state of the branch at that moment. Don't treat this as a live document — once this PR lands, future findings should be tracked as issues or in a dated `docs/audits/` file rather than mutating this one.
+
 **Branch:** `claude/full-project-audit-V6iJO`
 **Date:** 2026-05-09
 **Scope:** Full repo — security, schema, code quality, performance, business logic, dependencies, tests.

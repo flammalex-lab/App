@@ -36,8 +36,24 @@ export async function getImpersonation(): Promise<string | null> {
 }
 
 function impersonationSecret(): string | null {
-  return process.env.IMPERSONATION_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
+  const explicit = process.env.IMPERSONATION_SECRET;
+  if (explicit) return explicit;
+  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
+  if (fallback && !warnedAboutFallback) {
+    warnedAboutFallback = true;
+    // Fail loud so the operator notices: rotating the service-role key
+    // would silently invalidate every impersonation cookie, and anyone
+    // with read access to the SR key (env dumps, leaked deploy logs)
+    // could forge a valid cookie.
+    console.warn(
+      "[impersonation] IMPERSONATION_SECRET is unset — falling back to SUPABASE_SERVICE_ROLE_KEY. " +
+        "Set a separate IMPERSONATION_SECRET in production so the two rotations are independent.",
+    );
+  }
+  return fallback;
 }
+
+let warnedAboutFallback = false;
 
 function signPayload(payload: string): string {
   const secret = impersonationSecret();
