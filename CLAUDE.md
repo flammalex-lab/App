@@ -31,23 +31,24 @@ Alex sometimes pushes screenshots/assets to `claude/fingerlakes-farms-portal-SZY
 by accident — pull those commits over via `git checkout <sha> -- public/images/pepper/`
 when needed.
 
-### Review locally, then merge straight to `main`
+### Self-review, then merge straight to `main`
 Production deploys from `main` on Vercel. Skip the PR/GitHub-review loop —
-Alex doesn't want credits spent on cloud reviews or time spent bouncing
-through the GitHub UI.
+no cloud reviews, no Copilot review, no `/review` or `/ultrareview`, no
+bouncing through the GitHub UI. Alex trusts you to be the coder *and* the
+reviewer; you don't need an explicit "go ahead" before merging.
 
-Instead:
-1. Make changes on the working branch and commit locally.
-2. Walk Alex through the diff in chat (`git diff`, file:line refs) so he
-   can review in the terminal.
-3. **Wait for an explicit go-ahead** ("ship it", "merge it", "push to main",
-   etc.) before touching `main`.
-4. On approval: fast-forward or squash-merge the working branch into `main`
-   locally, then `git push -u origin main`. Don't open a PR, don't run
-   `/review` or `/ultrareview`, don't request a Copilot review.
+The flow is:
+1. Make changes on a working branch and commit.
+2. Self-review the diff before merging — re-read what you changed, check
+   for obvious bugs/regressions, confirm tests/typecheck still pass when
+   relevant. If something feels risky or ambiguous, surface it in chat
+   *before* merging instead of asking permission for routine work.
+3. Fast-forward or squash-merge the working branch into `main` locally,
+   then `git push -u origin main`. Keep the project moving.
+4. Mention what you merged in your end-of-turn summary so Alex can see
+   what shipped.
 
-If Alex explicitly asks for a PR for a specific change, open one — but
-that's opt-in now, not the default.
+Open a PR only when Alex explicitly asks for one for a specific change.
 
 ### Style
 - FLF brand: editorial / farm-forward, not Shopify-corporate. Display font
