@@ -31,6 +31,16 @@ Alex sometimes pushes screenshots/assets to `claude/fingerlakes-farms-portal-SZY
 by accident — pull those commits over via `git checkout <sha> -- public/images/pepper/`
 when needed.
 
+### Don't ask permission, just do it
+Alex hates approval-gate questions ("OK to run X?", "Should I commit?",
+"Want me to push?"). Just do the thing — including destructive git ops
+like `git reset --hard`, `git checkout --`, branch deletion, etc. — when
+it's the obvious next step to keep the project moving. If you genuinely
+hit something risky and ambiguous (data loss across unrelated work,
+deleting something you didn't create, force-pushing over someone else's
+commits), surface it; otherwise act. This overrides the default
+"confirm before destructive ops" rule.
+
 ### Self-review, then ship via API-merged PR
 Production deploys from `main` on Vercel. The sandbox proxy blocks direct
 pushes to `main`, so a PR is unavoidable as a transport — but the *review
