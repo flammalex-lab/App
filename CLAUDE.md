@@ -31,13 +31,23 @@ Alex sometimes pushes screenshots/assets to `claude/fingerlakes-farms-portal-SZY
 by accident — pull those commits over via `git checkout <sha> -- public/images/pepper/`
 when needed.
 
-### Always open a PR after pushing
-Production deploys from `main` on Vercel — feature branches don't go live
-until they're merged. So whenever you push commits to a working branch,
-**open (or update) a pull request to `main` automatically** without
-waiting for Alex to ask. Use the GitHub MCP tools. If a PR already exists
-for the branch, just push the new commits and let the existing PR pick
-them up. This overrides the default "don't auto-PR" rule.
+### Review locally, then merge straight to `main`
+Production deploys from `main` on Vercel. Skip the PR/GitHub-review loop —
+Alex doesn't want credits spent on cloud reviews or time spent bouncing
+through the GitHub UI.
+
+Instead:
+1. Make changes on the working branch and commit locally.
+2. Walk Alex through the diff in chat (`git diff`, file:line refs) so he
+   can review in the terminal.
+3. **Wait for an explicit go-ahead** ("ship it", "merge it", "push to main",
+   etc.) before touching `main`.
+4. On approval: fast-forward or squash-merge the working branch into `main`
+   locally, then `git push -u origin main`. Don't open a PR, don't run
+   `/review` or `/ultrareview`, don't request a Copilot review.
+
+If Alex explicitly asks for a PR for a specific change, open one — but
+that's opt-in now, not the default.
 
 ### Style
 - FLF brand: editorial / farm-forward, not Shopify-corporate. Display font
