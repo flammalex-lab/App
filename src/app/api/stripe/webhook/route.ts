@@ -141,7 +141,18 @@ export async function POST(request: Request) {
   }
 
   // Mutation failed — roll back the dedupe claim so Stripe's retry can win.
+  // (There's a tiny race window where Stripe's retry could arrive before this
+  // delete commits, win the insert race, and apply the same mutation a second
+  // time. Every webhook branch above is idempotent — set-fields-to-known-state-
+  // by-id — so the duplicate is harmless.)
   if (mutationError) {
+    // Surface a clearer hint when the failure is an enum-violation: the most
+    // common cause is migration 0020 not being applied, which extends
+    // payment_status_t with the new states the webhook writes. Saves an
+    // operator a debugging trip when Stripe starts retrying.
+    if (looksLikeEnumViolation(mutationError)) {
+      console.error("[stripe webhook] enum violation — likely migration 0020 not applied:", mutationError);
+    }
     await svc.from("stripe_events").delete().eq("id", event.id);
     return NextResponse.json({ error: mutationError }, { status: 500 });
   }
@@ -164,6 +175,15 @@ function extractOrderId(event: Stripe.Event): string | null {
  */
 function isUniqueViolation(err: { code?: string } | null): boolean {
   return err?.code === "23505";
+}
+
+/**
+ * Rough-detect a Postgres enum-violation by message text. Used only for
+ * a clearer ops log line — we don't gate behavior on this match.
+ */
+function looksLikeEnumViolation(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("invalid input value for enum") || m.includes("payment_status_t");
 }
 
 async function orderIdForPaymentIntent(svc: Svc, pi: Stripe.PaymentIntent): Promise<string | null> {

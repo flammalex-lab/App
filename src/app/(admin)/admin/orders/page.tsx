@@ -19,17 +19,20 @@ export default async function AdminOrdersPage({
   const page = Math.max(0, Number(sp.page ?? "0") || 0);
   const db = await createClient();
 
-  // Range pagination so we can render Prev/Next without scanning the full table.
+  // Fetch PAGE_SIZE + 1 instead of computing an exact count — count: 'exact'
+  // runs SELECT COUNT(*) over the filtered table on every request, which
+  // becomes expensive at 100k+ orders. The +1 row tells us whether there's
+  // a next page (matches the pattern in admin/messages).
   let query = db
     .from("orders")
-    .select("*, account:accounts(name)", { count: "exact" })
+    .select("*, account:accounts(name)")
     .order("created_at", { ascending: false })
-    .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   if (filter) query = query.eq("status", filter);
-  const { data, count } = await query;
-  const orders = (data as (Order & { account: { name: string } | null })[] | null) ?? [];
-  const total = count ?? 0;
-  const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+  const { data } = await query;
+  const fetched = (data as (Order & { account: { name: string } | null })[] | null) ?? [];
+  const orders = fetched.slice(0, PAGE_SIZE);
+  const hasNext = fetched.length > PAGE_SIZE;
 
   const pageHref = (n: number) => {
     const params = new URLSearchParams();
@@ -68,10 +71,10 @@ export default async function AdminOrdersPage({
         ))}
         {!orders.length ? <div className="p-4 text-sm text-ink-secondary">No orders.</div> : null}
       </div>
-      {total > PAGE_SIZE ? (
+      {(page > 0 || hasNext) ? (
         <div className="mt-4 flex items-center justify-between text-sm">
           <span className="text-ink-secondary">
-            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+            Showing {orders.length ? page * PAGE_SIZE + 1 : 0}–{page * PAGE_SIZE + orders.length}
           </span>
           <div className="flex gap-2">
             {page > 0 ? (
@@ -79,7 +82,7 @@ export default async function AdminOrdersPage({
                 ← Prev
               </Link>
             ) : null}
-            {page < lastPage ? (
+            {hasNext ? (
               <Link href={pageHref(page + 1)} className="px-3 py-1 rounded border border-black/10 bg-white hover:bg-bg-secondary">
                 Next →
               </Link>

@@ -79,7 +79,12 @@ export async function POST(request: Request) {
       .from("profile_accounts")
       .select("account_id")
       .eq("profile_id", profileId)
+      // Defense-in-depth tiebreaker: even with the unique partial index on
+      // (profile_id) where is_default=true (added in 0020), if duplicates
+      // ever sneak in via a service-role direct write, prefer the oldest
+      // membership row instead of relying on Postgres's whim.
       .order("is_default", { ascending: false })
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
     accountId = (link as { account_id: string } | null)?.account_id ?? null;
