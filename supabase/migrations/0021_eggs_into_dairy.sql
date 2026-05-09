@@ -79,6 +79,19 @@ do $$ begin
       'meat', 'dairy', 'cheese', 'produce', 'pantry', 'beverages'
     );
 
+    alter table accounts alter column enabled_categories drop default;
+
+    -- Defensive: also fold 'cheese' (an ad-hoc enum value present in some
+    -- production databases, not introduced by any migration in this repo)
+    -- into 'dairy'. Cheese is a product_group, not a category, in this
+    -- app's canonical schema (see 0006 + 0020). Backfill product_group
+    -- first so the buyer-facing cheese distinction survives the cast,
+    -- in case 0020 didn't already do it.
+    update products
+       set product_group = 'cheese'
+     where category::text = 'cheese'
+       and product_group is distinct from 'cheese';
+
     alter table products
       alter column category type category_t_new
       using (
