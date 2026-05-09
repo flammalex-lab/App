@@ -138,6 +138,12 @@ language sql stable security definer set search_path = public as $$
   limit greatest(p_limit, 1)
   offset greatest(p_offset, 0);
 $$;
+-- Tighten the default Supabase grant — anon should never call this; we
+-- want execute available only to authenticated callers (and the inner
+-- `is_admin()` gate is what actually filters non-admin authenticated
+-- users to an empty result set).
+revoke execute on function latest_messages_per_account(int, int) from public, anon;
+grant execute on function latest_messages_per_account(int, int) to authenticated;
 
 -- ---- 6) Scrub the personal Venmo handle out of qb_settings ----
 -- Migration 0001 hardcoded '@alex_flamm' as the venmo_handle seed value.

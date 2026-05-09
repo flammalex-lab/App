@@ -45,9 +45,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: claimErr.message }, { status: 500 });
   }
   if (!claimed) {
-    // Some Postgres clients return null+no-error on a no-op insert; treat
-    // that as "lost the race" and short-circuit too.
-    return NextResponse.json({ received: true, deduped: true });
+    // Insert returned no row and no error. The benign cause is "row
+    // already exists" (RLS hides it from RETURNING, or PostgREST collapses
+    // a no-op to null) — but if that's true, a SELECT should find the
+    // prior row. If it doesn't, something's wrong (most likely an RLS
+    // misconfig that's *silently dropping the insert*) — refuse to
+    // short-circuit and force Stripe to retry so the failure is loud.
+    const { data: prior } = await svc
+      .from("stripe_events")
+      .select("id")
+      .eq("id", event.id)
+      .maybeSingle();
+    if (prior) {
+      return NextResponse.json({ received: true, deduped: true });
+    }
+    console.error("[stripe webhook] dedupe insert returned null with no row visible — possible RLS misconfig", { eventId: event.id, type: event.type });
+    return NextResponse.json({ error: "dedupe row not persisted" }, { status: 500 });
   }
 
   let mutationError: string | null = null;
@@ -142,16 +155,15 @@ function extractOrderId(event: Stripe.Event): string | null {
 }
 
 /**
- * Detect a Postgres unique-violation across the two surfaces PostgREST
- * exposes (`code` is the cleanest, but it sometimes only sets `message` /
- * `details`). Belt-and-suspenders so the dedupe path doesn't 500-loop
- * Stripe retries when the error shape is missing `.code`.
+ * Detect a Postgres unique-violation. Supabase / PostgREST reliably
+ * surfaces SQLSTATE on `.code`, so we trust that exclusively here — a
+ * substring fallback over `.message` could mask unrelated DB errors as
+ * "already processed" and silently no-op a payment webhook (worst-case
+ * for a Stripe handler). Anything that isn't 23505 falls through to the
+ * 500 path so Stripe retries and the real failure surfaces in logs.
  */
-function isUniqueViolation(err: { code?: string; message?: string; details?: string } | null): boolean {
-  if (!err) return false;
-  if (err.code === "23505") return true;
-  const blob = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
-  return blob.includes("duplicate key") || blob.includes("already exists");
+function isUniqueViolation(err: { code?: string } | null): boolean {
+  return err?.code === "23505";
 }
 
 async function orderIdForPaymentIntent(svc: Svc, pi: Stripe.PaymentIntent): Promise<string | null> {

@@ -1,15 +1,31 @@
 /** @type {import('next').NextConfig} */
 
-// Pin image optimizer to the configured Supabase project when available, so
-// the optimizer doesn't fan out to arbitrary *.supabase.co subdomains.
-// Falls back to the wildcard for dev convenience when the URL isn't set.
+// Pin image optimizer to the configured Supabase project. Production must
+// have a valid NEXT_PUBLIC_SUPABASE_URL — otherwise we'd silently widen
+// the optimizer surface to *.supabase.co (the regression M10 was meant to
+// prevent). Dev falls back to the wildcard for convenience.
 function supabaseImagePatterns() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) return [{ protocol: "https", hostname: "*.supabase.co" }];
+  const isProd = process.env.NODE_ENV === "production";
+  if (!url) {
+    if (isProd) {
+      throw new Error(
+        "NEXT_PUBLIC_SUPABASE_URL must be set in production. " +
+          "Refusing to fall back to the *.supabase.co wildcard for the image optimizer.",
+      );
+    }
+    return [{ protocol: "https", hostname: "*.supabase.co" }];
+  }
   try {
     const hostname = new URL(url).hostname;
     return [{ protocol: "https", hostname }];
-  } catch {
+  } catch (e) {
+    if (isProd) {
+      throw new Error(
+        `NEXT_PUBLIC_SUPABASE_URL is set but not a valid URL (${url}). ` +
+          "Fix it; refusing to fall back to the *.supabase.co wildcard.",
+      );
+    }
     return [{ protocol: "https", hostname: "*.supabase.co" }];
   }
 }
