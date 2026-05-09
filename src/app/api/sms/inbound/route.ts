@@ -18,10 +18,23 @@ export async function POST(request: Request) {
 
   const signature = request.headers.get("x-twilio-signature");
   const valid = await validateTwilioSignature(signature, url, params);
-  // Signatures are *always* required. Local dev can opt out with an
-  // explicit env flag — never fall back to NODE_ENV alone, since
-  // preview/staging builds frequently set NODE_ENV=production.
-  const allowUnsigned = process.env.ALLOW_UNSIGNED_TWILIO === "true";
+  // Signatures are *always* required in deployed environments. The
+  // ALLOW_UNSIGNED_TWILIO escape hatch is only honored when both NODE_ENV
+  // and VERCEL_ENV say we're not on a deploy — refuse it in production /
+  // preview / staging even if a misconfigured env var sets it. This
+  // prevents the H3 finding from silently reopening on a copy-pasted
+  // Vercel env var.
+  const isDeployed =
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production" ||
+    process.env.VERCEL_ENV === "preview";
+  const allowUnsigned = process.env.ALLOW_UNSIGNED_TWILIO === "true" && !isDeployed;
+  if (process.env.ALLOW_UNSIGNED_TWILIO === "true" && isDeployed) {
+    console.warn(
+      "[sms inbound] ALLOW_UNSIGNED_TWILIO=true is set in a deployed environment and will be IGNORED. " +
+        "Remove the env var.",
+    );
+  }
   if (!valid && !allowUnsigned) {
     return new NextResponse("bad signature", { status: 403 });
   }

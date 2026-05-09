@@ -6,11 +6,20 @@ import { setImpersonation } from "@/lib/auth/impersonation";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Anti-CSRF: only accept POSTs whose Origin (or, for old browsers,
- * Referer) is the request's own host. Combined with sameSite=lax/strict
- * cookies (Supabase + the impersonation cookie itself), this blocks an
- * attacker site from triggering an admin's browser to POST here even
- * though the admin session is valid.
+ * Anti-CSRF: only accept POSTs that we can prove originate same-origin.
+ *
+ * Three signals, in priority order:
+ *   1. Origin header — modern browsers send this on every POST.
+ *   2. Referer header — older browsers / odd clients.
+ *   3. Sec-Fetch-Site=same-origin — Fetch Metadata header that browsers
+ *      send untouched even when overzealous corporate proxies / privacy
+ *      extensions strip Origin and Referer.
+ *
+ * If all three are missing the request is rejected as suspicious — that's
+ * the right default for a state-mutating admin endpoint, but it can bite
+ * legitimate admins behind unusual proxies. The error response says
+ * "cross-origin request rejected" so an operator seeing it can recognize
+ * the cause.
  */
 function originOk(request: Request): boolean {
   const reqUrl = new URL(request.url);
@@ -30,7 +39,12 @@ function originOk(request: Request): boolean {
       return false;
     }
   }
-  // No Origin and no Referer is suspicious for a POST that mutates state.
+  // Fetch Metadata fallback for proxies that strip Origin + Referer.
+  // browsers send this header on every fetch they originate; an attacker
+  // site cannot forge "same-origin" for a cross-site POST.
+  if (request.headers.get("sec-fetch-site") === "same-origin") {
+    return true;
+  }
   return false;
 }
 
