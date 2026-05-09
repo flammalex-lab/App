@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { Account, Activity, Order, Profile, StandingOrder } from "@/lib/supabase/types";
+import type { Account, Activity, Order, PriceList, Profile, StandingOrder } from "@/lib/supabase/types";
 import { AccountForm } from "./AccountForm";
 import { ActivityLogForm } from "./ActivityLogForm";
 import { AddBuyerDialog } from "./AddBuyerDialog";
@@ -19,10 +19,14 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
   const db = await createClient();
 
   if (id === "new") {
+    const { data: priceLists } = await db
+      .from("price_lists")
+      .select("*")
+      .order("name");
     return (
       <div className="max-w-5xl">
         <h1 className="display text-3xl mb-4">New account</h1>
-        <AccountForm account={null} />
+        <AccountForm account={null} priceLists={(priceLists as PriceList[] | null) ?? []} />
       </div>
     );
   }
@@ -36,16 +40,20 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
     { data: activities },
     { data: standing },
     overrideCount,
+    visibleProductCount,
     { data: templatesRaw },
     { data: templateItemCountsRaw },
+    { data: priceLists },
   ] = await Promise.all([
     db.from("profiles").select("*").eq("account_id", id),
     db.from("orders").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(25),
     db.from("activities").select("*").eq("account_id", id).order("created_at", { ascending: false }).limit(25),
     db.from("standing_orders").select("*").eq("account_id", id),
     db.from("account_pricing").select("id", { count: "exact", head: true }).eq("account_id", id),
+    db.from("account_products").select("product_id", { count: "exact", head: true }).eq("account_id", id),
     db.from("order_guide_templates").select("id, name, buyer_type").order("name"),
     db.from("order_guide_template_items").select("template_id"),
+    db.from("price_lists").select("*").order("name"),
   ]);
 
   const itemCounts = new Map<string, number>();
@@ -86,13 +94,16 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
           <p className="text-ink-secondary text-sm">{(account as Account).status}</p>
         </div>
         <div className="flex gap-2">
+          <Link href={`/admin/accounts/${id}/products`} className="btn-ghost text-sm">
+            Visible products ({visibleProductCount.count ?? 0})
+          </Link>
           <Link href={`/admin/accounts/${id}/pricing`} className="btn-ghost text-sm">
             Pricing ({overrideCount.count ?? 0})
           </Link>
         </div>
       </div>
 
-      <AccountForm account={account as Account} />
+      <AccountForm account={account as Account} priceLists={(priceLists as PriceList[] | null) ?? []} />
 
       <section>
         <div className="flex items-center justify-between mb-2 gap-3">

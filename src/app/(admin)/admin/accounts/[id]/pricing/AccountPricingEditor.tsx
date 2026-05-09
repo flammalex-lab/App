@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AccountPricing, PricingTier, Product } from "@/lib/supabase/types";
+import type { AccountPricing, PriceList, PriceListItem, PricingTier, Product } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
@@ -14,11 +14,15 @@ export function AccountPricingEditor({
   tier,
   products,
   overrides,
+  priceList = null,
+  priceListItems = [],
 }: {
   accountId: string;
   tier: PricingTier;
   products: Product[];
   overrides: AccountPricing[];
+  priceList?: PriceList | null;
+  priceListItems?: PriceListItem[];
 }) {
   const mult = TIER_MULTIPLIERS[tier];
   const initial = useMemo(() => {
@@ -26,6 +30,11 @@ export function AccountPricingEditor({
     for (const o of overrides) m[o.product_id] = String(o.custom_price);
     return m;
   }, [overrides]);
+  const listPriceByProduct = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const it of priceListItems) m.set(it.product_id, Number(it.unit_price));
+    return m;
+  }, [priceListItems]);
 
   const [state, setState] = useState<Record<string, string>>(initial);
   const [saving, setSaving] = useState(false);
@@ -60,12 +69,14 @@ export function AccountPricingEditor({
             <tr>
               <th className="p-3">Product</th>
               <th className="p-3">Tier price ({tier})</th>
+              {priceList ? <th className="p-3">{priceList.name}</th> : null}
               <th className="p-3">Custom</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
             {products.map((p) => {
               const tierPrice = p.wholesale_price != null ? Number(p.wholesale_price) * mult : null;
+              const listPrice = listPriceByProduct.get(p.id) ?? null;
               return (
                 <tr key={p.id}>
                   <td className="p-3">
@@ -75,6 +86,9 @@ export function AccountPricingEditor({
                     ) : null}
                   </td>
                   <td className="p-3 mono">{tierPrice != null ? money(tierPrice) : "—"}</td>
+                  {priceList ? (
+                    <td className="p-3 mono">{listPrice != null ? money(listPrice) : "—"}</td>
+                  ) : null}
                   <td className="p-3">
                     <Input
                       type="number"

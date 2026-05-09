@@ -1,5 +1,5 @@
-import type { StandingOrder, StandingOrderItem, Product, Account, AccountPricing, Profile } from "@/lib/supabase/types";
-import { resolvePrice } from "@/lib/utils/pricing";
+import type { StandingOrder, StandingOrderItem, Product, Account, Profile } from "@/lib/supabase/types";
+import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 
 /**
@@ -20,13 +20,12 @@ export async function runStandingOrder(svc: any, standingOrderId: string): Promi
   };
   if (!s.items?.length) return { ok: false, error: "no items" };
 
-  // Resolve prices via account overrides. If any item can't be priced we
-  // bail out instead of silently materializing a $0 line — better the run
-  // fails loudly than the customer gets a free order.
-  const { data: overrides } = await svc.from("account_pricing").select("*").eq("account_id", s.account.id);
+  // Resolve prices: overrides → assigned price list → tier. If any item is
+  // unpriceable we bail out instead of silently materializing a $0 line —
+  // better the run fails loudly than the customer gets a free order.
+  const pricingCtx = await loadPricingContext(svc, s.account, true);
   const priced = s.items.map((it) => {
-    const override = (overrides as AccountPricing[] | null)?.find((o) => o.product_id === it.product_id) ?? null;
-    const unitPrice = resolvePrice(it.product, { account: s.account, customPrice: override, isB2B: true });
+    const unitPrice = priceForProduct(it.product, pricingCtx);
     return { ...it, unitPrice };
   });
   const unpriceable = priced.find((it) => it.unitPrice == null);

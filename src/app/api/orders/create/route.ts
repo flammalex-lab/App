@@ -3,8 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/session";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { getStripe } from "@/lib/stripe/client";
-import { resolvePrice } from "@/lib/utils/pricing";
-import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, AccountPricing } from "@/lib/supabase/types";
+import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
+import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 
 interface BodyLine {
@@ -58,21 +58,19 @@ export async function POST(request: Request) {
     }
   }
 
-  let accountRow: { pricing_tier: string | null; delivery_zone: string | null } | null = null;
-  let overrides: AccountPricing[] = [];
+  let accountRow: Account | null = null;
   if (effectiveProfile.account_id) {
-    const [acctRes, overridesRes] = await Promise.all([
-      svc.from("accounts").select("pricing_tier, delivery_zone").eq("id", effectiveProfile.account_id).maybeSingle(),
-      svc.from("account_pricing").select("*").eq("account_id", effectiveProfile.account_id).in("product_id", productIds),
-    ]);
-    accountRow = (acctRes.data as any) ?? null;
-    overrides = (overridesRes.data as AccountPricing[] | null) ?? [];
+    const { data: acct } = await svc.from("accounts").select("*").eq("id", effectiveProfile.account_id).maybeSingle();
+    accountRow = (acct as Account | null) ?? null;
   }
+
+  // Use the same pricing pipeline as the catalog and standing-order cron:
+  // overrides → assigned price list → tier multiplier.
+  const pricingCtx = await loadPricingContext(svc, accountRow, isB2B);
 
   const pricedLines = body.lines.map((l) => {
     const product = productById.get(l.productId)!;
-    const override = overrides.find((o) => o.product_id === l.productId) ?? null;
-    const unitPrice = resolvePrice(product, { account: accountRow as any, customPrice: override, isB2B });
+    const unitPrice = priceForProduct(product, pricingCtx);
     return { ...l, unitPrice, productName: product.name as string, packSize: product.pack_size as string | null };
   });
   const unpriceable = pricedLines.find((l) => l.unitPrice == null);

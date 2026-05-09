@@ -23,6 +23,7 @@ const SECTIONS: { title?: string; links: NavLink[] }[] = [
       { href: "/admin/order-guides", label: "Order guides" },
       { href: "/admin/order-guides/templates", label: "Guide templates" },
       { href: "/admin/pricing", label: "Pricing" },
+      { href: "/admin/price-lists", label: "Price lists" },
       { href: "/admin/standing", label: "Standing orders" },
       { href: "/admin/messages", label: "Messages" },
       { href: "/admin/availability", label: "Weekly availability" },

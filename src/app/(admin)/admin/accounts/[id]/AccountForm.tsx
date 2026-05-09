@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Account, AccountType, AccountStatus, Category, Channel, DeliveryZone, PricingTier } from "@/lib/supabase/types";
+import type { Account, AccountType, AccountStatus, Category, Channel, DeliveryZone, PriceList, PricingTier } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
@@ -31,7 +31,13 @@ const ALL_ENABLED_CATS: Category[] = ACCOUNT_GROUPS.flatMap((g) => ACCOUNT_GROUP
 const ZONE_LIST: DeliveryZone[] = ["finger_lakes", "nyc_metro", "hudson_valley", "long_island", "nj_pa_ct"];
 const BUYER_TYPES: BuyerType[] = ["gm_restaurant", "gm_retail", "meat_buyer", "produce_buyer", "dairy_buyer", "cheese_buyer", "grocery_buyer"];
 
-export function AccountForm({ account }: { account: Account | null }) {
+export function AccountForm({
+  account,
+  priceLists = [],
+}: {
+  account: Account | null;
+  priceLists?: PriceList[];
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
     name: account?.name ?? "",
@@ -41,6 +47,7 @@ export function AccountForm({ account }: { account: Account | null }) {
     status: (account?.status ?? "prospect") as AccountStatus,
     enabled_categories: (account?.enabled_categories ?? ALL_ENABLED_CATS) as Category[],
     buyer_type: (account?.buyer_type ?? "gm_restaurant") as BuyerType,
+    price_list_id: account?.price_list_id ?? "",
     primary_contact_name: account?.primary_contact_name ?? "",
     primary_contact_email: account?.primary_contact_email ?? "",
     primary_contact_phone: account?.primary_contact_phone ?? "",
@@ -68,6 +75,7 @@ export function AccountForm({ account }: { account: Account | null }) {
         delivery_zone: form.delivery_zone || null,
         qb_terms: form.qb_terms || null,
         qb_customer_name: form.qb_customer_name || null,
+        price_list_id: form.price_list_id || null,
         order_minimum: form.order_minimum === "" ? null : Number(form.order_minimum),
       }),
     });
@@ -120,6 +128,24 @@ export function AccountForm({ account }: { account: Account | null }) {
           </select>
         </Field>
       </div>
+      <Field
+        label="Price list"
+        hint="Optional shared contract sheet. When set, its prices override the tier multiplier. Per-account overrides (Pricing tab) still win above this."
+      >
+        <select
+          className="input"
+          value={form.price_list_id ?? ""}
+          onChange={(e) => setForm({ ...form, price_list_id: e.target.value })}
+        >
+          <option value="">— Use tier price —</option>
+          {priceLists.map((pl) => (
+            <option key={pl.id} value={pl.id}>
+              {pl.name}
+              {pl.active ? "" : " (inactive)"}
+            </option>
+          ))}
+        </select>
+      </Field>
       <Field label="Buyer type" hint="Which sections this person sees on the catalog — GMs see everything, specialists see only their area">
         <select
           className="input"
