@@ -26,7 +26,9 @@ interface Row {
 function guessCategory(hint: string | undefined, name: string): Category {
   const s = `${hint ?? ""} ${name ?? ""}`.toLowerCase();
   if (/\b(beef|steak|sirloin|brisket|tenderloin|ribeye|chuck|ground beef|oxtail|hanger|flank|pork|bacon|ham|kielbasa|sausage|ribs|chop|lamb|mutton)\b/.test(s)) return "meat";
-  if (/\b(egg|eggs|milk|yogurt|cheese|cheddar|butter|cream|kefir|dairy|brie|feta)\b/.test(s)) return "dairy";
+  // Cheese first — needs to win over the broader dairy match for cheese-y dairy products.
+  if (/\b(cheese|cheddar|brie|feta|gouda|mozzarella|parm(?:igiano|esan)?|manchego|gruyere|chevre|ricotta)\b/.test(s)) return "cheese";
+  if (/\b(egg|eggs|milk|yogurt|butter|cream|kefir|dairy)\b/.test(s)) return "dairy";
   if (/\b(vegetable|fruit|salad|apple|lettuce|spinach|tomato|beet|carrot|onion|potato|herb|green|produce)\b/.test(s)) return "produce";
   if (/\b(beverage|drink|juice|water|kombucha|soda|coffee|tea|lemonade|cider)\b/.test(s)) return "beverages";
   return "pantry";
@@ -40,23 +42,16 @@ function guessBrand(hint: string | undefined, name: string): Brand {
 }
 
 /**
- * Derive the buyer-facing product_group from category + name. Mirrors the
- * backfill logic in migration 0006 — any change to one MUST change the other
- * or fresh imports will fall out of catalog/guide filters (which key on
- * product_group, not category).
- *
- * Cheese is split out of dairy by name keyword so specialty cheese buyers get
- * their own guide. Everything not fitting falls to 'grocery'.
+ * Derive the buyer-facing product_group from category. After 0022 the
+ * category and product_group axes line up 1:1 for meat/dairy/cheese/produce,
+ * with grocery folding pantry+beverages.
  */
-function deriveProductGroup(category: Category, name: string): ProductGroup {
+function deriveProductGroup(category: Category, _name: string): ProductGroup {
   if (category === "meat") return "meat";
+  if (category === "cheese") return "cheese";
+  if (category === "dairy") return "dairy";
   if (category === "produce") return "produce";
-  if (category === "pantry" || category === "beverages") return "grocery";
-  // dairy / eggs — split cheese out by name
-  if (/\b(cheese|cheddar|brie|feta|gouda|mozzarella|parm(?:igiano|esan)?|manchego|gruyere|chevre|ricotta|blue)\b/i.test(name)) {
-    return "cheese";
-  }
-  return "dairy";
+  return "grocery";
 }
 
 type ProductGroup = "meat" | "grocery" | "produce" | "dairy" | "cheese";

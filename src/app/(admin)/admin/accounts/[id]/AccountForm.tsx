@@ -8,22 +8,23 @@ import { Field, Input, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { ZONE_LABELS, BUYER_TYPE_LABELS, type BuyerType } from "@/lib/constants";
 
-// Buyer-facing product groups as a Category-level toggle. Matches the folding
-// used everywhere else in the app: dairy includes eggs and cheese (all share
-// the 'dairy' category after 0021), grocery = pantry+beverages. Meat is its
-// own single category after 0020.
-type AccountGroup = "meat" | "produce" | "dairy" | "grocery";
-const ACCOUNT_GROUPS: AccountGroup[] = ["meat", "produce", "dairy", "grocery"];
+// Buyer-facing product groups as a Category-level toggle. After 0020/0021/0022:
+// meat is its own category, dairy is its own category (eggs folded into dairy),
+// cheese is its own category (separate from dairy), grocery = pantry+beverages.
+type AccountGroup = "meat" | "produce" | "dairy" | "cheese" | "grocery";
+const ACCOUNT_GROUPS: AccountGroup[] = ["meat", "produce", "dairy", "cheese", "grocery"];
 const ACCOUNT_GROUP_LABELS: Record<AccountGroup, string> = {
   meat: "Meat",
   produce: "Produce",
-  dairy: "Dairy & Cheese",
+  dairy: "Dairy",
+  cheese: "Cheese",
   grocery: "Grocery",
 };
 const ACCOUNT_GROUP_CATS: Record<AccountGroup, Category[]> = {
   meat: ["meat"],
   produce: ["produce"],
   dairy: ["dairy"],
+  cheese: ["cheese"],
   grocery: ["pantry", "beverages"],
 };
 const ALL_ENABLED_CATS: Category[] = ACCOUNT_GROUPS.flatMap((g) => ACCOUNT_GROUP_CATS[g]);

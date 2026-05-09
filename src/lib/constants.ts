@@ -9,6 +9,7 @@ export const BRAND_LABELS: Record<Brand, string> = {
 export const CATEGORY_LABELS: Record<Category, string> = {
   meat: "Meat",
   dairy: "Dairy",
+  cheese: "Cheese",
   produce: "Produce",
   pantry: "Pantry",
   beverages: "Beverages",
@@ -68,14 +69,14 @@ export function allowedGroupsFor(buyerType: string | null | undefined): ProductG
 }
 
 const ALL_CATEGORIES: Category[] = [
-  "meat", "dairy", "produce", "pantry", "beverages",
+  "meat", "dairy", "cheese", "produce", "pantry", "beverages",
 ];
 
 /**
  * Category-level fallback for allowedGroupsFor. Used to filter products when
  * product_group isn't populated on rows (older data that predates the 0006
- * backfill, or imports that didn't set the column). Matches the folding in
- * migrations 0006 + 0020 + 0021: dairy includes eggs and cheese,
+ * backfill, or imports that didn't set the column). After 0021 + 0022:
+ * eggs are folded into dairy, but cheese is its own category alongside dairy.
  * grocery = pantry+beverages.
  */
 export function allowedCategoriesFor(buyerType: string | null | undefined): Category[] {
@@ -90,7 +91,7 @@ export function allowedCategoriesFor(buyerType: string | null | undefined): Cate
     case "dairy_buyer":
       return ["dairy"];
     case "cheese_buyer":
-      return ["dairy"]; // cheese lives under dairy in the category enum
+      return ["cheese"];
     case "grocery_buyer":
       return ["pantry", "beverages"];
     default:
