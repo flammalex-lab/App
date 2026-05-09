@@ -16,16 +16,19 @@ export async function POST(request: Request) {
 
   // Validate the target profile exists and is *not* itself an admin —
   // impersonating another admin would let a hijacked admin session pivot
-  // through any role escalation that admin holds. profiles.id is the
-  // primary key so .single() is the right shape — its error path also
-  // distinguishes a deleted-mid-request race from a genuinely missing id.
+  // through any role escalation that admin holds. .maybeSingle() lets us
+  // distinguish DB errors (network blip, RLS misconfig → 500) from a
+  // genuinely missing id (404), instead of conflating both as "not found".
   const svc = createServiceClient();
   const { data: target, error: targetErr } = await svc
     .from("profiles")
     .select("id, role")
     .eq("id", profileId)
-    .single();
-  if (targetErr || !target) {
+    .maybeSingle();
+  if (targetErr) {
+    return NextResponse.json({ error: `profile lookup failed: ${targetErr.message}` }, { status: 500 });
+  }
+  if (!target) {
     return NextResponse.json({ error: "profile not found" }, { status: 404 });
   }
   if ((target as { role: string }).role === "admin") {

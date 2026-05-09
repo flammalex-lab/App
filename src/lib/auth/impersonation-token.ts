@@ -15,19 +15,30 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const IMPERSONATION_TTL_SECONDS = 60 * 60 * 4; // 4 hours
 
+// Hard fail in production: the dev-only fallback to SUPABASE_SERVICE_ROLE_KEY
+// means a leaked SR key (env dump, deploy log, support snapshot) becomes
+// equivalent to forging impersonation cookies. Mirrors the
+// supabaseImagePatterns() pattern in next.config.js — refuse to load the
+// module if the secret is missing in prod, instead of silently weakening
+// a critical-rated audit fix. Routes that import this module will 500 on
+// load until the operator sets IMPERSONATION_SECRET.
+if (process.env.NODE_ENV === "production" && !process.env.IMPERSONATION_SECRET) {
+  throw new Error(
+    "IMPERSONATION_SECRET must be set in production. The dev fallback to " +
+      "SUPABASE_SERVICE_ROLE_KEY is unsafe — a leaked SR key would forge " +
+      "impersonation cookies. Generate one with `openssl rand -base64 32`.",
+  );
+}
+
 export function impersonationSecret(): string | null {
   const explicit = process.env.IMPERSONATION_SECRET;
   if (explicit) return explicit;
   const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
   if (fallback && !warnedAboutFallback) {
     warnedAboutFallback = true;
-    // Fail loud so the operator notices: rotating the service-role key
-    // would silently invalidate every impersonation cookie, and anyone
-    // with read access to the SR key (env dumps, leaked deploy logs)
-    // could forge a valid cookie.
     console.warn(
-      "[impersonation] IMPERSONATION_SECRET is unset — falling back to SUPABASE_SERVICE_ROLE_KEY. " +
-        "Set a separate IMPERSONATION_SECRET in production so the two rotations are independent.",
+      "[impersonation] IMPERSONATION_SECRET is unset (dev only) — falling back to SUPABASE_SERVICE_ROLE_KEY. " +
+        "Production deploys throw at module load instead.",
     );
   }
   return fallback;
