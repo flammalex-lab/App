@@ -54,7 +54,7 @@ export default async function HealthPage() {
             <h2 className="text-lg font-medium">Products without wholesale price</h2>
             <p className="text-xs text-ink-secondary mt-0.5">
               Active products with no <code>wholesale_price</code>. A B2B order containing
-              one will be rejected with "pricing not configured for {"<"}name{">"}".
+              one will be rejected at checkout with a pricing-not-configured error.
             </p>
           </div>
           <span className="badge-gray">{unpriced.length}</span>
