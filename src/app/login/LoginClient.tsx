@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
@@ -14,13 +15,23 @@ export function LoginClient() {
     <>
       {showAdmin ? <AdminPasswordForm onBack={() => setShowAdmin(false)} /> : <PhoneOtpForm />}
       {!showAdmin ? (
-        <div className="text-center mt-5">
-          <button
-            onClick={() => setShowAdmin(true)}
-            className="text-xs text-ink-tertiary hover:text-ink-secondary underline"
-          >
-            Sign in with email instead
-          </button>
+        <div className="text-center mt-5 space-y-2">
+          <div>
+            <Link
+              href="/register"
+              className="text-sm text-brand-blue hover:underline"
+            >
+              Become a customer →
+            </Link>
+          </div>
+          <div>
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="text-xs text-ink-tertiary hover:text-ink-secondary underline"
+            >
+              Sign in with email instead
+            </button>
+          </div>
         </div>
       ) : null}
     </>
@@ -60,10 +71,10 @@ function PhoneOtpForm() {
 
   return (
     <div className="space-y-4">
-      <h2 className="font-semibold text-lg text-center">Sign in with your phone</h2>
+      <h2 className="font-semibold text-lg text-center">Sign in</h2>
       {step === "phone" ? (
         <>
-          <Field label="Phone number" hint="We'll text you a 6-digit code">
+          <Field label="Phone number">
             <Input
               type="tel"
               autoComplete="tel"
