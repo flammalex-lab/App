@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
+import { verifyCronAuth } from "@/lib/cron/auth";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { Account, DeliveryZoneRow } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
-import { constantTimeEquals } from "@/lib/utils/crypto-compare";
-import { BUSINESS_TIMEZONE } from "@/lib/constants";
 
 /**
  * Hourly cron: for each active account, if the cutoff for their next delivery
@@ -12,13 +12,8 @@ import { BUSINESS_TIMEZONE } from "@/lib/constants";
  * delivery, send a reorder nudge to the primary buyer.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  const auth = request.headers.get("authorization") ?? "";
-  const expected = `Bearer ${secret}`;
-  if (!constantTimeEquals(auth, expected)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const denied = verifyCronAuth(request);
+  if (denied) return denied;
 
   const svc = createServiceClient();
   const { data: accounts } = await svc
