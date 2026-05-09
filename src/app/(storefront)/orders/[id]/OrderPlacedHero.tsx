@@ -16,8 +16,18 @@ export function OrderPlacedHero({
   total: number;
   orderId: string;
 }) {
+  // "Animate on mount" — start with mounted=false so the CSS transitions
+  // have an off-state to fade FROM, then flip to true after the first
+  // paint. requestAnimationFrame defers the setState past the commit so
+  // the React 19 set-state-in-effect lint doesn't flag a render cascade
+  // (the canonical "you might not need an effect" pattern doesn't apply
+  // — there's no derivable source for this; we're synchronizing with
+  // the browser's compositor).
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-brand-blue text-white overflow-hidden">

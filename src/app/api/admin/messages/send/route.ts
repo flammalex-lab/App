@@ -13,13 +13,13 @@ export async function POST(request: Request) {
   const svc = createServiceClient();
   // Find primary buyer phone
   const { data: buyers } = await svc.from("profiles").select("id,phone,sms_opted_in").eq("account_id", accountId).limit(1);
-  const toProfile = (buyers as any[] | null)?.[0];
+  const toProfile = (buyers as { id: string; phone: string | null; sms_opted_in: boolean }[] | null)?.[0];
 
   // Only deliver via SMS if the buyer has explicitly opted in. Otherwise the
   // message still lands in their in-app thread.
-  const smsResult = toProfile?.phone && toProfile?.sms_opted_in
+  const smsResult = toProfile?.phone && toProfile.sms_opted_in
     ? await sendSms({ to: toProfile.phone, body })
-    : { ok: false };
+    : { ok: false as const };
 
   await svc.from("messages").insert({
     account_id: accountId,
@@ -29,7 +29,9 @@ export async function POST(request: Request) {
     channel: smsResult.ok ? "sms" : "app",
     direction: "outbound",
     to_phone: toProfile?.phone ?? null,
-    sms_sid: (smsResult as any).sid ?? null,
+    // sendSms returns { ok, sid?, ... } when ok=true; the failure /
+    // not-attempted branches don't carry a sid.
+    sms_sid: ("sid" in smsResult ? smsResult.sid : null) ?? null,
   });
   return NextResponse.json({ ok: true });
 }

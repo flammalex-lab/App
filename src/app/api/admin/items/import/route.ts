@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       if (errors.length < 10) errors.push({ sku: r.sku, reason: `lookup: ${lookupErr.message}` });
       continue;
     }
-    const existing = existingRows?.[0];
+    const existing = (existingRows as { id: string }[] | null)?.[0];
 
     const category = guessCategory(r.category_hint, r.name);
     const payload: Record<string, unknown> = {
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
       if (r.case_pack) updatePayload.case_pack = r.case_pack;
       if (r.producer) updatePayload.producer = r.producer;
       if (r.description) updatePayload.description = r.description;
-      const { error } = await svc.from("products").update(updatePayload).eq("id", (existing as any).id);
+      const { error } = await svc.from("products").update(updatePayload).eq("id", existing.id);
       if (error) {
         skipped++;
         if (errors.length < 10) errors.push({ sku: r.sku, reason: `update: ${error.message}` });

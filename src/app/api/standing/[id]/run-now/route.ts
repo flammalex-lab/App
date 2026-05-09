@@ -8,9 +8,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const svc = createServiceClient();
-  const { data } = await svc.from("standing_orders").select("*").eq("id", id).maybeSingle();
+  const { data } = await svc.from("standing_orders").select("profile_id").eq("id", id).maybeSingle();
   if (!data) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if ((data as any).profile_id !== session.userId && session.profile.role !== "admin") {
+  const row = data as { profile_id: string };
+  if (row.profile_id !== session.userId && session.profile.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   await runStandingOrder(svc, id);

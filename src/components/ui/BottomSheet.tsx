@@ -43,6 +43,11 @@ export function BottomSheet({
   const dragSource = useRef<"handle" | "content" | null>(null);
   const startHeightPx = useRef<number>(0);
   const [dragOffset, setDragOffset] = useState(0);
+  // `dragging` is also state so we can read it during render for the
+  // transition-disable trick — reading startY.current during render
+  // trips React 19's `react-hooks/refs` rule. Always set in lockstep
+  // with startY.current inside the touch handlers.
+  const [dragging, setDragging] = useState(false);
 
   // Two-detent sheet, but the user's pull is what *grows* the sheet —
   // it doesn't snap from peek to full mid-scroll. Tracked as a height
@@ -104,20 +109,24 @@ export function BottomSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // Reset drag + height every time the sheet opens
-  useEffect(() => {
+  // Reset drag + height every time the sheet opens. Render-time sync
+  // instead of useEffect so React 19's set-state-in-effect lint stays
+  // green (no derivable source — open's transition is the trigger).
+  const [lastOpen, setLastOpen] = useState(open);
+  if (lastOpen !== open) {
+    setLastOpen(open);
     if (open) {
       setDragOffset(0);
       setHeightPx(vh(PEEK_VH));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }
 
   // Drag handle: gesture always controls the sheet (grow / shrink / dismiss)
   function onHandleTouchStart(e: React.TouchEvent) {
     startY.current = e.touches[0].clientY;
     startHeightPx.current = heightPx ?? vh(PEEK_VH);
     dragSource.current = "handle";
+    setDragging(true);
   }
   // Inner content: only control the sheet while content is at top and
   // user is pulling DOWN. Pulling UP while at peek lets the sheet grow.
@@ -125,6 +134,7 @@ export function BottomSheet({
     startY.current = e.touches[0].clientY;
     startHeightPx.current = heightPx ?? vh(PEEK_VH);
     dragSource.current = "content";
+    setDragging(true);
   }
 
   function onTouchMove(e: React.TouchEvent) {
@@ -176,6 +186,7 @@ export function BottomSheet({
         onClose();
         startY.current = null;
         dragSource.current = null;
+        setDragging(false);
         return;
       }
       setDragOffset(0);
@@ -185,6 +196,7 @@ export function BottomSheet({
     // continuous, not detent-y.
     startY.current = null;
     dragSource.current = null;
+    setDragging(false);
   }
 
   if (!open) return null;
@@ -209,10 +221,9 @@ export function BottomSheet({
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
           // No transition while the finger is on the sheet — the user's
           // drag is the source of truth. Smooth snap on release only.
-          transition:
-            startY.current !== null
-              ? "none"
-              : "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
+          transition: dragging
+            ? "none"
+            : "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
           maxWidth: desktopMaxWidth,
           height: heightPx != null ? `${heightPx}px` : `${PEEK_VH * 100}vh`,
         }}
