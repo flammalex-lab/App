@@ -83,15 +83,15 @@ insert into products (sku, brand, category, name, description, unit, pack_size, 
 ('DY-YGPC-032','fingerlakes_farms','dairy','Ithaca Milk Yogurt — Peach 32oz','Cream Top Jersey','case','6/32 oz',24.60,true,false,519)
 on conflict (sku) do nothing;
 
--- ============ SENECA HOLSTEIN MILK — all sizes ============
+-- ============ SENECA MILK — all sizes ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('DY-SHW-002','fingerlakes_farms','dairy','Seneca Holstein Whole Milk — Half Gallon','','each','half gallon',3.75,true,true,525),
-('DY-SHW-003','fingerlakes_farms','dairy','Seneca Holstein Whole Milk — Quart','Special order','each','quart',2.50,true,true,526),
-('DY-SHR-002','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat Milk — Half Gallon','','each','half gallon',3.65,true,true,527),
-('DY-SHR-003','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat Milk — Quart','','each','quart',2.40,true,true,528),
-('DY-SHS-001','fingerlakes_farms','dairy','Seneca Holstein Skim Milk — Gallon','','each','gallon',6.00,true,false,529),
-('DY-SHS-002','fingerlakes_farms','dairy','Seneca Holstein Skim Milk — Half Gallon','','each','half gallon',3.60,true,true,534),
-('DY-SHS-003','fingerlakes_farms','dairy','Seneca Holstein Skim Milk — Quart','','each','quart',2.10,true,true,535),
+('DY-SHW-002','fingerlakes_farms','dairy','Seneca Whole Milk — Half Gallon','','each','half gallon',3.75,true,true,525),
+('DY-SHW-003','fingerlakes_farms','dairy','Seneca Whole Milk — Quart','Special order','each','quart',2.50,true,true,526),
+('DY-SHR-002','fingerlakes_farms','dairy','Seneca Reduced Fat Milk — Half Gallon','','each','half gallon',3.65,true,true,527),
+('DY-SHR-003','fingerlakes_farms','dairy','Seneca Reduced Fat Milk — Quart','','each','quart',2.40,true,true,528),
+('DY-SHS-001','fingerlakes_farms','dairy','Seneca Skim Milk — Gallon','','each','gallon',6.00,true,false,529),
+('DY-SHS-002','fingerlakes_farms','dairy','Seneca Skim Milk — Half Gallon','','each','half gallon',3.60,true,true,534),
+('DY-SHS-003','fingerlakes_farms','dairy','Seneca Skim Milk — Quart','','each','quart',2.10,true,true,535),
 -- Pittsford extras
 ('DY-PCM-001','fingerlakes_farms','dairy','Pittsford Chocolate Milk — Pint','','each','16 oz',2.15,true,true,536),
 ('DY-PHH-002','fingerlakes_farms','dairy','Pittsford Half & Half — Pint','','each','16 oz',2.55,true,true,537)
