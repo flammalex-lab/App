@@ -26,8 +26,7 @@ interface Row {
 function guessCategory(hint: string | undefined, name: string): Category {
   const s = `${hint ?? ""} ${name ?? ""}`.toLowerCase();
   if (/\b(beef|steak|sirloin|brisket|tenderloin|ribeye|chuck|ground beef|oxtail|hanger|flank|pork|bacon|ham|kielbasa|sausage|ribs|chop|lamb|mutton)\b/.test(s)) return "meat";
-  if (/\b(egg|eggs)\b/.test(s)) return "eggs";
-  if (/\b(milk|yogurt|cheese|cheddar|butter|cream|kefir|dairy|brie|feta)\b/.test(s)) return "dairy";
+  if (/\b(egg|eggs|milk|yogurt|cheese|cheddar|butter|cream|kefir|dairy|brie|feta)\b/.test(s)) return "dairy";
   if (/\b(vegetable|fruit|salad|apple|lettuce|spinach|tomato|beet|carrot|onion|potato|herb|green|produce)\b/.test(s)) return "produce";
   if (/\b(beverage|drink|juice|water|kombucha|soda|coffee|tea|lemonade|cider)\b/.test(s)) return "beverages";
   return "pantry";

@@ -10,7 +10,6 @@ import type { Category } from "@/lib/supabase/types";
 
 const CAT_COLOR: Record<Category, { from: string; to: string; label: string }> = {
   meat:      { from: "#9D3123", to: "#5E1A13", label: "Meat" },
-  eggs:      { from: "#E9C96B", to: "#A37C17", label: "Eggs" },
   dairy:     { from: "#E7EEF7", to: "#B1C1D6", label: "Dairy" },
   produce:   { from: "#7BB26B", to: "#355E2A", label: "Produce" },
   pantry:    { from: "#C4962C", to: "#7A5A12", label: "Pantry" },

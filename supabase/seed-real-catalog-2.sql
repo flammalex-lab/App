@@ -2,14 +2,14 @@
 
 -- ============ EGGS ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('EG-LBC-001','meadow_creek','eggs','Large Brown — Carton','Free range, 30 dz','case','30 dz carton',126.00,true,false,400),
-('EG-LBL-001','meadow_creek','eggs','Large Brown — Loose','Free range, 30 dz','case','30 dz loose',120.00,true,false,401),
-('EG-XLC-001','meadow_creek','eggs','X-Large Brown — Carton','Free range, 30 dz','case','30 dz carton',129.00,true,false,402),
-('EG-XLL-001','meadow_creek','eggs','X-Large Brown — Loose','Free range, 30 dz','case','30 dz loose',126.00,true,false,403),
-('EG-JMB-002','meadow_creek','eggs','Jumbo Brown — Carton','Free range, 24 dz','case','24 dz carton',108.00,true,false,404),
-('EG-ORG-001','meadow_creek','eggs','Large Organic — Carton','Certified organic, 15 dz','case','15 dz carton',69.00,true,false,405),
-('EG-DUK-001','fingerlakes_farms','eggs','Organic Duck Eggs — 6 pack','','each','6 pack',5.49,true,true,406),
-('EG-FAF-001','fingerlakes_farms','eggs','Five Acre Large Brown — Carton','Positively Local, 15 dz','case','15 dz carton',75.00,true,false,407)
+('EG-LBC-001','meadow_creek','dairy','Large Brown Eggs — Carton','Free range, 30 dz','case','30 dz carton',126.00,true,false,400),
+('EG-LBL-001','meadow_creek','dairy','Large Brown Eggs — Loose','Free range, 30 dz','case','30 dz loose',120.00,true,false,401),
+('EG-XLC-001','meadow_creek','dairy','X-Large Brown Eggs — Carton','Free range, 30 dz','case','30 dz carton',129.00,true,false,402),
+('EG-XLL-001','meadow_creek','dairy','X-Large Brown Eggs — Loose','Free range, 30 dz','case','30 dz loose',126.00,true,false,403),
+('EG-JMB-002','meadow_creek','dairy','Jumbo Brown Eggs — Carton','Free range, 24 dz','case','24 dz carton',108.00,true,false,404),
+('EG-ORG-001','meadow_creek','dairy','Large Organic Eggs — Carton','Certified organic, 15 dz','case','15 dz carton',69.00,true,false,405),
+('EG-DUK-001','fingerlakes_farms','dairy','Organic Duck Eggs — 6 pack','','each','6 pack',5.49,true,true,406),
+('EG-FAF-001','fingerlakes_farms','dairy','Five Acre Large Brown Eggs — Carton','Positively Local, 15 dz','case','15 dz carton',75.00,true,false,407)
 on conflict (sku) do nothing;
 
 -- ============ DAIRY — Ithaca Milk ============
@@ -18,10 +18,10 @@ insert into products (sku, brand, category, name, description, unit, pack_size, 
 ('DY-YGV-001','fingerlakes_farms','dairy','Ithaca Milk Yogurt — Vanilla 6oz','','case','12/6 oz',15.00,true,false,501),
 ('DY-YGB-001','fingerlakes_farms','dairy','Ithaca Milk Yogurt — Blueberry 6oz','','case','12/6 oz',15.00,true,false,502),
 ('DY-YGP-032','fingerlakes_farms','dairy','Ithaca Milk Yogurt — Plain 32oz','Cream Top Jersey','case','6/32 oz',24.60,true,false,503),
-('DY-MWG-001','fingerlakes_farms','dairy','Ithaca Milk Whole — Gallon','Cream on Top Jersey Cow, 18-day shelf','each','gallon',7.25,true,true,510),
-('DY-MWH-001','fingerlakes_farms','dairy','Ithaca Milk Whole — Half Gallon','','each','half gallon',3.75,true,true,511),
-('DY-MWQ-001','fingerlakes_farms','dairy','Ithaca Milk Whole — Quart','','each','quart',2.35,true,true,512),
-('DY-SHW-001','fingerlakes_farms','dairy','Seneca Holstein Whole — Gallon','Homogenized, 18-day shelf','each','gallon',6.40,true,false,520),
+('DY-MWG-001','fingerlakes_farms','dairy','Ithaca Whole Milk — Gallon','Cream on Top Jersey Cow, 18-day shelf','each','gallon',7.25,true,true,510),
+('DY-MWH-001','fingerlakes_farms','dairy','Ithaca Whole Milk — Half Gallon','','each','half gallon',3.75,true,true,511),
+('DY-MWQ-001','fingerlakes_farms','dairy','Ithaca Whole Milk — Quart','','each','quart',2.35,true,true,512),
+('DY-SHW-001','fingerlakes_farms','dairy','Seneca Holstein Whole Milk — Gallon','Homogenized, 18-day shelf','each','gallon',6.40,true,false,520),
 ('DY-SHR-001','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat — Gallon','','each','gallon',6.40,true,false,521),
 ('DY-HCR-002','fingerlakes_farms','dairy','Pittsford Heavy Cream — Gallon','','each','128 oz',27.50,true,false,530),
 ('DY-HCR-003','fingerlakes_farms','dairy','Pittsford Heavy Cream — Pint','','each','16 oz',4.10,true,true,531),

@@ -7,96 +7,96 @@
 
 -- ============ GRASSLAND FARMS BEEF ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('BF-HW-001','grasslands','beef','Whole/Half Hanging Weight','Pasture fed, no hormones or antibiotics','lb',null,4.75,true,false,100),
-('BF-GRD-080','grasslands','beef','Ground All Natural','per lb','lb',null,7.49,true,true,101),
-('BF-GRD-090','grasslands','beef','Ground 90/10','Preorder','lb',null,8.49,true,false,102),
-('BF-PAT-001','grasslands','beef','Burger Patties Retail Pack','4 ct, 1-10 lbs','case',null,79.50,true,false,103),
-('BF-STL-001','grasslands','beef','Strip Loin Whole Bnls','NAMP','lb',null,20.75,true,false,110),
-('BF-TSR-001','grasslands','beef','Top Sirloin Whole Bnls','','lb',null,10.95,true,false,111),
-('BF-103-001','grasslands','beef','NAMP 103 Rib','','lb',null,18.95,true,false,112),
-('BF-107-001','grasslands','beef','NAMP 107 Rib','','lb',null,21.95,true,false,113),
-('BF-109-001','grasslands','beef','NAMP 109 Export','','lb',null,24.95,true,false,114),
-('BF-RBE-001','grasslands','beef','Ribeye Whole Bnls Lip-On','','lb',null,24.95,true,false,115),
-('BF-TND-001','grasslands','beef','Tenderloin Whole','','lb',null,28.99,true,false,116),
-('BF-STP-001','grasslands','beef','Sirloin Tip Whole Bnls','','lb',null,7.99,true,false,117),
-('BF-TPR-001','grasslands','beef','Top Round Whole','','lb',null,8.49,true,false,118),
-('BF-BTR-001','grasslands','beef','Bottom Round Whole','','lb',null,7.49,true,false,119),
-('BF-CHR-001','grasslands','beef','Boneless Chuck Roll','','lb',null,8.99,true,false,120),
-('BF-BRK-001','grasslands','beef','Brisket Whole','','lb',null,8.99,true,false,121),
-('BF-STW-001','grasslands','beef','Stew Cube/Kabobs','','lb',null,7.99,true,true,122),
-('BF-FLK-002','grasslands','beef','Flank','Limited','lb',null,15.95,true,true,123),
-('BF-SKR-001','grasslands','beef','Skirt Steaks','','lb',null,14.95,true,true,124),
-('BF-HNG-002','grasslands','beef','Hanger Steak','Limited','lb',null,14.95,true,true,125),
-('BF-FLT-001','grasslands','beef','Flat Iron Whole','','lb',null,9.49,true,false,126),
-('BF-TRI-002','grasslands','beef','Sirloin Tri Tips','','lb',null,11.95,true,true,127),
-('BF-FLP-001','grasslands','beef','Sirloin Flap','','lb',null,11.95,true,false,128),
-('BF-EYE-001','grasslands','beef','Eye of Round Whole','','lb',null,7.99,true,false,129),
-('BF-BSR-001','grasslands','beef','Bone-In Short Ribs','','lb',null,7.99,true,true,130),
-('BF-BSR-002','grasslands','beef','Whole Boneless Short Ribs','','lb',null,10.99,true,true,131),
-('BF-LVR-001','grasslands','beef','Liver','','lb',null,4.00,true,true,132),
-('BF-TNG-001','grasslands','beef','Tongue','','lb',null,6.75,true,false,133),
-('BF-HRT-001','grasslands','beef','Heart','','lb',null,5.00,true,false,134),
-('BF-OSS-001','grasslands','beef','Osso Buco','','lb',null,5.99,true,true,135),
-('BF-BON-001','grasslands','beef','Bones','','lb',null,2.50,true,true,136),
-('BF-OXT-002','grasslands','beef','Oxtail','','lb',null,8.99,true,true,137),
-('BF-DOG-001','grasslands','beef','Grassland Farms Beef Dogs','1 lb','lb','1 lb',8.49,true,true,138)
+('BF-HW-001','grasslands','meat','Whole/Half Hanging Weight','Pasture fed, no hormones or antibiotics','lb',null,4.75,true,false,100),
+('BF-GRD-080','grasslands','meat','Ground All Natural','per lb','lb',null,7.49,true,true,101),
+('BF-GRD-090','grasslands','meat','Ground 90/10','Preorder','lb',null,8.49,true,false,102),
+('BF-PAT-001','grasslands','meat','Burger Patties Retail Pack','4 ct, 1-10 lbs','case',null,79.50,true,false,103),
+('BF-STL-001','grasslands','meat','Strip Loin Whole Bnls','NAMP','lb',null,20.75,true,false,110),
+('BF-TSR-001','grasslands','meat','Top Sirloin Whole Bnls','','lb',null,10.95,true,false,111),
+('BF-103-001','grasslands','meat','NAMP 103 Rib','','lb',null,18.95,true,false,112),
+('BF-107-001','grasslands','meat','NAMP 107 Rib','','lb',null,21.95,true,false,113),
+('BF-109-001','grasslands','meat','NAMP 109 Export','','lb',null,24.95,true,false,114),
+('BF-RBE-001','grasslands','meat','Ribeye Whole Bnls Lip-On','','lb',null,24.95,true,false,115),
+('BF-TND-001','grasslands','meat','Tenderloin Whole','','lb',null,28.99,true,false,116),
+('BF-STP-001','grasslands','meat','Sirloin Tip Whole Bnls','','lb',null,7.99,true,false,117),
+('BF-TPR-001','grasslands','meat','Top Round Whole','','lb',null,8.49,true,false,118),
+('BF-BTR-001','grasslands','meat','Bottom Round Whole','','lb',null,7.49,true,false,119),
+('BF-CHR-001','grasslands','meat','Boneless Chuck Roll','','lb',null,8.99,true,false,120),
+('BF-BRK-001','grasslands','meat','Brisket Whole','','lb',null,8.99,true,false,121),
+('BF-STW-001','grasslands','meat','Stew Cube/Kabobs','','lb',null,7.99,true,true,122),
+('BF-FLK-002','grasslands','meat','Flank','Limited','lb',null,15.95,true,true,123),
+('BF-SKR-001','grasslands','meat','Skirt Steaks','','lb',null,14.95,true,true,124),
+('BF-HNG-002','grasslands','meat','Hanger Steak','Limited','lb',null,14.95,true,true,125),
+('BF-FLT-001','grasslands','meat','Flat Iron Whole','','lb',null,9.49,true,false,126),
+('BF-TRI-002','grasslands','meat','Sirloin Tri Tips','','lb',null,11.95,true,true,127),
+('BF-FLP-001','grasslands','meat','Sirloin Flap','','lb',null,11.95,true,false,128),
+('BF-EYE-001','grasslands','meat','Eye of Round Whole','','lb',null,7.99,true,false,129),
+('BF-BSR-001','grasslands','meat','Bone-In Short Ribs','','lb',null,7.99,true,true,130),
+('BF-BSR-002','grasslands','meat','Whole Boneless Short Ribs','','lb',null,10.99,true,true,131),
+('BF-LVR-001','grasslands','meat','Liver','','lb',null,4.00,true,true,132),
+('BF-TNG-001','grasslands','meat','Tongue','','lb',null,6.75,true,false,133),
+('BF-HRT-001','grasslands','meat','Heart','','lb',null,5.00,true,false,134),
+('BF-OSS-001','grasslands','meat','Osso Buco','','lb',null,5.99,true,true,135),
+('BF-BON-001','grasslands','meat','Bones','','lb',null,2.50,true,true,136),
+('BF-OXT-002','grasslands','meat','Oxtail','','lb',null,8.99,true,true,137),
+('BF-DOG-001','grasslands','meat','Grassland Farms Beef Dogs','1 lb','lb','1 lb',8.49,true,true,138)
 on conflict (sku) do nothing;
 
 -- ============ ROSENKRANS DRY AGED ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('RK-107-001','fingerlakes_farms','beef','Rosenkrans NAMP 107 Rib','Dry aged','lb',null,21.95,true,false,150),
-('RK-SHL-001','fingerlakes_farms','beef','Rosenkrans Whole Shortloins','Dry aged','lb',null,21.95,true,false,151),
-('RK-BST-001','fingerlakes_farms','beef','Rosenkrans Bone-In Striploins','Dry aged','lb',null,20.95,true,false,152)
+('RK-107-001','fingerlakes_farms','meat','Rosenkrans NAMP 107 Rib','Dry aged','lb',null,21.95,true,false,150),
+('RK-SHL-001','fingerlakes_farms','meat','Rosenkrans Whole Shortloins','Dry aged','lb',null,21.95,true,false,151),
+('RK-BST-001','fingerlakes_farms','meat','Rosenkrans Bone-In Striploins','Dry aged','lb',null,20.95,true,false,152)
 on conflict (sku) do nothing;
 
 -- ============ OINK & GOBBLE PORK ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('PK-HW-001','fingerlakes_farms','pork','Whole/Half Hanging Weight','Pasture-raised','lb',null,3.90,true,false,200),
-('PK-CHP-002','fingerlakes_farms','pork','Center Cut Bone-In Chops 1.5"','','lb',null,9.49,true,true,201),
-('PK-SIR-001','fingerlakes_farms','pork','Bnls Sirloin Steaks','','lb',null,7.75,true,true,202),
-('PK-SHD-001','fingerlakes_farms','pork','Shoulder Boneless','','lb',null,6.49,true,false,203),
-('PK-TND-001','fingerlakes_farms','pork','Whole Boneless Tenders','','lb',null,11.75,true,false,204),
-('PK-BLY-001','fingerlakes_farms','pork','Whole Belly Fresh','','lb',null,8.50,true,false,205),
-('PK-HAM-002','fingerlakes_farms','pork','Whole Bone-In Fresh Ham','','lb',null,4.75,true,false,206),
-('PK-GRD-001','fingerlakes_farms','pork','Ground Pork','','lb',null,5.95,true,true,207),
-('PK-LON-001','fingerlakes_farms','pork','Whole Bone-In Loin','','lb',null,8.75,true,false,208),
-('PK-LON-002','fingerlakes_farms','pork','Whole Loin Boneless','','lb',null,9.75,true,false,209),
-('PK-BAC-002','fingerlakes_farms','pork','Natural Smoke Bacon','','lb',null,10.95,true,true,210),
-('PK-HAM-003','fingerlakes_farms','pork','Natural Smoked Deley Hams','','lb',null,7.99,true,false,211),
-('PK-SAU-002','fingerlakes_farms','pork','Sausage Links — Breakfast','','lb',null,6.99,true,true,212),
-('PK-SAU-003','fingerlakes_farms','pork','Sausage Links — Mild Italian','','lb',null,6.99,true,true,213),
-('PK-SAU-004','fingerlakes_farms','pork','Sausage Links — HOT Italian','','lb',null,6.99,true,true,214),
-('PK-KLB-001','fingerlakes_farms','pork','Sausage Fresh Kielbasa','','lb',null,6.99,true,true,215),
-('PK-STL-001','fingerlakes_farms','pork','St. Louis Ribs','','lb',null,6.50,true,true,216),
-('PK-BBR-001','fingerlakes_farms','pork','Baby Back Ribs','Limited','lb',null,9.75,true,true,217),
-('PK-HDG-001','fingerlakes_farms','pork','All Natural Hot Dogs','','lb',null,7.49,true,true,218)
+('PK-HW-001','fingerlakes_farms','meat','Whole/Half Hanging Weight','Pasture-raised','lb',null,3.90,true,false,200),
+('PK-CHP-002','fingerlakes_farms','meat','Center Cut Bone-In Chops 1.5"','','lb',null,9.49,true,true,201),
+('PK-SIR-001','fingerlakes_farms','meat','Bnls Sirloin Steaks','','lb',null,7.75,true,true,202),
+('PK-SHD-001','fingerlakes_farms','meat','Shoulder Boneless','','lb',null,6.49,true,false,203),
+('PK-TND-001','fingerlakes_farms','meat','Whole Boneless Tenders','','lb',null,11.75,true,false,204),
+('PK-BLY-001','fingerlakes_farms','meat','Whole Belly Fresh','','lb',null,8.50,true,false,205),
+('PK-HAM-002','fingerlakes_farms','meat','Whole Bone-In Fresh Ham','','lb',null,4.75,true,false,206),
+('PK-GRD-001','fingerlakes_farms','meat','Ground Pork','','lb',null,5.95,true,true,207),
+('PK-LON-001','fingerlakes_farms','meat','Whole Bone-In Loin','','lb',null,8.75,true,false,208),
+('PK-LON-002','fingerlakes_farms','meat','Whole Loin Boneless','','lb',null,9.75,true,false,209),
+('PK-BAC-002','fingerlakes_farms','meat','Natural Smoke Bacon','','lb',null,10.95,true,true,210),
+('PK-HAM-003','fingerlakes_farms','meat','Natural Smoked Deley Hams','','lb',null,7.99,true,false,211),
+('PK-SAU-002','fingerlakes_farms','meat','Sausage Links — Breakfast','','lb',null,6.99,true,true,212),
+('PK-SAU-003','fingerlakes_farms','meat','Sausage Links — Mild Italian','','lb',null,6.99,true,true,213),
+('PK-SAU-004','fingerlakes_farms','meat','Sausage Links — HOT Italian','','lb',null,6.99,true,true,214),
+('PK-KLB-001','fingerlakes_farms','meat','Sausage Fresh Kielbasa','','lb',null,6.99,true,true,215),
+('PK-STL-001','fingerlakes_farms','meat','St. Louis Ribs','','lb',null,6.50,true,true,216),
+('PK-BBR-001','fingerlakes_farms','meat','Baby Back Ribs','Limited','lb',null,9.75,true,true,217),
+('PK-HDG-001','fingerlakes_farms','meat','All Natural Hot Dogs','','lb',null,7.49,true,true,218)
 on conflict (sku) do nothing;
 
 -- ============ LAMB ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('LB-GRD-002','fingerlakes_farms','lamb','Ground Lamb','100% Grass Fed','lb',null,11.45,true,true,300),
-('LB-LEG-001','fingerlakes_farms','lamb','Lamb Leg BRT','','lb',null,12.50,true,false,301),
-('LB-SHD-001','fingerlakes_farms','lamb','Lamb Shoulder NET','','lb',null,12.95,true,false,302),
-('LB-LRC-001','fingerlakes_farms','lamb','Lamb Loin or Rib Chop','','lb',null,13.75,true,true,303),
-('LB-SHC-001','fingerlakes_farms','lamb','Lamb Shoulder Chop','','lb',null,12.75,true,true,304),
-('LB-LON-001','fingerlakes_farms','lamb','Lamb Whole Bone-In Loin','','lb',null,10.95,true,false,305),
-('LB-STW-001','fingerlakes_farms','lamb','Lamb Stew Kabobs','','lb',null,12.75,true,true,306),
-('LB-RCK-002','fingerlakes_farms','lamb','Lamb Rack','','lb',null,14.50,true,true,307),
-('LB-SHK-002','fingerlakes_farms','lamb','Lamb Shank','','lb',null,12.75,true,true,308),
-('LB-LVR-001','fingerlakes_farms','lamb','Lamb Liver','','lb',null,4.75,true,false,309)
+('LB-GRD-002','fingerlakes_farms','meat','Ground Lamb','100% Grass Fed','lb',null,11.45,true,true,300),
+('LB-LEG-001','fingerlakes_farms','meat','Lamb Leg BRT','','lb',null,12.50,true,false,301),
+('LB-SHD-001','fingerlakes_farms','meat','Lamb Shoulder NET','','lb',null,12.95,true,false,302),
+('LB-LRC-001','fingerlakes_farms','meat','Lamb Loin or Rib Chop','','lb',null,13.75,true,true,303),
+('LB-SHC-001','fingerlakes_farms','meat','Lamb Shoulder Chop','','lb',null,12.75,true,true,304),
+('LB-LON-001','fingerlakes_farms','meat','Lamb Whole Bone-In Loin','','lb',null,10.95,true,false,305),
+('LB-STW-001','fingerlakes_farms','meat','Lamb Stew Kabobs','','lb',null,12.75,true,true,306),
+('LB-RCK-002','fingerlakes_farms','meat','Lamb Rack','','lb',null,14.50,true,true,307),
+('LB-SHK-002','fingerlakes_farms','meat','Lamb Shank','','lb',null,12.75,true,true,308),
+('LB-LVR-001','fingerlakes_farms','meat','Lamb Liver','','lb',null,4.75,true,false,309)
 on conflict (sku) do nothing;
 -- Part 2: Eggs, Dairy, Produce, Pantry, Beverages from FLF Weekly Flyer 4.13.26
 
 -- ============ EGGS ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('EG-LBC-001','meadow_creek','eggs','Large Brown — Carton','Free range, 30 dz','case','30 dz carton',126.00,true,false,400),
-('EG-LBL-001','meadow_creek','eggs','Large Brown — Loose','Free range, 30 dz','case','30 dz loose',120.00,true,false,401),
-('EG-XLC-001','meadow_creek','eggs','X-Large Brown — Carton','Free range, 30 dz','case','30 dz carton',129.00,true,false,402),
-('EG-XLL-001','meadow_creek','eggs','X-Large Brown — Loose','Free range, 30 dz','case','30 dz loose',126.00,true,false,403),
-('EG-JMB-002','meadow_creek','eggs','Jumbo Brown — Carton','Free range, 24 dz','case','24 dz carton',108.00,true,false,404),
-('EG-ORG-001','meadow_creek','eggs','Large Organic — Carton','Certified organic, 15 dz','case','15 dz carton',69.00,true,false,405),
-('EG-DUK-001','fingerlakes_farms','eggs','Organic Duck Eggs — 6 pack','','each','6 pack',5.49,true,true,406),
-('EG-FAF-001','fingerlakes_farms','eggs','Five Acre Large Brown — Carton','Positively Local, 15 dz','case','15 dz carton',75.00,true,false,407)
+('EG-LBC-001','meadow_creek','dairy','Large Brown Eggs — Carton','Free range, 30 dz','case','30 dz carton',126.00,true,false,400),
+('EG-LBL-001','meadow_creek','dairy','Large Brown Eggs — Loose','Free range, 30 dz','case','30 dz loose',120.00,true,false,401),
+('EG-XLC-001','meadow_creek','dairy','X-Large Brown Eggs — Carton','Free range, 30 dz','case','30 dz carton',129.00,true,false,402),
+('EG-XLL-001','meadow_creek','dairy','X-Large Brown Eggs — Loose','Free range, 30 dz','case','30 dz loose',126.00,true,false,403),
+('EG-JMB-002','meadow_creek','dairy','Jumbo Brown Eggs — Carton','Free range, 24 dz','case','24 dz carton',108.00,true,false,404),
+('EG-ORG-001','meadow_creek','dairy','Large Organic Eggs — Carton','Certified organic, 15 dz','case','15 dz carton',69.00,true,false,405),
+('EG-DUK-001','fingerlakes_farms','dairy','Organic Duck Eggs — 6 pack','','each','6 pack',5.49,true,true,406),
+('EG-FAF-001','fingerlakes_farms','dairy','Five Acre Large Brown Eggs — Carton','Positively Local, 15 dz','case','15 dz carton',75.00,true,false,407)
 on conflict (sku) do nothing;
 
 -- ============ DAIRY — Ithaca Milk ============
@@ -279,25 +279,25 @@ on conflict (sku) do nothing;
 
 -- ============ BEEF — additions ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('BF-CUB-001','grasslands','beef','Cube Steaks','','lb',null,7.99,true,true,140),
-('BF-RNP-001','grasslands','beef','Ranch Primals','','lb',null,4.19,true,false,141),
-('BF-TRX-001','grasslands','beef','TRex Major','','lb',null,13.95,true,false,142),
-('BF-ULD-001','grasslands','beef','Uncle Louie''s Beef Dogs','10/2 lb','case','10/2 lb',8.00,true,true,143),
-('BF-SST-001','grasslands','beef','Skirt Steak (singular)','','lb',null,14.95,true,true,144)
+('BF-CUB-001','grasslands','meat','Cube Steaks','','lb',null,7.99,true,true,140),
+('BF-RNP-001','grasslands','meat','Ranch Primals','','lb',null,4.19,true,false,141),
+('BF-TRX-001','grasslands','meat','TRex Major','','lb',null,13.95,true,false,142),
+('BF-ULD-001','grasslands','meat','Uncle Louie''s Beef Dogs','10/2 lb','case','10/2 lb',8.00,true,true,143),
+('BF-SST-001','grasslands','meat','Skirt Steak (singular)','','lb',null,14.95,true,true,144)
 on conflict (sku) do nothing;
 
 -- ============ TURKEY / DUCK / RABBIT ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('PK-TRK-001','fingerlakes_farms','pork','Turkey — Frozen','Oink & Gobble, all natural free range','lb',null,3.99,true,true,250),
-('PK-DCK-001','fingerlakes_farms','pork','Normandy Duck','Pasture raised, frozen, 6 ct','lb',null,0,true,false,251),
-('PK-RAB-001','fingerlakes_farms','pork','Rabbit','Briar Patch at Whiskey Hill, local farm raised','lb',null,8.49,true,false,252)
+('PK-TRK-001','fingerlakes_farms','meat','Turkey — Frozen','Oink & Gobble, all natural free range','lb',null,3.99,true,true,250),
+('PK-DCK-001','fingerlakes_farms','meat','Normandy Duck','Pasture raised, frozen, 6 ct','lb',null,0,true,false,251),
+('PK-RAB-001','fingerlakes_farms','meat','Rabbit','Briar Patch at Whiskey Hill, local farm raised','lb',null,8.49,true,false,252)
 on conflict (sku) do nothing;
 
 -- ============ LAMB — HW variants ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('LB-HW-001','fingerlakes_farms','lamb','Local Grain/Grass Fed Lamb — HW','Hanging Weight','lb',null,9.99,true,false,310),
-('LB-HW-002','fingerlakes_farms','lamb','Local 100% Grass Fed Lamb — HW','Hanging Weight','lb',null,8.49,true,false,311),
-('LB-HW-003','fingerlakes_farms','lamb','Local Sheep — HW','Hanging Weight','lb',null,5.99,true,false,312)
+('LB-HW-001','fingerlakes_farms','meat','Local Grain/Grass Fed Lamb — HW','Hanging Weight','lb',null,9.99,true,false,310),
+('LB-HW-002','fingerlakes_farms','meat','Local 100% Grass Fed Lamb — HW','Hanging Weight','lb',null,8.49,true,false,311),
+('LB-HW-003','fingerlakes_farms','meat','Local Sheep — HW','Hanging Weight','lb',null,5.99,true,false,312)
 on conflict (sku) do nothing;
 
 -- ============ ITHACA MILK YOGURT — remaining flavors ============
