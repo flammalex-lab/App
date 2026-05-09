@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { constantTimeEquals } from "@/lib/utils/crypto-compare";
 
 /**
  * Config health check. Reports which env vars are set (never the values)
  * and whether the database is reachable. Useful for "is my deploy wired up?"
+ *
+ * Public callers get a minimal `healthy: bool` and the db roundtrip
+ * status. The detailed env / counts / hints are only returned to a
+ * caller presenting `Authorization: Bearer ${HEALTH_TOKEN}` (defaults
+ * to CRON_SECRET so existing monitoring keeps working) so a recon
+ * attacker can't enumerate which integrations are wired up.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = request.headers.get("authorization") ?? "";
+  const secret = process.env.HEALTH_TOKEN ?? process.env.CRON_SECRET ?? null;
+  const isAuthorized = !!secret && constantTimeEquals(auth, `Bearer ${secret}`);
+
   const env = {
     NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -46,6 +57,13 @@ export async function GET() {
   ] as const;
   const missingRequired = required.filter((k) => !env[k]);
   const healthy = db.ok && missingRequired.length === 0;
+
+  if (!isAuthorized) {
+    return NextResponse.json(
+      { healthy, db: { ok: db.ok } },
+      { status: healthy ? 200 : 503 },
+    );
+  }
 
   return NextResponse.json(
     {

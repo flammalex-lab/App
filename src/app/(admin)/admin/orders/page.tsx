@@ -7,16 +7,44 @@ import { dateShort, money } from "@/lib/utils/format";
 export const metadata = { title: "Admin — Orders" };
 
 const STATUSES: OrderStatus[] = ["pending", "confirmed", "processing", "ready", "shipped", "delivered", "cancelled"];
+const PAGE_SIZE = 50;
 
-export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; page?: string }>;
+}) {
   const sp = await searchParams;
   const filter = STATUSES.includes(sp.status as OrderStatus) ? (sp.status as OrderStatus) : null;
+  const page = Math.max(0, Number(sp.page ?? "0") || 0);
   const db = await createClient();
 
-  let query = db.from("orders").select("*, account:accounts(name)").order("created_at", { ascending: false }).limit(200);
+  // Fetch PAGE_SIZE + 1 instead of computing an exact count — count: 'exact'
+  // runs SELECT COUNT(*) over the filtered table on every request, which
+  // becomes expensive at 100k+ orders. The +1 row tells us whether there's
+  // a next page (matches the pattern in admin/messages).
+  //
+  // PostgREST .range(from, to) is INCLUSIVE on both ends, so passing
+  // (PAGE_SIZE + PAGE_SIZE) returns PAGE_SIZE+1 rows (indices 0..PAGE_SIZE
+  // inclusive) — exactly what we want for the lookahead.
+  let query = db
+    .from("orders")
+    .select("*, account:accounts(name)")
+    .order("created_at", { ascending: false })
+    .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   if (filter) query = query.eq("status", filter);
   const { data } = await query;
-  const orders = (data as (Order & { account: { name: string } | null })[] | null) ?? [];
+  const fetched = (data as (Order & { account: { name: string } | null })[] | null) ?? [];
+  const orders = fetched.slice(0, PAGE_SIZE);
+  const hasNext = fetched.length > PAGE_SIZE;
+
+  const pageHref = (n: number) => {
+    const params = new URLSearchParams();
+    if (filter) params.set("status", filter);
+    if (n > 0) params.set("page", String(n));
+    const qs = params.toString();
+    return `/admin/orders${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <div>
@@ -45,7 +73,27 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             <div className="mono text-sm">{money(o.total)}</div>
           </Link>
         ))}
+        {!orders.length ? <div className="p-4 text-sm text-ink-secondary">No orders.</div> : null}
       </div>
+      {(page > 0 || hasNext) ? (
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <span className="text-ink-secondary">
+            Showing {orders.length ? page * PAGE_SIZE + 1 : 0}–{page * PAGE_SIZE + orders.length}
+          </span>
+          <div className="flex gap-2">
+            {page > 0 ? (
+              <Link href={pageHref(page - 1)} className="px-3 py-1 rounded border border-black/10 bg-white hover:bg-bg-secondary">
+                ← Prev
+              </Link>
+            ) : null}
+            {hasNext ? (
+              <Link href={pageHref(page + 1)} className="px-3 py-1 rounded border border-black/10 bg-white hover:bg-bg-secondary">
+                Next →
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

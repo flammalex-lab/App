@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { verifyCronAuth } from "@/lib/cron/auth";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { Account, DeliveryZoneRow } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
   for (const a of ((accounts as (Account & { delivery_zone: string })[] | null) ?? [])) {
     const zone = zoneById[a.delivery_zone];
     if (!zone) continue;
-    const next = nextDeliveryForZone(zone);
+    const next = nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE);
     if (!next) continue;
     const hoursToCutoff = next.msUntilCutoff / 3_600_000;
     if (hoursToCutoff > 6 || hoursToCutoff < 0) continue;

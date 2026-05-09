@@ -3,7 +3,7 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function ImpersonationBar() {
-  const targetId = getImpersonation();
+  const targetId = await getImpersonation();
   if (!targetId) return null;
   const supa = createServiceClient();
   const { data } = await supa

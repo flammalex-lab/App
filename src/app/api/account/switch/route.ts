@@ -27,6 +27,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not a member of that account" }, { status: 403 });
   }
 
-  setActiveAccountCookie(accountId);
+  await setActiveAccountCookie(accountId);
   return NextResponse.json({ ok: true });
 }

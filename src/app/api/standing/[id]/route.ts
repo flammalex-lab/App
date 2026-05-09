@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { computeNextRun } from "@/lib/utils/standing-order";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { StandingFreq } from "@/lib/supabase/types";
 
 interface ItemInput {
@@ -31,14 +32,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Resolve who this standing order belongs to
   const isAdmin = session.profile.role === "admin";
-  const impersonating = isAdmin ? getImpersonation() : null;
+  const impersonating = isAdmin ? await getImpersonation() : null;
   let profileId = isAdmin ? (body.profile_id ?? impersonating ?? null) : session.userId;
   let accountId = isAdmin ? (body.account_id ?? null) : session.profile.account_id;
   if (!profileId || !accountId) {
     // Fallback: look up account via buyer profile
     if (profileId) {
       const { data: p } = await svc.from("profiles").select("account_id").eq("id", profileId).maybeSingle();
-      accountId = accountId ?? (p as any)?.account_id ?? null;
+      const prow = p as { account_id: string | null } | null;
+      accountId = accountId ?? prow?.account_id ?? null;
     }
   }
   if (!profileId || !accountId) return NextResponse.json({ error: "profile/account required" }, { status: 400 });
@@ -52,6 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       pause_until: null,
     },
     new Date(),
+    BUSINESS_TIMEZONE,
   );
 
   const payload = {
@@ -69,12 +72,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (id === "new") {
     const { data, error } = await svc.from("standing_orders").insert(payload).select("id").single();
     if (error || !data) return NextResponse.json({ error: error?.message ?? "create failed" }, { status: 500 });
-    soId = (data as any).id as string;
+    soId = (data as { id: string }).id;
   } else {
     // Authorize
     const { data: existing } = await svc.from("standing_orders").select("profile_id").eq("id", id).maybeSingle();
     if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
-    if ((existing as any).profile_id !== session.userId && !isAdmin) {
+    const existingRow = existing as { profile_id: string };
+    if (existingRow.profile_id !== session.userId && !isAdmin) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
     const { error } = await svc.from("standing_orders").update(payload).eq("id", id);
@@ -105,7 +109,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const svc = createServiceClient();
   const { data } = await svc.from("standing_orders").select("profile_id").eq("id", id).maybeSingle();
   if (!data) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if ((data as any).profile_id !== session.userId && session.profile.role !== "admin") {
+  const row = data as { profile_id: string };
+  if (row.profile_id !== session.userId && session.profile.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   await svc.from("standing_orders").delete().eq("id", id);

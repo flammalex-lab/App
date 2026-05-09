@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { getStripe } from "@/lib/stripe/client";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
+import { meetsMinimum, effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await request.json()) as Body;
 
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const actingAsId = impersonating ?? session.userId;
   const placedById = impersonating ? session.userId : null;
 
@@ -83,18 +84,39 @@ export async function POST(request: Request) {
 
   const subtotal = round2(pricedLines.reduce((s, l) => s + l.quantity * (l.unitPrice as number), 0));
 
-  // Delivery fee: pulled from the buyer's account → delivery zone.
-  // B2B only; DTC pickups don't carry a zone fee today.
+  // Delivery fee + minimum: pulled from the buyer's account → delivery zone.
+  // B2B only; DTC pickups don't carry a zone fee today. Account-level
+  // order_minimum overrides the zone minimum when set.
   let deliveryFee = 0;
-  if (isB2B && accountRow?.delivery_zone) {
-    const { data: zone } = await svc
-      .from("delivery_zones")
-      .select("delivery_fee")
-      .eq("zone", accountRow.delivery_zone)
-      .maybeSingle();
-    deliveryFee = Number((zone as DeliveryZoneRow | null)?.delivery_fee ?? 0);
+  let orderMinimum = 0;
+  if (isB2B && accountRow) {
+    let zoneRow: DeliveryZoneRow | null = null;
+    if (accountRow.delivery_zone) {
+      const { data: zone } = await svc
+        .from("delivery_zones")
+        .select("delivery_fee, order_minimum")
+        .eq("zone", accountRow.delivery_zone)
+        .maybeSingle();
+      zoneRow = zone as DeliveryZoneRow | null;
+      deliveryFee = Number(zoneRow?.delivery_fee ?? 0);
+    }
+    // Single source of truth shared with the cart RSC so the two layers
+    // can't drift: account override → zone fallback → 0.
+    orderMinimum = effectiveOrderMinimum(accountRow, zoneRow);
   }
   const total = round2(subtotal + deliveryFee);
+
+  // Re-enforce the cart-side minimum on the server. The cart UI gates the
+  // "Place order" button on this, but a misbehaving client (or a paused
+  // React state) could submit anyway — reject here so we never accept
+  // under-minimum revenue. Uses the same shared helper as the cart UI
+  // so the two layers can't disagree on the rule.
+  if (!meetsMinimum({ subtotal, deliveryFee, minimum: orderMinimum })) {
+    return NextResponse.json(
+      { error: `Order is below the minimum of $${orderMinimum.toFixed(2)} (subtotal + delivery).` },
+      { status: 400 },
+    );
+  }
 
   const { data: orderNumRow, error: numErr } = await svc.rpc("generate_order_number");
   if (numErr) return NextResponse.json({ error: numErr.message }, { status: 500 });

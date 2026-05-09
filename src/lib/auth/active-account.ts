@@ -46,7 +46,7 @@ export async function resolveActiveAccount(
   const memberships = (accounts as Account[] | null) ?? [];
   memberships.sort((a, b) => a.name.localeCompare(b.name));
 
-  const cookieVal = cookies().get(ACTIVE_ACCOUNT_COOKIE)?.value ?? null;
+  const cookieVal = (await cookies()).get(ACTIVE_ACCOUNT_COOKIE)?.value ?? null;
 
   const active =
     memberships.find((a) => a.id === cookieVal) ??
@@ -57,8 +57,8 @@ export async function resolveActiveAccount(
   return { active, memberships };
 }
 
-export function setActiveAccountCookie(accountId: string | null) {
-  const store = cookies();
+export async function setActiveAccountCookie(accountId: string | null) {
+  const store = await cookies();
   if (accountId === null) {
     store.delete(ACTIVE_ACCOUNT_COOKIE);
     return;

@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { computeNextRun } from "@/lib/utils/standing-order";
 import { runStandingOrder } from "@/lib/standing-orders/run";
 import { verifyCronAuth } from "@/lib/cron/auth";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { StandingOrder } from "@/lib/supabase/types";
 
 /**
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
   for (const so of ((data as StandingOrder[] | null) ?? [])) {
     const r = await runStandingOrder(svc, so.id);
     if (r.ok) {
-      const nextRun = computeNextRun(so, new Date());
+      const nextRun = computeNextRun(so, new Date(), BUSINESS_TIMEZONE);
       await svc.from("standing_orders").update({
         next_run_date: nextRun ? nextRun.toISOString().slice(0, 10) : null,
       }).eq("id", so.id);

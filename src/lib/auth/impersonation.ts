@@ -1,29 +1,41 @@
 import { cookies } from "next/headers";
+import {
+  IMPERSONATION_TTL_SECONDS,
+  signImpersonationToken,
+  verifyImpersonationToken,
+} from "@/lib/auth/impersonation-token";
 
 const IMPERSONATION_COOKIE = "flf-impersonate";
 
 /**
- * "View as buyer" — admin-only. The server sets a signed cookie containing
- * the target profile id; downstream pages read it via `getImpersonation()`.
+ * "View as buyer" — admin-only. The cookie carries an HMAC-signed payload
+ * (see `impersonation-token.ts`) so a stolen-but-tampered cookie can't
+ * impersonate a different profile or extend its own lifetime.
  *
- * RLS is bypassed server-side using the service-role client scoped to the
- * target's data. Nothing on the client is given impersonation powers.
+ * RLS is still bypassed server-side via the service-role client scoped to
+ * the target's data; nothing on the client receives impersonation powers.
  */
 export async function setImpersonation(targetProfileId: string | null) {
-  const store = cookies();
+  const store = await cookies();
   if (targetProfileId === null) {
     store.delete(IMPERSONATION_COOKIE);
     return;
   }
-  store.set(IMPERSONATION_COOKIE, targetProfileId, {
+  const expiresAt = Math.floor(Date.now() / 1000) + IMPERSONATION_TTL_SECONDS;
+  const value = signImpersonationToken(targetProfileId, expiresAt);
+  store.set(IMPERSONATION_COOKIE, value, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 4, // 4 hours
+    // Cookie maxAge matches the embedded expiry so a tampered payload
+    // can't extend the session past what the signature authorizes.
+    maxAge: IMPERSONATION_TTL_SECONDS,
   });
 }
 
-export function getImpersonation(): string | null {
-  return cookies().get(IMPERSONATION_COOKIE)?.value ?? null;
+export async function getImpersonation(): Promise<string | null> {
+  const raw = (await cookies()).get(IMPERSONATION_COOKIE)?.value;
+  if (!raw) return null;
+  return verifyImpersonationToken(raw);
 }

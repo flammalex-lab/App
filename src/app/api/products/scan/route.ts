@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const code = (searchParams.get("code") ?? "").trim();
   if (!code) return NextResponse.json({ error: "missing code" }, { status: 400 });
 
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const profileId = impersonating ?? session.userId;
   const db = impersonating ? createServiceClient() : await createClient();
 

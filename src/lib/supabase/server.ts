@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 export async function createClient() {
-  const cookieStore = cookies();
+  // Next 15+: cookies() is async.
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -22,7 +23,6 @@ export async function createClient() {
             // Setting cookies from a Server Component is fine to ignore (middleware refreshes).
             // But in a Route Handler / Server Action we *need* the cookies to land — log so we notice.
             if (process.env.NODE_ENV !== "production") {
-              // eslint-disable-next-line no-console
               console.warn("[supabase server] cookie set failed:", e);
             }
           }

@@ -21,31 +21,37 @@ export async function POST(request: Request) {
     svc.from("qb_settings").select("*"),
   ]);
 
+  type OrderJoined = Order & {
+    account: Account | null;
+    items: (OrderItem & { product: Product })[] | null;
+  };
+  type ParentRow = { id: string; name: string; qb_customer_name: string | null };
+
   const qbSettings = (settings as QBSetting[] | null) ?? [];
-  const rows = (orders as any[]) ?? [];
+  const rows = ((orders as OrderJoined[] | null) ?? []);
   if (!rows.length) return NextResponse.json({ error: "no orders to export" }, { status: 400 });
 
   // Resolve parents for accounts that have a parent_account_id, in one query.
   const parentIds = Array.from(
     new Set(rows.map((r) => r.account?.parent_account_id).filter(Boolean)),
   ) as string[];
-  let parents: Record<string, { name: string; qb_customer_name: string | null }> = {};
+  const parents: Record<string, { name: string; qb_customer_name: string | null }> = {};
   if (parentIds.length) {
     const { data: parentRows } = await svc
       .from("accounts")
       .select("id, name, qb_customer_name")
       .in("id", parentIds);
-    for (const p of (parentRows as any[] | null) ?? []) {
+    for (const p of ((parentRows as ParentRow[] | null) ?? [])) {
       parents[p.id] = { name: p.name, qb_customer_name: p.qb_customer_name };
     }
   }
 
   const invoices = rows.map((r) => {
-    const items = (r.items as (OrderItem & { product: Product })[]) ?? [];
-    const acct = r.account as Account | null;
+    const items = r.items ?? [];
+    const acct = r.account;
     const parent = acct?.parent_account_id ? parents[acct.parent_account_id] : null;
     return buildInvoice({
-      order: r as Order,
+      order: r,
       items,
       account: acct,
       parentAccount: parent ?? null,

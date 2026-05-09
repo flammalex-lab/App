@@ -7,6 +7,8 @@ import { CartClient } from "./CartClient";
 import { BackButton } from "@/components/layout/BackButton";
 import type { Account, DeliveryZoneRow, PickupLocation } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { CartLine } from "@/lib/cart/store";
 
 export const metadata = { title: "Cart — Fingerlakes Farms" };
@@ -14,7 +16,7 @@ export const metadata = { title: "Cart — Fingerlakes Farms" };
 export default async function CartPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const db = impersonating ? createServiceClient() : await createClient();
 
   const profileId = impersonating ?? session.userId;
@@ -32,7 +34,7 @@ export default async function CartPage() {
     const { data } = await db.from("delivery_zones").select("*").eq("zone", account.delivery_zone).maybeSingle();
     zone = data as DeliveryZoneRow | null;
   }
-  const nextDel = zone ? nextDeliveryForZone(zone) : null;
+  const nextDel = zone ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE) : null;
 
   let pickups: PickupLocation[] = [];
   if (!isB2B) {
@@ -44,7 +46,7 @@ export default async function CartPage() {
   // line items in a short-lived cookie. Read it here and let the CartClient
   // clear it via /api/cart/consume-reorder after hydration — server
   // components in Next 14 can't mutate cookies directly.
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   let reorder: CartLine[] | null = null;
   const reorderCookie = cookieStore.get("flf-reorder")?.value;
   if (reorderCookie) {
@@ -76,7 +78,7 @@ export default async function CartPage() {
         ) : null}
         <CartClient
           isB2B={isB2B}
-          accountMinimum={account?.order_minimum ?? zone?.order_minimum ?? 0}
+          accountMinimum={effectiveOrderMinimum(account, zone)}
           deliveryFee={zone?.delivery_fee ?? 0}
           nextDelivery={
             nextDel

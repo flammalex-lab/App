@@ -19,7 +19,7 @@ export const metadata = { title: "Order guide — Fingerlakes Farms" };
 export default async function GuidePage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const profileId = impersonating ?? session.userId;
   const db = impersonating ? createServiceClient() : await createClient();
 

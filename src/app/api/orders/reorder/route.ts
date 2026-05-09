@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
+import type { OrderItem, Product } from "@/lib/supabase/types";
+
+type OrderItemJoined = OrderItem & { product: Product | null };
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -9,7 +12,7 @@ export async function POST(request: Request) {
   const orderId = new URL(request.url).searchParams.get("orderId");
   if (!orderId) return NextResponse.json({ error: "missing orderId" }, { status: 400 });
 
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const db = impersonating ? createServiceClient() : await createClient();
 
   const { data: items } = await db
@@ -17,7 +20,7 @@ export async function POST(request: Request) {
     .select("*, product:products(*)")
     .eq("order_id", orderId);
 
-  const lines = ((items as any[]) ?? []).map((r) => ({
+  const lines = ((items as OrderItemJoined[] | null) ?? []).map((r) => ({
     productId: r.product_id,
     variantKey: r.pack_variant_key ?? null,
     variantSku: r.pack_variant_sku ?? null,

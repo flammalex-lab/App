@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart, type CartLine } from "@/lib/cart/store";
 import { money, dateLong } from "@/lib/utils/format";
+import { meetsMinimum, shortfall } from "@/lib/utils/order-minimum";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { LineItem } from "@/components/products/LineItem";
@@ -73,9 +74,16 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
   }, []);
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [lines]);
-  const underMinimum = isB2B && accountMinimum > 0 && subtotal < accountMinimum;
   const effectiveDeliveryFee = isB2B && subtotal > 0 ? deliveryFee : 0;
   const total = subtotal + effectiveDeliveryFee;
+  // Same rule the server enforces in /api/orders/create — keep these in
+  // sync via the shared helper so the cart UI and the API can't disagree
+  // on whether an order is over the minimum.
+  const underMinimum = isB2B
+    && !meetsMinimum({ subtotal, deliveryFee: effectiveDeliveryFee, minimum: accountMinimum });
+  const minShortfall = isB2B
+    ? shortfall({ subtotal, deliveryFee: effectiveDeliveryFee, minimum: accountMinimum })
+    : 0;
   const hasCatchWeight = lines.some((l) => l.priceByWeight);
 
   const [search, setSearch] = useState("");
@@ -136,7 +144,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
       {underMinimum ? (
         <div className="rounded-md bg-accent-gold/15 text-[#7a5a12] text-[13px] px-3 py-2 leading-snug">
           <strong>Order minimum is {money(accountMinimum)}</strong> —{" "}
-          {money(accountMinimum - subtotal)} more to meet it.
+          {money(minShortfall)} more to meet it (subtotal + delivery).
         </div>
       ) : null}
 
