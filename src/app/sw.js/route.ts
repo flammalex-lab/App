@@ -35,14 +35,32 @@ const DEV_BUILD_ID = `dev-${Date.now()}`;
 const BUILD_ID =
   PROD_BUILD_ID ?? (process.env.NODE_ENV === "production" ? null : DEV_BUILD_ID);
 if (!BUILD_ID) {
-  // Fail fast: refuse to ship a SW with a frozen / per-instance build id.
-  // The /sw.js route returns 500 below until the operator sets one of the
-  // accepted env vars or runs a real `next build`.
+  // Don't ship a SW with a frozen / per-instance build id — but don't
+  // 500 either, since that would just have all clients see fetch errors.
+  // We serve a no-op SW below that immediately unregisters itself, so
+  // the app keeps working (no offline cache, no stale shell) while the
+  // operator gets a loud nudge in the logs to set NEXT_PUBLIC_BUILD_ID
+  // (or copy .next/ into the deploy image).
   console.error(
     "[sw] No VERCEL_GIT_COMMIT_SHA, NEXT_PUBLIC_BUILD_ID, or .next/BUILD_ID found in production. " +
-      "Service worker will return 500 until one is set.",
+      "Serving a no-op self-unregistering service worker until one is set.",
   );
 }
+
+// Self-unregistering SW. Registers cleanly, then immediately removes
+// itself + clears every cache it owned. App falls back to a non-PWA
+// experience (no offline shell), which is strictly better than serving
+// the wrong cached shell or a 500 to every client on every poll.
+const NOOP_SW = `self.addEventListener("install", (e) => { self.skipWaiting(); });
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    Promise.all([
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))),
+      self.registration.unregister().then(() => self.clients.matchAll().then((cs) => cs.forEach((c) => c.navigate(c.url)))),
+    ]),
+  );
+});
+`;
 
 const SW = `// Generated at request time. CACHE bumps on every deploy so a stale
 // shell can't be served after a release.
@@ -148,13 +166,8 @@ self.addEventListener("notificationclick", (event) => {
 `;
 
 export async function GET() {
-  if (!BUILD_ID) {
-    return NextResponse.json(
-      { error: "Service worker disabled: no stable BUILD_ID configured" },
-      { status: 500 },
-    );
-  }
-  return new NextResponse(SW, {
+  const body = BUILD_ID ? SW : NOOP_SW;
+  return new NextResponse(body, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
       "Cache-Control": "no-cache, no-store, must-revalidate",
