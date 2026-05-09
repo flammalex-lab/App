@@ -1,5 +1,5 @@
 import { resolvePrice } from "@/lib/utils/pricing";
-import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
+import type { Account, AccountPricing, PriceListItem, Product } from "@/lib/supabase/types";
 
 const product = (over: Partial<Product> = {}): Pick<Product, "wholesale_price" | "retail_price"> => ({
   wholesale_price: 10,
@@ -178,6 +178,61 @@ describe("resolvePrice", () => {
         isB2B: true,
       });
       expect(price).toBe(10); // override not yet effective
+    });
+  });
+
+  describe("price list", () => {
+    const listItem = (
+      price: number,
+      effective: string,
+      expiry: string | null = null,
+    ): Pick<PriceListItem, "unit_price" | "effective_date" | "expiry_date"> => ({
+      unit_price: price,
+      effective_date: effective,
+      expiry_date: expiry,
+    });
+
+    it("price list beats tier multiplier", () => {
+      // volume tier would yield 9.20; price-list line says 8.50
+      const price = resolvePrice(product({ wholesale_price: 10 }), {
+        account: account("volume"),
+        priceListItem: listItem(8.5, "2026-01-01"),
+        isB2B: true,
+        now: NOW,
+      });
+      expect(price).toBe(8.5);
+    });
+
+    it("account override beats price list", () => {
+      // override should win even though price list is also active
+      const price = resolvePrice(product({ wholesale_price: 10 }), {
+        account: account("standard"),
+        customPrice: override(6, "2026-01-01"),
+        priceListItem: listItem(8.5, "2026-01-01"),
+        isB2B: true,
+        now: NOW,
+      });
+      expect(price).toBe(6);
+    });
+
+    it("expired price list falls through to tier", () => {
+      const price = resolvePrice(product({ wholesale_price: 10 }), {
+        account: account("standard"),
+        priceListItem: listItem(8.5, "2026-01-01", "2026-03-01"),
+        isB2B: true,
+        now: NOW,
+      });
+      expect(price).toBe(10);
+    });
+
+    it("not-yet-effective price list falls through to tier", () => {
+      const price = resolvePrice(product({ wholesale_price: 10 }), {
+        account: account("volume"),
+        priceListItem: listItem(8.5, "2099-01-01"),
+        isB2B: true,
+        now: NOW,
+      });
+      expect(price).toBe(9.2);
     });
   });
 });

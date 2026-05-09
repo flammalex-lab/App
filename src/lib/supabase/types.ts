@@ -84,6 +84,7 @@ export interface Account {
   qb_customer_name: string | null;
   qb_terms: string | null;
   qb_synced_at: string | null;
+  price_list_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -121,6 +122,7 @@ export interface Product {
   in_season: boolean;
   available_this_week: boolean;
   is_active: boolean;
+  private: boolean;
   image_url: string | null;
   producer: string | null;
   product_group: string | null;
@@ -137,6 +139,30 @@ export interface AccountPricing {
   account_id: string;
   product_id: string;
   custom_price: number;
+  effective_date: string;
+  expiry_date: string | null;
+}
+
+export interface AccountProduct {
+  account_id: string;
+  product_id: string;
+  created_at: string;
+}
+
+export interface PriceList {
+  id: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PriceListItem {
+  id: string;
+  price_list_id: string;
+  product_id: string;
+  unit_price: number;
   effective_date: string;
   expiry_date: string | null;
 }

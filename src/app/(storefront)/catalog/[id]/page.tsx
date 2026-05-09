@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import type { Account, AccountPricing, PackOption, Product } from "@/lib/supabase/types";
+import type { Account, AccountPricing, PackOption, PriceListItem, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
+import { isProductVisibleToAccount } from "@/lib/products/queries";
 import { GROUP_LABELS, allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
 import { dateShort, money } from "@/lib/utils/format";
 import { ProductDetailContent } from "./ProductDetailContent";
@@ -40,7 +41,8 @@ export default async function ProductDetail({
 
   // Visibility gate. Admins impersonating can view any product to debug;
   // buyers only see products that match their allowed groups + channel +
-  // active state. Prevents direct-URL disclosure of hidden SKUs.
+  // active state, AND for private SKUs, only when their account is on the
+  // allow-list. Prevents direct-URL disclosure of hidden SKUs.
   if (!impersonating) {
     const buyerType = me.buyer_type ?? account?.buyer_type ?? null;
     const allowedGroups = allowedGroupsFor(buyerType);
@@ -49,20 +51,32 @@ export default async function ProductDetail({
       ? allowedGroups.includes(p.product_group as ProductGroup)
       : allowedCats.includes(p.category);
     const channelOk = isB2B ? p.available_b2b : p.available_dtc;
-    if (!p.is_active || !channelOk || !groupOk) notFound();
+    const visibilityOk = await isProductVisibleToAccount(db, p, account?.id ?? null);
+    if (!p.is_active || !channelOk || !groupOk || !visibilityOk) notFound();
   }
 
-  const { data: override } = account
-    ? await db
-        .from("account_pricing")
-        .select("*")
-        .eq("account_id", account.id)
-        .eq("product_id", id)
-        .maybeSingle()
-    : { data: null as AccountPricing | null };
-  const customPrice = override as AccountPricing | null;
+  const [overrideRes, listItemRes] = await Promise.all([
+    account
+      ? db
+          .from("account_pricing")
+          .select("*")
+          .eq("account_id", account.id)
+          .eq("product_id", id)
+          .maybeSingle()
+      : Promise.resolve({ data: null as AccountPricing | null }),
+    account?.price_list_id
+      ? db
+          .from("price_list_items")
+          .select("*")
+          .eq("price_list_id", account.price_list_id)
+          .eq("product_id", id)
+          .maybeSingle()
+      : Promise.resolve({ data: null as PriceListItem | null }),
+  ]);
+  const customPrice = overrideRes.data as AccountPricing | null;
+  const priceListItem = listItemRes.data as PriceListItem | null;
 
-  const defaultPrice = resolvePrice(p, { account, customPrice, isB2B });
+  const defaultPrice = resolvePrice(p, { account, customPrice, priceListItem, isB2B });
 
   // Build the packs list: default option first, then any pack_options the
   // product defines. Each option is priced using the same tier/override
@@ -73,7 +87,7 @@ export default async function ProductDetail({
   for (const opt of options) {
     const price = resolvePrice(
       { wholesale_price: opt.wholesale_price, retail_price: opt.retail_price },
-      { account, customPrice, isB2B },
+      { account, customPrice, priceListItem, isB2B },
     );
     if (price != null) packs.push(optionPackRow(p, opt, price));
   }

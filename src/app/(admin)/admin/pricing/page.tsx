@@ -18,7 +18,12 @@ export default async function AdminPricingPage() {
 
   return (
     <div className="max-w-5xl">
-      <h1 className="text-3xl mb-4">Account pricing overrides</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl">Account pricing overrides</h1>
+        <Link href="/admin/price-lists" className="btn-ghost text-sm">
+          Price lists →
+        </Link>
+      </div>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-ink-secondary border-b border-black/5">

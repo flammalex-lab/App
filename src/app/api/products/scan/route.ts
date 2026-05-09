@@ -4,8 +4,9 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { allowedGroupsFor } from "@/lib/constants";
-import type { Product } from "@/lib/supabase/types";
+import type { AccountPricing, PriceListItem, Product } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
+import { isProductVisibleToAccount } from "@/lib/products/queries";
 
 /**
  * Look up a product by scanned barcode. Matches UPC first, SKU second.
@@ -81,18 +82,41 @@ export async function GET(request: Request) {
     );
   }
 
-  // Price resolution — same logic as catalog / guide.
+  // Private-product visibility — service-client lookups bypass RLS, so we
+  // re-check here. Buyers using the regular client are also protected at the
+  // RLS layer, but the explicit check makes the rejection reason crisp.
   const account = active;
-  const { data: overrideRaw } = account
-    ? await db
-        .from("account_pricing")
-        .select("*")
-        .eq("account_id", account.id)
-        .eq("product_id", product.id)
-        .maybeSingle()
-    : { data: null as any };
-  const customPrice = overrideRaw;
-  const unitPrice = resolvePrice(product, { account, customPrice, isB2B });
+  const visibilityOk = await isProductVisibleToAccount(db, product, account?.id ?? null);
+  if (!visibilityOk) {
+    return NextResponse.json(
+      { ok: false, reason: "not_available", productName: product.name },
+      { status: 403 },
+    );
+  }
+
+  // Price resolution — same priority as catalog / guide: account override,
+  // then assigned price list, then tier multiplier.
+  const [overrideRes, listItemRes] = await Promise.all([
+    account
+      ? db
+          .from("account_pricing")
+          .select("*")
+          .eq("account_id", account.id)
+          .eq("product_id", product.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null as AccountPricing | null }),
+    account?.price_list_id
+      ? db
+          .from("price_list_items")
+          .select("*")
+          .eq("price_list_id", account.price_list_id)
+          .eq("product_id", product.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null as PriceListItem | null }),
+  ]);
+  const customPrice = overrideRes.data as AccountPricing | null;
+  const priceListItem = listItemRes.data as PriceListItem | null;
+  const unitPrice = resolvePrice(product, { account, customPrice, priceListItem, isB2B });
 
   return NextResponse.json({
     ok: true,
