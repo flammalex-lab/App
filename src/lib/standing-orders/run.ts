@@ -1,5 +1,5 @@
-import type { StandingOrder, StandingOrderItem, Product, Account, AccountPricing, Profile } from "@/lib/supabase/types";
-import { resolvePrice } from "@/lib/utils/pricing";
+import type { StandingOrder, StandingOrderItem, Product, Account, Profile } from "@/lib/supabase/types";
+import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 
 /**
@@ -20,11 +20,10 @@ export async function runStandingOrder(svc: any, standingOrderId: string): Promi
   };
   if (!s.items?.length) return { ok: false, error: "no items" };
 
-  // Resolve prices via account overrides
-  const { data: overrides } = await svc.from("account_pricing").select("*").eq("account_id", s.account.id);
+  // Resolve prices: account-specific overrides → assigned price list → tier.
+  const pricingCtx = await loadPricingContext(svc, s.account, true);
   const priced = s.items.map((it) => {
-    const override = (overrides as AccountPricing[] | null)?.find((o) => o.product_id === it.product_id) ?? null;
-    const unitPrice = resolvePrice(it.product, { account: s.account, customPrice: override, isB2B: true }) ?? 0;
+    const unitPrice = priceForProduct(it.product, pricingCtx) ?? 0;
     return { ...it, unitPrice };
   });
   const subtotal = round2(priced.reduce((acc, it) => acc + it.unitPrice * Number(it.quantity), 0));

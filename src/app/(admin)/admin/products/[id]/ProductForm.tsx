@@ -27,6 +27,7 @@ export function ProductForm({ product }: { product: Product | null }) {
     available_dtc: product?.available_dtc ?? false,
     available_this_week: product?.available_this_week ?? true,
     is_active: product?.is_active ?? true,
+    private: product?.private ?? false,
   });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
@@ -98,6 +99,13 @@ export function ProductForm({ product }: { product: Product | null }) {
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.available_this_week} onChange={(e) => setForm({ ...form, available_this_week: e.target.checked })} /> In stock this week</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active</label>
       </div>
+      <label className="flex items-start gap-2 text-sm pt-1" title="Hidden from the catalog except for accounts you've added to its allow-list">
+        <input type="checkbox" className="mt-0.5" checked={form.private} onChange={(e) => setForm({ ...form, private: e.target.checked })} />
+        <span>
+          <span className="font-medium">Private</span>
+          <span className="text-ink-tertiary block text-xs">Only visible to accounts on this product&rsquo;s allow-list (manage from the account&rsquo;s page → Visible products).</span>
+        </span>
+      </label>
       <div className="flex items-center gap-2">
         <Button onClick={save} loading={saving}>Save</Button>
         {product ? <Button onClick={del} variant="danger">Delete</Button> : null}

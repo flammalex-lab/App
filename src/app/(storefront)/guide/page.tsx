@@ -5,13 +5,12 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type {
   Account,
-  AccountPricing,
   OrderGuide,
   OrderGuideItem,
   Product,
 } from "@/lib/supabase/types";
 import { GuideClient } from "./GuideClient";
-import { resolvePrice } from "@/lib/utils/pricing";
+import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { money } from "@/lib/utils/format";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -52,9 +51,7 @@ export default async function GuidePage() {
       .eq("order_guide_id", guide.id)
       .order("sort_order", { ascending: true });
 
-    const { data: overrides } = account
-      ? await db.from("account_pricing").select("*").eq("account_id", account.id)
-      : { data: [] as AccountPricing[] };
+    const pricingCtx = await loadPricingContext(db, account, true);
 
     // Last-ordered lookup — find the most recent order_items row for each product
     // by this buyer. Cheap for now, bounded by the size of the guide.
@@ -78,8 +75,7 @@ export default async function GuidePage() {
 
     items = (itemRows as any[] | null ?? []).map((row) => {
       const p = row.product as Product;
-      const override = (overrides as AccountPricing[] | null)?.find((o) => o.product_id === p.id) ?? null;
-      const unitPrice = resolvePrice(p, { account, customPrice: override, isB2B: true });
+      const unitPrice = priceForProduct(p, pricingCtx);
       return {
         ...(row as OrderGuideItem),
         product: p,

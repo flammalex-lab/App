@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
-import type { Account, AccountPricing, Product } from "@/lib/supabase/types";
-import { resolvePrice } from "@/lib/utils/pricing";
-import { visibleProductsQuery } from "@/lib/products/queries";
+import type { Product } from "@/lib/supabase/types";
+import { loadPricingContext, priceForProduct, type PricingContext } from "@/lib/utils/pricing";
+import { getAllowedPrivateProductIds, visibleProductsQuery } from "@/lib/products/queries";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   GROUP_LABELS,
@@ -38,14 +38,9 @@ function groupTileImage(group: ProductGroup): string {
 
 function priceProducts(
   rows: Product[] | null | undefined,
-  overrides: AccountPricing[] | null | undefined,
-  account: Account | null,
-  isB2B: boolean,
+  ctx: PricingContext,
 ): (Product & { unitPrice: number | null })[] {
-  return (rows ?? []).map((p) => {
-    const override = (overrides ?? []).find((o) => o.product_id === p.id) ?? null;
-    return { ...p, unitPrice: resolvePrice(p, { account, customPrice: override, isB2B }) };
-  });
+  return (rows ?? []).map((p) => ({ ...p, unitPrice: priceForProduct(p, ctx) }));
 }
 
 export default async function CatalogPage({
@@ -66,6 +61,14 @@ export default async function CatalogPage({
   const { active } = await resolveActiveAccount(profileId, me.account_id);
   const account = active;
 
+  // Account-scoped pricing inputs (overrides + price-list rows) and the
+  // allow-list for any private products. Loaded once and reused across every
+  // strip/list query so each render is bounded to a small number of round-trips.
+  const [pricingCtx, allowedPrivateIds] = await Promise.all([
+    loadPricingContext(db, account, isB2B),
+    getAllowedPrivateProductIds(db, account?.id ?? null),
+  ]);
+
   // Per-buyer buyer_type overrides the account's (see migration 0009).
   const effectiveBuyerType = me.buyer_type ?? account?.buyer_type ?? null;
   const allowed = allowedGroupsFor(effectiveBuyerType);
@@ -85,21 +88,16 @@ export default async function CatalogPage({
   // LANDING: scroll-strip layout (Pepper-style)
   // =====================================================================
   if (!groupFilter && !isSearching && !isExplore && !isBest) {
-    const { data: overridesRaw } = account
-      ? await db.from("account_pricing").select("*").eq("account_id", account.id)
-      : { data: [] as AccountPricing[] };
-    const overrides = overridesRaw as AccountPricing[] | null;
-
     // All buyer-facing strip queries share visibleProductsQuery so the
-    // is_active / channel / buyer_type filter set can never drift.
-    const baseOpts = { buyerType: effectiveBuyerType, isB2B };
+    // is_active / channel / buyer_type / private filter set can never drift.
+    const baseOpts = { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds };
 
     // Strip 1: This week — available_this_week = true
     const { data: weekRows } = await visibleProductsQuery(db, baseOpts)
       .eq("available_this_week", true)
       .order("sort_order", { ascending: true })
       .limit(12);
-    const thisWeek = priceProducts(weekRows as Product[] | null, overrides, account, isB2B);
+    const thisWeek = priceProducts(weekRows as Product[] | null, pricingCtx);
 
     // Strip 2: Based on your order history — top 8 SKUs ordered by this profile
     const { data: historyRows } = await db
@@ -121,7 +119,7 @@ export default async function CatalogPage({
       // since been hidden, moved out of buyer scope, or disabled don't
       // appear as ghosts in the "your history" strip.
       const { data: histProducts } = await visibleProductsQuery(db, baseOpts).in("id", topIds);
-      history = priceProducts(histProducts as Product[] | null, overrides, account, isB2B);
+      history = priceProducts(histProducts as Product[] | null, pricingCtx);
       // preserve most-ordered order
       history.sort((a, b) => (countByProduct.get(b.id) ?? 0) - (countByProduct.get(a.id) ?? 0));
     }
@@ -146,7 +144,7 @@ export default async function CatalogPage({
         .eq("producer", featuredProducer)
         .order("sort_order", { ascending: true })
         .limit(10);
-      featured = priceProducts(featRows as Product[] | null, overrides, account, isB2B);
+      featured = priceProducts(featRows as Product[] | null, pricingCtx);
     }
 
     // Product-name + producer suggestions for the search autocomplete
@@ -287,7 +285,7 @@ export default async function CatalogPage({
   // =====================================================================
   // LIST VIEW (group / search / producer / explore / best)
   // =====================================================================
-  let query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B });
+  let query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds });
   if (groupFilter) query = query.eq("product_group", groupFilter);
   if (q) query = query.or(`name.ilike.%${q}%,producer.ilike.%${q}%`);
   if (producerFilter) query = query.ilike("producer", producerFilter);
@@ -305,20 +303,12 @@ export default async function CatalogPage({
   const { data: suggestRowsList } = await visibleProductsQuery(db, {
     buyerType: effectiveBuyerType,
     isB2B,
+    allowedPrivateIds,
     select: "name, producer",
   }).order("name", { ascending: true });
   const suggestionsList = buildSuggestions(suggestRowsList);
 
-  const { data: overrides } = account
-    ? await db.from("account_pricing").select("*").eq("account_id", account.id)
-    : { data: [] as AccountPricing[] };
-
-  const priced = priceProducts(
-    products as Product[] | null,
-    overrides as AccountPricing[] | null,
-    account,
-    isB2B,
-  );
+  const priced = priceProducts(products as Product[] | null, pricingCtx);
 
   const headerTitle = producerFilter
     ? producerFilter
