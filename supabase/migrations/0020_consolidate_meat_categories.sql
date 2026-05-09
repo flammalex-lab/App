@@ -25,6 +25,20 @@ do $$ begin
      where t.typname = 'category_t'
        and e.enumlabel in ('beef', 'pork', 'lamb')
   ) then
+    -- Cheese: in this app's canonical schema, cheese is a product_group
+    -- (kept separate from dairy — see 0006 + the "Cheese" order-guide
+    -- template in 0012, which is intentionally distinct from "Dairy"),
+    -- NOT a category. 'cheese' got into category_t in production via an
+    -- ad-hoc ALTER TYPE outside of any migration in this repo. Before we
+    -- collapse those rows into category='dairy' below, backfill
+    -- product_group='cheese' so the buyer-facing distinction (cheese
+    -- buyer type, Cheese template) survives — these rows otherwise come
+    -- out as plain dairy with no product_group set.
+    update products
+       set product_group = 'cheese'
+     where category::text = 'cheese'
+       and product_group is distinct from 'cheese';
+
     -- Drop any leftover from a previous partial run before we recreate.
     drop type if exists category_t_new;
 
@@ -37,9 +51,9 @@ do $$ begin
     -- Map beef/pork/lamb -> meat and cheese -> dairy in the USING clause;
     -- everything else passes through. The text round-trip is what lets the
     -- cast cross enum types — direct enum-to-enum casts aren't allowed.
-    -- 'cheese' isn't in any migration in this repo but exists in production
-    -- (added ad-hoc to category_t at some point); folding into dairy matches
-    -- how product_group already groups it (see 0006).
+    -- The cheese -> dairy fold matches how 0006 already classifies cheese
+    -- products (category='dairy', product_group='cheese'); see the
+    -- product_group backfill above for why that distinction is preserved.
     alter table products
       alter column category type category_t_new
       using (
