@@ -25,9 +25,7 @@ interface Row {
  */
 function guessCategory(hint: string | undefined, name: string): Category {
   const s = `${hint ?? ""} ${name ?? ""}`.toLowerCase();
-  if (/\b(beef|steak|sirloin|brisket|tenderloin|ribeye|chuck|ground beef|oxtail|hanger|flank)\b/.test(s)) return "beef";
-  if (/\b(pork|bacon|ham|kielbasa|sausage|ribs|chop)\b/.test(s)) return "pork";
-  if (/\b(lamb|mutton)\b/.test(s)) return "lamb";
+  if (/\b(beef|steak|sirloin|brisket|tenderloin|ribeye|chuck|ground beef|oxtail|hanger|flank|pork|bacon|ham|kielbasa|sausage|ribs|chop|lamb|mutton)\b/.test(s)) return "meat";
   if (/\b(egg|eggs)\b/.test(s)) return "eggs";
   if (/\b(milk|yogurt|cheese|cheddar|butter|cream|kefir|dairy|brie|feta)\b/.test(s)) return "dairy";
   if (/\b(vegetable|fruit|salad|apple|lettuce|spinach|tomato|beet|carrot|onion|potato|herb|green|produce)\b/.test(s)) return "produce";
@@ -52,7 +50,7 @@ function guessBrand(hint: string | undefined, name: string): Brand {
  * their own guide. Everything not fitting falls to 'grocery'.
  */
 function deriveProductGroup(category: Category, name: string): ProductGroup {
-  if (category === "beef" || category === "pork" || category === "lamb") return "meat";
+  if (category === "meat") return "meat";
   if (category === "produce") return "produce";
   if (category === "pantry" || category === "beverages") return "grocery";
   // dairy / eggs — split cheese out by name

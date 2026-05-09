@@ -13,7 +13,7 @@ export function ProductForm({ product }: { product: Product | null }) {
   const [form, setForm] = useState({
     sku: product?.sku ?? "",
     brand: (product?.brand ?? "grasslands") as Brand,
-    category: (product?.category ?? "beef") as Category,
+    category: (product?.category ?? "meat") as Category,
     name: product?.name ?? "",
     description: product?.description ?? "",
     pack_size: product?.pack_size ?? "",

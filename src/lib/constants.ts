@@ -7,9 +7,7 @@ export const BRAND_LABELS: Record<Brand, string> = {
 };
 
 export const CATEGORY_LABELS: Record<Category, string> = {
-  beef: "Beef",
-  pork: "Pork",
-  lamb: "Lamb",
+  meat: "Meat",
   eggs: "Eggs",
   dairy: "Dairy",
   produce: "Produce",
@@ -71,14 +69,14 @@ export function allowedGroupsFor(buyerType: string | null | undefined): ProductG
 }
 
 const ALL_CATEGORIES: Category[] = [
-  "beef", "pork", "lamb", "eggs", "dairy", "produce", "pantry", "beverages",
+  "meat", "eggs", "dairy", "produce", "pantry", "beverages",
 ];
 
 /**
  * Category-level fallback for allowedGroupsFor. Used to filter products when
  * product_group isn't populated on rows (older data that predates the 0006
  * backfill, or imports that didn't set the column). Matches the folding in
- * migration 0006: meat = beef+pork+lamb, dairy = dairy+eggs,
+ * migration 0006 + 0020: meat is its own category, dairy = dairy+eggs,
  * grocery = pantry+beverages.
  */
 export function allowedCategoriesFor(buyerType: string | null | undefined): Category[] {
@@ -87,7 +85,7 @@ export function allowedCategoriesFor(buyerType: string | null | undefined): Cate
     case "gm_restaurant":
       return [...ALL_CATEGORIES];
     case "meat_buyer":
-      return ["beef", "pork", "lamb"];
+      return ["meat"];
     case "produce_buyer":
       return ["produce"];
     case "dairy_buyer":
