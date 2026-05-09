@@ -7,7 +7,7 @@ import { getOrCreateDefaultGuide } from "@/lib/order-guides/default-guide";
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const profileId = impersonating ?? session.userId;
 
   const { product_id } = (await request.json()) as { product_id: string };

@@ -1,7 +1,22 @@
-// Lightweight service worker — offline shell for the catalog + guide.
-// Network-first for navigations, stale-while-revalidate for assets.
+import { NextResponse } from "next/server";
 
-const CACHE = "flf-v1";
+/**
+ * Service worker is served from a route handler so we can stamp the
+ * current build SHA into the cache name. Without a per-deploy version,
+ * the SW serves the prior shell forever after a deploy (CLAUDE.md
+ * already calls this out as a recurring "I don't see my changes" symptom).
+ *
+ * Vercel sets VERCEL_GIT_COMMIT_SHA automatically; locally we fall back
+ * to the process start time so a `next dev` restart bumps the version.
+ */
+const BUILD_ID =
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ??
+  process.env.NEXT_PUBLIC_BUILD_ID ??
+  `dev-${Date.now()}`;
+
+const SW = `// Generated at request time. CACHE bumps on every deploy so a stale
+// shell can't be served after a release.
+const CACHE = "flf-${BUILD_ID}";
 const SHELL = ["/", "/guide", "/catalog", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -46,8 +61,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // SWR for static + image
-  if (url.pathname.startsWith("/_next") || url.pathname.match(/\.(png|jpg|jpeg|webp|svg|ico|css|js|woff2?)$/)) {
+  if (url.pathname.startsWith("/_next") || url.pathname.match(/\\.(png|jpg|jpeg|webp|svg|ico|css|js|woff2?)$/)) {
     event.respondWith(
       caches.match(req).then((cached) => {
         const net = fetch(req)
@@ -65,7 +79,6 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Push (notifications) — stub payload handler
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   const data = event.data.json();
@@ -84,3 +97,14 @@ self.addEventListener("notificationclick", (event) => {
   const url = event.notification.data?.url || "/";
   event.waitUntil(clients.openWindow(url));
 });
+`;
+
+export async function GET() {
+  return new NextResponse(SW, {
+    headers: {
+      "Content-Type": "application/javascript; charset=utf-8",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Service-Worker-Allowed": "/",
+    },
+  });
+}

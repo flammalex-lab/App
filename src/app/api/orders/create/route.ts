@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await request.json()) as Body;
 
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const actingAsId = impersonating ?? session.userId;
   const placedById = impersonating ? session.userId : null;
 

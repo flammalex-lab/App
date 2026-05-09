@@ -7,16 +7,37 @@ import { dateShort, money } from "@/lib/utils/format";
 export const metadata = { title: "Admin — Orders" };
 
 const STATUSES: OrderStatus[] = ["pending", "confirmed", "processing", "ready", "shipped", "delivered", "cancelled"];
+const PAGE_SIZE = 50;
 
-export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; page?: string }>;
+}) {
   const sp = await searchParams;
   const filter = STATUSES.includes(sp.status as OrderStatus) ? (sp.status as OrderStatus) : null;
+  const page = Math.max(0, Number(sp.page ?? "0") || 0);
   const db = await createClient();
 
-  let query = db.from("orders").select("*, account:accounts(name)").order("created_at", { ascending: false }).limit(200);
+  // Range pagination so we can render Prev/Next without scanning the full table.
+  let query = db
+    .from("orders")
+    .select("*, account:accounts(name)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
   if (filter) query = query.eq("status", filter);
-  const { data } = await query;
+  const { data, count } = await query;
   const orders = (data as (Order & { account: { name: string } | null })[] | null) ?? [];
+  const total = count ?? 0;
+  const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+
+  const pageHref = (n: number) => {
+    const params = new URLSearchParams();
+    if (filter) params.set("status", filter);
+    if (n > 0) params.set("page", String(n));
+    const qs = params.toString();
+    return `/admin/orders${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <div>
@@ -45,7 +66,27 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             <div className="mono text-sm">{money(o.total)}</div>
           </Link>
         ))}
+        {!orders.length ? <div className="p-4 text-sm text-ink-secondary">No orders.</div> : null}
       </div>
+      {total > PAGE_SIZE ? (
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <span className="text-ink-secondary">
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+          </span>
+          <div className="flex gap-2">
+            {page > 0 ? (
+              <Link href={pageHref(page - 1)} className="px-3 py-1 rounded border border-black/10 bg-white hover:bg-bg-secondary">
+                ← Prev
+              </Link>
+            ) : null}
+            {page < lastPage ? (
+              <Link href={pageHref(page + 1)} className="px-3 py-1 rounded border border-black/10 bg-white hover:bg-bg-secondary">
+                Next →
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -9,9 +9,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const svc = createServiceClient();
   const { data } = await svc.from("standing_orders").select("profile_id, active").eq("id", id).maybeSingle();
   if (!data) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if ((data as any).profile_id !== session.userId && session.profile.role !== "admin") {
+  const row = data as { profile_id: string; active: boolean };
+  if (row.profile_id !== session.userId && session.profile.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  await svc.from("standing_orders").update({ active: !(data as any).active }).eq("id", id);
+  await svc.from("standing_orders").update({ active: !row.active }).eq("id", id);
   return NextResponse.redirect(new URL("/standing", request.url), { status: 303 });
 }

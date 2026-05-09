@@ -6,7 +6,7 @@ import { getImpersonation, setImpersonation } from "@/lib/auth/impersonation";
 export async function POST(request: Request) {
   let admin;
   try { admin = await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
-  const target = getImpersonation();
+  const target = await getImpersonation();
   if (target) {
     const svc = createServiceClient();
     await svc

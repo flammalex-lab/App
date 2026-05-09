@@ -15,7 +15,7 @@ export const metadata = { title: "Cart — Fingerlakes Farms" };
 export default async function CartPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const db = impersonating ? createServiceClient() : await createClient();
 
   const profileId = impersonating ?? session.userId;
@@ -45,7 +45,7 @@ export default async function CartPage() {
   // line items in a short-lived cookie. Read it here and let the CartClient
   // clear it via /api/cart/consume-reorder after hydration — server
   // components in Next 14 can't mutate cookies directly.
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   let reorder: CartLine[] | null = null;
   const reorderCookie = cookieStore.get("flf-reorder")?.value;
   if (reorderCookie) {

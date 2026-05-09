@@ -13,7 +13,7 @@ const TTL_SECONDS = 60 * 60 * 4; // 4 hours
  * the target's data; nothing on the client receives impersonation powers.
  */
 export async function setImpersonation(targetProfileId: string | null) {
-  const store = cookies();
+  const store = await cookies();
   if (targetProfileId === null) {
     store.delete(IMPERSONATION_COOKIE);
     return;
@@ -29,8 +29,8 @@ export async function setImpersonation(targetProfileId: string | null) {
   });
 }
 
-export function getImpersonation(): string | null {
-  const raw = cookies().get(IMPERSONATION_COOKIE)?.value;
+export async function getImpersonation(): Promise<string | null> {
+  const raw = (await cookies()).get(IMPERSONATION_COOKIE)?.value;
   if (!raw) return null;
   return verifyPayload(raw);
 }

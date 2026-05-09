@@ -2,5 +2,12 @@
   "crons": [
     { "path": "/api/cron/standing-orders", "schedule": "0 10 * * *" },
     { "path": "/api/cron/reorder-prompts", "schedule": "0 * * * *" }
-  ]
+  ],
+  "functions": {
+    "src/app/api/admin/image-triage/match/route.ts": { "maxDuration": 60 },
+    "src/app/api/admin/image-triage/strip-bg/route.ts": { "maxDuration": 60 },
+    "src/app/api/admin/image-triage/strip-bg/status/route.ts": { "maxDuration": 30 },
+    "src/app/api/cron/standing-orders/route.ts": { "maxDuration": 300 },
+    "src/app/api/cron/reorder-prompts/route.ts": { "maxDuration": 300 }
+  }
 }

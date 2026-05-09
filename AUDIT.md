@@ -4,6 +4,58 @@
 **Date:** 2026-05-09
 **Scope:** Full repo — security, schema, code quality, performance, business logic, dependencies, tests.
 
+---
+
+## ✅ Status — applied in this branch
+
+Findings closed by code in this branch:
+
+| Severity | ID | What changed |
+|---|---|---|
+| Critical | C1 | `handle_new_user` trigger no longer reads role from `raw_user_meta_data` (migration 0020) |
+| Critical | C2 | Both cron routes require `CRON_SECRET` to be set (500 if missing) and use `crypto.timingSafeEqual` |
+| High | H1 | Impersonation cookie HMAC-signed (`IMPERSONATION_SECRET` or fallback), target validated, admin-target rejected |
+| High | H2 | `/auth/callback` validates `next` starts with `/` and not `//` or `/\\` |
+| High | H3 | Twilio inbound signature now always required; local-dev escape is explicit `ALLOW_UNSIGNED_TWILIO=true` |
+| High | H4 | Bumped `next` 14.2.35 → 16.2.6 + `eslint`/`eslint-config-next` to 9/16; CVEs 5→2 (remaining 2 are postcss inside Next's vendored copy, not exploitable from user content) |
+| High | H5 | `cutoff.ts` and `standing-order.ts` accept an optional `tz`; every prod caller now passes `BUSINESS_TIMEZONE` (`America/New_York`). 8 new tests cover EDT/EST + DST. |
+| High | H6 | Stripe webhook handles `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`; idempotency via new `stripe_events(id)` table; `payment_status_t` enum extended |
+| High | H7 | Partial — replaced `as any` in highest-risk auth/payment/accounting routes (87→65). Full elimination needs `supabase gen types`. |
+| High | H8 | New `.github/workflows/ci.yml` runs lint+typecheck+test on PR — flip on branch protection to make it a hard merge gate |
+| Medium | M1 | `orders.account_id` is now NOT NULL (orphans backfilled to a sentinel "Unassigned" account in migration 0020) |
+| Medium | M2 | `standing_orders` RLS policies rewritten to honor `profile_accounts` (multi-account) |
+| Medium | M3 | Inbound SMS handler resolves account via `profile_accounts` and routes unknown phones to a new `sms_triage` table (L7) instead of dropping |
+| Medium | M4 | `sw.js` is now a route handler that stamps `VERCEL_GIT_COMMIT_SHA` into the cache name; bumps on every deploy |
+| Medium | M5 | SW caches only 2xx responses without `Set-Cookie` |
+| Medium | M6 | Global security headers (HSTS, CSP, X-Frame-Options, …); `poweredByHeader: false`; image patterns pinned to `NEXT_PUBLIC_SUPABASE_URL` when set |
+| Medium | M7 | IIF cells scrub tabs/newlines/CR so a customer name like `"Smith\tCo"` can't shred the row |
+| Medium | M8 | `/api/orders/create` re-validates `account.order_minimum` (or zone fallback) against `subtotal + delivery_fee` server-side |
+| Medium | M10 | Image `remotePatterns` derived from `NEXT_PUBLIC_SUPABASE_URL` instead of `*.supabase.co` wildcard |
+| Medium | M12 | Admin Orders page now paginates 50/page (offset); admin Messages uses a new `latest_messages_per_account()` RPC for DB-side dedupe + pagination |
+| Medium | M13 | `nextDeliveryForZone` tracks whether the soonest window was missed and returns `pastCutoff: true` |
+| Low | L1 | `qb_settings.venmo_handle` scrubbed back to placeholder in migration 0020 — set via Settings UI |
+| Low | L4 | `vercel.json` sets `maxDuration` for the AI image-triage routes (60s) and crons (300s) |
+| Low | L5 | `/auth/signout` redirects with `?signedout=1`; `PWARegister` reads the flag and unregisters SW + clears all caches before stripping it from the URL |
+| Low | L7 | `sms_triage` table + `is_admin()` RLS; inbound SMS from unknown phones land here for manual reconciliation |
+| Low | L8 | `/api/health` only emits the env / hints / counts to callers presenting `Authorization: Bearer ${HEALTH_TOKEN ?? CRON_SECRET}`; anonymous callers get a minimal `{healthy, db.ok}` |
+| Low | L9 | Removed the dead `step === 14 ? 1 : 1` ternary in `standing-order.ts` |
+
+**Apply migration 0020 in Supabase before testing on this branch.** It adds: `handle_new_user` trigger replacement, `orders.account_id NOT NULL` (with auto-backfill), `standing_orders` RLS rewrite, `payment_status_t` enum extension, `stripe_events`, `sms_triage`, `latest_messages_per_account()` RPC, and the venmo handle scrub.
+
+**Still open (intentionally deferred):**
+
+- **H7 partial** — 65 `as any` casts remain. The systematic fix is `supabase gen types typescript --linked > src/lib/supabase/types.gen.ts`, swap `Database = any` for the generated `Database`, then delete remaining `as any`. Out of scope for this PR (needs Supabase CLI + linked project).
+- **M9** — rate limiting on phone-OTP / signin-link / register routes. Needs an external store (Vercel KV / Upstash) — flagged for follow-up.
+- **M11** — `account_pricing` index. Confirmed already present via the unique `(account_id, product_id)` constraint; no action needed.
+- **L2** — `noUncheckedIndexedAccess` in tsconfig. Would surface ~dozen new errors that need careful triage; defer.
+- **L3** — `no-console` / `import/order` etc. New eslint flat config is in place, expanding rules is a follow-up.
+- **L6** — `images.unsplash.com` remote pattern. Kept for placeholder use during dev; remove if you no longer need it.
+- **L10** — reorder-cookie hydration flash. Cosmetic.
+
+CVE remainder: the 2 moderate `postcss` advisories are in `next/node_modules/postcss@8.4.31` (vendored inside Next 16.2.6's own build pipeline) — not reachable from user-supplied content the way the previous 4 highs were.
+
+The detailed findings below describe the original state pre-fix.
+
 ## Baseline checks
 
 | Check       | Result |

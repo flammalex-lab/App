@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
-import type { OrderStatus } from "@/lib/supabase/types";
+import type { Order, OrderStatus } from "@/lib/supabase/types";
+
+type PrevOrder = Pick<Order, "status" | "order_number" | "profile_id" | "account_id"> & {
+  buyer: { phone: string | null } | null;
+};
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
@@ -12,32 +16,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     internal_notes: string | null;
   };
   const svc = createServiceClient();
-  const { data: prev } = await svc.from("orders").select("*, buyer:profiles!orders_profile_id_fkey(phone)").eq("id", id).maybeSingle();
+  const { data: prevRow } = await svc
+    .from("orders")
+    .select("status, order_number, profile_id, account_id, buyer:profiles!orders_profile_id_fkey(phone)")
+    .eq("id", id)
+    .maybeSingle();
+  const prev = prevRow as PrevOrder | null;
   if (!prev) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const { error } = await svc.from("orders").update({ status, internal_notes }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Fire status notification if changed
-  if ((prev as any).status !== status) {
-    const phone = (prev as any).buyer?.phone;
+  if (prev.status !== status) {
+    const phone = prev.buyer?.phone;
     if (phone) {
       const messages: Record<OrderStatus, string> = {
         draft: "",
         pending: "",
-        confirmed: `FLF: order ${(prev as any).order_number} confirmed.`,
-        processing: `FLF: order ${(prev as any).order_number} being prepped.`,
-        ready: `FLF: order ${(prev as any).order_number} is ready for pickup.`,
-        shipped: `FLF: order ${(prev as any).order_number} out for delivery.`,
-        delivered: `FLF: order ${(prev as any).order_number} delivered. Thanks!`,
-        cancelled: `FLF: order ${(prev as any).order_number} cancelled.`,
+        confirmed: `FLF: order ${prev.order_number} confirmed.`,
+        processing: `FLF: order ${prev.order_number} being prepped.`,
+        ready: `FLF: order ${prev.order_number} is ready for pickup.`,
+        shipped: `FLF: order ${prev.order_number} out for delivery.`,
+        delivered: `FLF: order ${prev.order_number} delivered. Thanks!`,
+        cancelled: `FLF: order ${prev.order_number} cancelled.`,
       };
       const body = messages[status];
       if (body) {
         await enqueueAndSend({
           supabase: svc,
-          profileId: (prev as any).profile_id,
-          accountId: (prev as any).account_id,
+          profileId: prev.profile_id,
+          accountId: prev.account_id,
           type: "order_status",
           channel: "sms",
           toAddress: phone,

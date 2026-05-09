@@ -110,7 +110,63 @@ do $$ begin
   end if;
 end $$;
 
--- ---- 5) stripe_events: idempotency table for webhook dedupe ----
+-- ---- 5) latest_messages_per_account: DB-side dedupe for admin Messages
+-- The admin page used to pull the latest 500 messages and JS-dedupe by
+-- account_id. That misses long-tail conversations once the table grows
+-- past ~200 active accounts. DISTINCT ON does this in one ordered scan.
+create or replace function latest_messages_per_account(p_limit int default 50, p_offset int default 0)
+returns table (
+  account_id uuid,
+  account_name text,
+  body text,
+  direction text,
+  created_at timestamptz
+)
+language sql stable security definer set search_path = public as $$
+  with latest as (
+    select distinct on (m.account_id)
+      m.account_id, m.body, m.direction, m.created_at
+    from messages m
+    where m.account_id is not null
+    order by m.account_id, m.created_at desc
+  )
+  select l.account_id, a.name as account_name, l.body, l.direction::text, l.created_at
+  from latest l
+  join accounts a on a.id = l.account_id
+  where (select is_admin())
+  order by l.created_at desc
+  limit greatest(p_limit, 1)
+  offset greatest(p_offset, 0);
+$$;
+
+-- ---- 6) Scrub the personal Venmo handle out of qb_settings ----
+-- Migration 0001 hardcoded '@alex_flamm' as the venmo_handle seed value.
+-- Personal identifier in source control; scrub to a placeholder so the
+-- admin Settings UI is the single source of truth.
+update qb_settings
+   set value = ''
+ where key = 'venmo_handle'
+   and value = '@alex_flamm';
+
+-- ---- 7) sms_triage: capture inbound SMS from unknown phones ----
+-- Webhook used to console.warn and drop these. Now we stash them so a
+-- rep can see "someone you don't have on file just texted us" and
+-- attach the message to a profile manually.
+create table if not exists sms_triage (
+  id uuid primary key default gen_random_uuid(),
+  from_phone text not null,
+  body text not null,
+  sms_sid text,
+  received_at timestamptz not null default now(),
+  resolved boolean not null default false,
+  resolved_by_profile_id uuid references profiles(id) on delete set null,
+  resolved_at timestamptz
+);
+alter table sms_triage enable row level security;
+create policy "sms_triage admin all" on sms_triage for all using (is_admin()) with check (is_admin());
+create index if not exists idx_sms_triage_unresolved on sms_triage(received_at desc) where resolved = false;
+
+-- ---- 8) stripe_events: idempotency table for webhook dedupe ----
 -- Stripe retries on any 5xx. Insert event.id on receipt; ON CONFLICT do
 -- nothing tells the handler "already processed this event" so side
 -- effects (status flips, SMS, refunds) only ever happen once.

@@ -30,7 +30,7 @@ export default async function OrdersPage({
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const db = impersonating ? createServiceClient() : await createClient();
   const profileId = impersonating ?? session.userId;
 

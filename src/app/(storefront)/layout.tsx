@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -20,7 +21,7 @@ export default async function StorefrontLayout({
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   let effective: Profile = session.profile;
   if (impersonating) {
     const svc = createServiceClient();
@@ -96,10 +97,10 @@ export default async function StorefrontLayout({
               Shop
             </div>
             <ul className="space-y-1.5 text-ink-secondary">
-              <li><a href="/catalog" className="hover:text-ink-primary">Catalog</a></li>
-              <li><a href="/guide" className="hover:text-ink-primary">My order guide</a></li>
-              <li><a href="/orders" className="hover:text-ink-primary">My orders</a></li>
-              <li><a href="/standing" className="hover:text-ink-primary">Standing orders</a></li>
+              <li><Link href="/catalog" className="hover:text-ink-primary">Catalog</Link></li>
+              <li><Link href="/guide" className="hover:text-ink-primary">My order guide</Link></li>
+              <li><Link href="/orders" className="hover:text-ink-primary">My orders</Link></li>
+              <li><Link href="/standing" className="hover:text-ink-primary">Standing orders</Link></li>
             </ul>
           </div>
           <div>
@@ -107,7 +108,7 @@ export default async function StorefrontLayout({
               Support
             </div>
             <ul className="space-y-1.5 text-ink-secondary">
-              <li><a href="/chat" className="hover:text-ink-primary">Chat with your rep</a></li>
+              <li><Link href="/chat" className="hover:text-ink-primary">Chat with your rep</Link></li>
               <li><a href="mailto:alex@ilovenyfarms.com" className="hover:text-ink-primary">alex@ilovenyfarms.com</a></li>
             </ul>
           </div>
@@ -116,8 +117,8 @@ export default async function StorefrontLayout({
               Legal
             </div>
             <ul className="space-y-1.5 text-ink-secondary">
-              <li><a href="/privacy" className="hover:text-ink-primary">Privacy Policy</a></li>
-              <li><a href="/terms" className="hover:text-ink-primary">Terms</a></li>
+              <li><Link href="/privacy" className="hover:text-ink-primary">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-ink-primary">Terms</Link></li>
             </ul>
           </div>
         </div>

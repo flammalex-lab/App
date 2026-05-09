@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const { body } = (await request.json()) as { body: string };
   if (!body?.trim()) return NextResponse.json({ error: "empty" }, { status: 400 });
 
-  const impersonating = session.profile.role === "admin" ? getImpersonation() : null;
+  const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const svc = createServiceClient();
 
   let fromProfileId = session.userId;
