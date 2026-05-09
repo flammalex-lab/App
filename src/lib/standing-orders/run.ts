@@ -20,14 +20,20 @@ export async function runStandingOrder(svc: any, standingOrderId: string): Promi
   };
   if (!s.items?.length) return { ok: false, error: "no items" };
 
-  // Resolve prices via account overrides
+  // Resolve prices via account overrides. If any item can't be priced we
+  // bail out instead of silently materializing a $0 line — better the run
+  // fails loudly than the customer gets a free order.
   const { data: overrides } = await svc.from("account_pricing").select("*").eq("account_id", s.account.id);
   const priced = s.items.map((it) => {
     const override = (overrides as AccountPricing[] | null)?.find((o) => o.product_id === it.product_id) ?? null;
-    const unitPrice = resolvePrice(it.product, { account: s.account, customPrice: override, isB2B: true }) ?? 0;
+    const unitPrice = resolvePrice(it.product, { account: s.account, customPrice: override, isB2B: true });
     return { ...it, unitPrice };
   });
-  const subtotal = round2(priced.reduce((acc, it) => acc + it.unitPrice * Number(it.quantity), 0));
+  const unpriceable = priced.find((it) => it.unitPrice == null);
+  if (unpriceable) {
+    return { ok: false, error: `pricing missing for ${unpriceable.product?.name ?? unpriceable.product_id}` };
+  }
+  const subtotal = round2(priced.reduce((acc, it) => acc + (it.unitPrice as number) * Number(it.quantity), 0));
 
   const { data: numRow } = await svc.rpc("generate_order_number");
   const order_number = (numRow as unknown as string) ?? `FLF-${Date.now()}`;
@@ -53,8 +59,8 @@ export async function runStandingOrder(svc: any, standingOrderId: string): Promi
     order_id: (order as any).id,
     product_id: it.product_id,
     quantity: it.quantity,
-    unit_price: it.unitPrice,
-    line_total: round2(it.unitPrice * Number(it.quantity)),
+    unit_price: it.unitPrice as number,
+    line_total: round2((it.unitPrice as number) * Number(it.quantity)),
     notes: it.notes,
   })));
 
