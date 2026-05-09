@@ -128,6 +128,7 @@ export interface Product {
   price_by_weight: boolean;
   qb_income_account: string | null;
   sort_order: number;
+  needs_naming_review: boolean;
   created_at: string;
   updated_at: string;
 }
