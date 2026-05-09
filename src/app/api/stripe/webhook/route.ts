@@ -23,11 +23,13 @@ export async function POST(request: Request) {
   const svc = createServiceClient();
 
   // ---- Race-safe dedupe ----
-  // Insert the row FIRST with on-conflict-do-nothing; the RETURNING tells
-  // us whether we won the race (row inserted) or lost (no row, because
-  // another concurrent delivery or a retry already inserted). Mutation
-  // only runs on the winner. If the mutation then fails, we DELETE the
-  // dedupe row so Stripe's retry can re-apply cleanly.
+  // Insert the row FIRST and let Postgres's UNIQUE(id) constraint do the
+  // work — winner of the race gets a returned row, loser sees SQLSTATE
+  // 23505 which we catch as "already processed". Mutation only runs on
+  // the winner. If the mutation then fails, we DELETE the dedupe row so
+  // Stripe's retry can re-apply cleanly. (We could equivalently use
+  // .upsert({}, { onConflict: 'id', ignoreDuplicates: true }) — the
+  // 23505 path is just more explicit about the dedupe signal.)
   const orderIdHint = extractOrderId(event);
   const { data: claimed, error: claimErr } = await svc
     .from("stripe_events")

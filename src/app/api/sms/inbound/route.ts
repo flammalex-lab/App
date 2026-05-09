@@ -52,6 +52,12 @@ export async function POST(request: Request) {
       // been applied yet), still surface the message to admins via the
       // messages table with a null account_id — admin RLS sees it. We
       // include the from_phone in the body so the rep can match by hand.
+      //
+      // Schema constraints this depends on:
+      //   - messages.account_id is nullable post-migration 0014_messages_nullable_account.
+      //   - messages.from_profile_id was always nullable (0001_init.sql:
+      //     `references profiles(id) on delete set null`, no NOT NULL).
+      // So this insert is schema-valid even pre-0020.
       const { error: fallbackErr } = await svc.from("messages").insert({
         account_id: null,
         from_profile_id: null,

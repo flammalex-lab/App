@@ -7,6 +7,7 @@ import { CartClient } from "./CartClient";
 import { BackButton } from "@/components/layout/BackButton";
 import type { Account, DeliveryZoneRow, PickupLocation } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { CartLine } from "@/lib/cart/store";
 
@@ -77,7 +78,7 @@ export default async function CartPage() {
         ) : null}
         <CartClient
           isB2B={isB2B}
-          accountMinimum={account?.order_minimum ?? zone?.order_minimum ?? 0}
+          accountMinimum={effectiveOrderMinimum(account, zone)}
           deliveryFee={zone?.delivery_fee ?? 0}
           nextDelivery={
             nextDel

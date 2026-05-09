@@ -26,3 +26,17 @@ export function shortfall({ subtotal, deliveryFee, minimum }: MinimumCheckInput)
   if (minimum <= 0) return 0;
   return Math.max(0, minimum - (subtotal + deliveryFee));
 }
+
+/**
+ * Resolve the effective order minimum for a B2B account: account-level
+ * override → zone fallback → 0. Same precedence the server enforces in
+ * /api/orders/create. Use this from both the cart RSC and any other
+ * place that needs to display "min: $X" so the two layers can't drift.
+ */
+export function effectiveOrderMinimum(
+  account: { order_minimum: number | null } | null,
+  zone: { order_minimum: number | null } | null,
+): number {
+  if (!account) return 0;
+  return Number(account.order_minimum ?? zone?.order_minimum ?? 0);
+}

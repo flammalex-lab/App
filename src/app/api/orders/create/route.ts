@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { getStripe } from "@/lib/stripe/client";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
-import { meetsMinimum } from "@/lib/utils/order-minimum";
+import { meetsMinimum, effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 
@@ -90,19 +90,19 @@ export async function POST(request: Request) {
   let deliveryFee = 0;
   let orderMinimum = 0;
   if (isB2B && accountRow) {
-    const acctMin = accountRow.order_minimum;
+    let zoneRow: DeliveryZoneRow | null = null;
     if (accountRow.delivery_zone) {
       const { data: zone } = await svc
         .from("delivery_zones")
         .select("delivery_fee, order_minimum")
         .eq("zone", accountRow.delivery_zone)
         .maybeSingle();
-      const zoneRow = zone as DeliveryZoneRow | null;
+      zoneRow = zone as DeliveryZoneRow | null;
       deliveryFee = Number(zoneRow?.delivery_fee ?? 0);
-      orderMinimum = Number(acctMin ?? zoneRow?.order_minimum ?? 0);
-    } else {
-      orderMinimum = Number(acctMin ?? 0);
     }
+    // Single source of truth shared with the cart RSC so the two layers
+    // can't drift: account override → zone fallback → 0.
+    orderMinimum = effectiveOrderMinimum(accountRow, zoneRow);
   }
   const total = round2(subtotal + deliveryFee);
 
