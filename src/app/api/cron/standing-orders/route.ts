@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { computeNextRun } from "@/lib/utils/standing-order";
 import { runStandingOrder } from "@/lib/standing-orders/run";
+import { verifyCronAuth } from "@/lib/cron/auth";
 import type { StandingOrder } from "@/lib/supabase/types";
 
 /**
@@ -9,9 +10,8 @@ import type { StandingOrder } from "@/lib/supabase/types";
  * Vercel Cron calls with `Authorization: Bearer <CRON_SECRET>`.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (secret && auth !== `Bearer ${secret}`) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const denied = verifyCronAuth(request);
+  if (denied) return denied;
 
   const svc = createServiceClient();
   const today = new Date().toISOString().slice(0, 10);
