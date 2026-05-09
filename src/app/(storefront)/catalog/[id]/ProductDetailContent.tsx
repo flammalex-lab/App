@@ -75,9 +75,7 @@ export function ProductDetailContent({
             >
               {producerOrBrand.slice(0, 1).toUpperCase()}
             </span>
-            <span>
-              Find more from <span className="underline font-medium">{producerOrBrand}</span>
-            </span>
+            <span className="underline font-medium">{producerOrBrand}</span>
           </Link>
         ) : null}
 

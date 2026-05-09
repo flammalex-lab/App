@@ -6,6 +6,7 @@ import type { Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { money } from "@/lib/utils/format";
 import { useToast } from "@/components/ui/Toast";
+import { QtyInput } from "@/components/ui/QtyInput";
 import type { PackRow } from "./packs";
 
 export type { PackRow } from "./packs";
@@ -52,6 +53,28 @@ export function ProductDetailClient({
   }
   function sub(p: PackRow) {
     setQty(p.productId, Math.max(0, qtyFor(p) - 1), p.variantKey);
+  }
+  function setDirectQty(p: PackRow, n: number) {
+    if (n === 0) {
+      setQty(p.productId, 0, p.variantKey);
+      return;
+    }
+    if (qtyFor(p) === 0) {
+      add({
+        productId: p.productId,
+        variantKey: p.variantKey,
+        variantSku: p.variantKey ? p.sku : null,
+        sku: p.sku,
+        name: p.productName,
+        packSize: p.packSize,
+        unit: p.unit,
+        unitPrice: p.unitPrice,
+        priceByWeight: p.priceByWeight,
+        quantity: n,
+      });
+    } else {
+      setQty(p.productId, n, p.variantKey);
+    }
   }
 
   async function star() {
@@ -116,7 +139,7 @@ export function ProductDetailClient({
                 </div>
               </div>
               {qty > 0 ? (
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => sub(p)}
                     className="h-8 w-8 rounded-full border border-black/10 flex items-center justify-center text-sm hover:bg-bg-secondary"
@@ -124,7 +147,11 @@ export function ProductDetailClient({
                   >
                     {qty === 1 ? <TrashIcon /> : "−"}
                   </button>
-                  <span className="mono font-semibold w-6 text-center text-sm">{qty}</span>
+                  <QtyInput
+                    value={qty}
+                    onSet={(n) => setDirectQty(p, n)}
+                    className="h-8 w-12 text-center tabular text-sm font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/30 transition-colors duration-150"
+                  />
                   <button
                     onClick={() => addOne(p)}
                     className="h-8 w-8 rounded-full bg-brand-green text-white flex items-center justify-center hover:bg-brand-green-dark transition"

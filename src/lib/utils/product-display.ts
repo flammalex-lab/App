@@ -40,6 +40,16 @@ export function displayProductName(
     }
   }
 
+  // 3. Fallback: strip a generic trailing " — Suffix" (em-dash, en-dash, or
+  //    middot) if one survived. Catches products whose name suffix doesn't
+  //    literally match pack_size — e.g. "Yogurt, Plain — 6oz" with
+  //    pack_size "12/6 oz". Mirrors baseNameForGrouping in catalog packs.ts.
+  const trailingSuffix = /\s+[—–·]\s+[^—–·]+\s*$/;
+  if (trailingSuffix.test(n)) {
+    const stripped = n.replace(trailingSuffix, "").trim();
+    if (stripped) n = stripped;
+  }
+
   return n || name;
 }
 
