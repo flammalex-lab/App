@@ -28,13 +28,18 @@ export interface PackRow {
   priceByWeight: boolean;
 }
 
-export function defaultPackRow(product: Product, unitPrice: number): PackRow {
+export function defaultPackRow(
+  product: Product,
+  unitPrice: number,
+  groupedSuffix?: string | null,
+): PackRow {
   return {
     productId: product.id,
     productName: product.name,
     variantKey: null,
-    label:
-      titleCase(product.unit) + (product.pack_size ? ` — ${product.pack_size}` : ""),
+    label: groupedSuffix
+      ? groupedSuffix
+      : titleCase(product.unit) + (product.pack_size ? ` — ${product.pack_size}` : ""),
     unit: product.unit,
     packSize: product.pack_size,
     sku: product.sku,
@@ -43,12 +48,20 @@ export function defaultPackRow(product: Product, unitPrice: number): PackRow {
   };
 }
 
-export function optionPackRow(product: Product, opt: PackOption, unitPrice: number): PackRow {
+export function optionPackRow(
+  product: Product,
+  opt: PackOption,
+  unitPrice: number,
+  groupedSuffix?: string | null,
+): PackRow {
   return {
     productId: product.id,
     productName: product.name,
     variantKey: opt.key,
-    label: opt.label,
+    // Prepend the grouped suffix so a pack option keeps its sibling context
+    // ("Gallon — Single" vs just "Single", which would collide with Half
+    // Gallon's "Single").
+    label: groupedSuffix ? `${groupedSuffix} — ${opt.label}` : opt.label,
     unit: opt.unit,
     packSize: opt.pack_size,
     sku: opt.sku ?? product.sku,
@@ -73,6 +86,17 @@ export function optionPackRow(product: Product, opt: PackOption, unitPrice: numb
 export function baseNameForGrouping(name: string): string {
   const re = /\s+[—–·]\s+[^—–·]+\s*$/;
   return name.replace(re, "").trim() || name;
+}
+
+/**
+ * Inverse of baseNameForGrouping — returns just the trailing pack-size phrase
+ * ("Gallon", "Half Gallon", "Carton") so a sibling row can label itself with
+ * what actually distinguishes it. Returns null when the name has no
+ * recognized suffix to extract.
+ */
+export function packSuffixFromName(name: string): string | null {
+  const m = name.match(/\s+[—–·]\s+([^—–·]+)\s*$/);
+  return m ? m[1].trim() || null : null;
 }
 
 /**
@@ -125,10 +149,13 @@ export async function loadGroupedPacks(
     visibleSiblings.push(s);
   }
 
-  const sortedSiblings = visibleSiblings
-    .slice()
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
-  const groupedProducts: Product[] = [product, ...sortedSiblings];
+  // Sort the entire group together — we want sizes in a consistent order
+  // (Gallon → Half Gallon → Quart) regardless of which sibling the buyer
+  // entered through, otherwise clicking the smallest size scrambles the list.
+  const groupedProducts: Product[] = [product, ...visibleSiblings].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name),
+  );
+  const isGrouped = groupedProducts.length > 1;
 
   // Batch-load account pricing inputs for the whole group so we don't fan
   // out N×2 queries for what's typically a 2-4 product group.
@@ -156,20 +183,25 @@ export async function loadGroupedPacks(
   for (const p of groupedProducts) {
     const customPrice = overrides.find((o) => o.product_id === p.id) ?? null;
     const priceListItem = listItems.find((li) => li.product_id === p.id) ?? null;
+    // Use the name-suffix ("Gallon", "Half Gallon", …) as the row label when
+    // grouped — that's the part the title strips off, and it's what actually
+    // distinguishes one sibling from the next. Falls back to the default
+    // unit/pack_size label if the name has no recognized suffix.
+    const groupedSuffix = isGrouped ? packSuffixFromName(p.name) : null;
     const defaultPrice = resolvePrice(p, {
       account: ctx.account,
       customPrice,
       priceListItem,
       isB2B: ctx.isB2B,
     });
-    if (defaultPrice != null) packs.push(defaultPackRow(p, defaultPrice));
+    if (defaultPrice != null) packs.push(defaultPackRow(p, defaultPrice, groupedSuffix));
     const opts = (p.pack_options as PackOption[] | null) ?? [];
     for (const opt of opts) {
       const optPrice = resolvePrice(
         { wholesale_price: opt.wholesale_price, retail_price: opt.retail_price },
         { account: ctx.account, customPrice, priceListItem, isB2B: ctx.isB2B },
       );
-      if (optPrice != null) packs.push(optionPackRow(p, opt, optPrice));
+      if (optPrice != null) packs.push(optionPackRow(p, opt, optPrice, groupedSuffix));
     }
   }
   return { packs, products: groupedProducts };

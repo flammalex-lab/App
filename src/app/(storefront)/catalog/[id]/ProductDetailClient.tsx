@@ -88,7 +88,7 @@ export function ProductDetailClient({
               key={`${p.productId}:${p.variantKey ?? "default"}`}
               className="p-3 flex items-center gap-3"
             >
-              {showAddToGuide ? (
+              {showAddToGuide && p.productId === product.id ? (
                 <button
                   onClick={star}
                   aria-label={saved ? "Added to your guide" : "Add to your guide"}
