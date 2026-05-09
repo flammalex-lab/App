@@ -9,11 +9,13 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 export function ProductModal({
   product,
   packs,
+  groupedProductCount,
   showAddToGuide,
   inGuideInitial,
 }: {
   product: Product;
   packs: PackRow[];
+  groupedProductCount: number;
   showAddToGuide: boolean;
   inGuideInitial: boolean;
 }) {
@@ -25,6 +27,7 @@ export function ProductModal({
       <ProductDetailContent
         product={product}
         packs={packs}
+        groupedProductCount={groupedProductCount}
         isB2B={showAddToGuide}
         inGuide={inGuideInitial}
         onClose={close}

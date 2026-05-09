@@ -30,27 +30,28 @@ export function ProductDetailClient({
     inGuideInitial ? "saved" : "idle",
   );
 
-  function qtyFor(variantKey: string | null): number {
-    return lines.find((l) => l.productId === product.id && (l.variantKey ?? null) === variantKey)
-      ?.quantity ?? 0;
+  function qtyFor(p: PackRow): number {
+    return lines.find(
+      (l) => l.productId === p.productId && (l.variantKey ?? null) === p.variantKey,
+    )?.quantity ?? 0;
   }
 
   function addOne(p: PackRow) {
     add({
-      productId: product.id,
+      productId: p.productId,
       variantKey: p.variantKey,
       variantSku: p.variantKey ? p.sku : null,
-      sku: product.sku,
-      name: product.name,
+      sku: p.sku,
+      name: p.productName,
       packSize: p.packSize,
       unit: p.unit,
       unitPrice: p.unitPrice,
-      priceByWeight: Boolean(product.price_by_weight),
+      priceByWeight: p.priceByWeight,
       quantity: 1,
     });
   }
   function sub(p: PackRow) {
-    setQty(product.id, Math.max(0, qtyFor(p.variantKey) - 1), p.variantKey);
+    setQty(p.productId, Math.max(0, qtyFor(p) - 1), p.variantKey);
   }
 
   async function star() {
@@ -81,10 +82,13 @@ export function ProductDetailClient({
     <div className="mt-5 space-y-3">
       <ul className="card divide-y divide-black/5 overflow-hidden">
         {packs.map((p) => {
-          const qty = qtyFor(p.variantKey);
+          const qty = qtyFor(p);
           return (
-            <li key={p.variantKey ?? "default"} className="p-3 flex items-center gap-3">
-              {showAddToGuide ? (
+            <li
+              key={`${p.productId}:${p.variantKey ?? "default"}`}
+              className="p-3 flex items-center gap-3"
+            >
+              {showAddToGuide && p.productId === product.id ? (
                 <button
                   onClick={star}
                   aria-label={saved ? "Added to your guide" : "Add to your guide"}
@@ -106,7 +110,7 @@ export function ProductDetailClient({
                   {p.sku ? `${p.sku} · ` : ""}
                   {money(p.unitPrice)}
                   <span className="text-ink-tertiary"> / {p.unit}</span>
-                  {product.price_by_weight ? (
+                  {p.priceByWeight ? (
                     <span className="ml-1 text-accent-gold">· est.</span>
                   ) : null}
                 </div>
@@ -116,9 +120,9 @@ export function ProductDetailClient({
                   <button
                     onClick={() => sub(p)}
                     className="h-8 w-8 rounded-full border border-black/10 flex items-center justify-center text-sm hover:bg-bg-secondary"
-                    aria-label="Remove one"
+                    aria-label={qty === 1 ? "Remove from cart" : "Remove one"}
                   >
-                    {qty === 1 ? "🗑" : "−"}
+                    {qty === 1 ? <TrashIcon /> : "−"}
                   </button>
                   <span className="mono font-semibold w-6 text-center text-sm">{qty}</span>
                   <button
@@ -143,7 +147,7 @@ export function ProductDetailClient({
         })}
       </ul>
 
-      {product.price_by_weight ? (
+      {packs.some((p) => p.priceByWeight) ? (
         <p className="text-xs text-ink-tertiary px-1">
           Weight-priced — final line total is confirmed by the distributor at fulfillment.
         </p>
@@ -156,6 +160,23 @@ export function ProductDetailClient({
         Go to cart →
       </button>
     </div>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </svg>
   );
 }
 

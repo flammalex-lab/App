@@ -2,11 +2,10 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import type { Account, AccountPricing, PackOption, PriceListItem, Product } from "@/lib/supabase/types";
-import { resolvePrice } from "@/lib/utils/pricing";
+import type { Account, Product } from "@/lib/supabase/types";
 import { isProductVisibleToAccount } from "@/lib/products/queries";
 import { allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
-import { defaultPackRow, optionPackRow, type PackRow } from "@/app/(storefront)/catalog/[id]/packs";
+import { loadGroupedPacks } from "@/app/(storefront)/catalog/[id]/packs";
 import { ProductModal } from "./ProductModal";
 
 export default async function InterceptedProductDetail({
@@ -46,37 +45,11 @@ export default async function InterceptedProductDetail({
     if (!p.is_active || !channelOk || !groupOk || !visibilityOk) notFound();
   }
 
-  const [overrideRes, listItemRes] = await Promise.all([
-    account
-      ? db
-          .from("account_pricing")
-          .select("*")
-          .eq("account_id", account.id)
-          .eq("product_id", id)
-          .maybeSingle()
-      : Promise.resolve({ data: null as AccountPricing | null }),
-    account?.price_list_id
-      ? db
-          .from("price_list_items")
-          .select("*")
-          .eq("price_list_id", account.price_list_id)
-          .eq("product_id", id)
-          .maybeSingle()
-      : Promise.resolve({ data: null as PriceListItem | null }),
-  ]);
-  const customPrice = overrideRes.data as AccountPricing | null;
-  const priceListItem = listItemRes.data as PriceListItem | null;
-
-  const defaultPrice = resolvePrice(p, { account, customPrice, priceListItem, isB2B });
-  const packs: PackRow[] = [];
-  if (defaultPrice != null) packs.push(defaultPackRow(p, defaultPrice));
-  for (const opt of ((p.pack_options as PackOption[] | null) ?? [])) {
-    const price = resolvePrice(
-      { wholesale_price: opt.wholesale_price, retail_price: opt.retail_price },
-      { account, customPrice, priceListItem, isB2B },
-    );
-    if (price != null) packs.push(optionPackRow(p, opt, price));
-  }
+  const { packs, products: groupedProducts } = await loadGroupedPacks(db, p, {
+    account,
+    isB2B,
+    impersonating: Boolean(impersonating),
+  });
 
   let inGuide = false;
   if (isB2B) {
@@ -101,6 +74,7 @@ export default async function InterceptedProductDetail({
     <ProductModal
       product={p}
       packs={packs}
+      groupedProductCount={groupedProducts.length}
       showAddToGuide={isB2B}
       inGuideInitial={inGuide}
     />

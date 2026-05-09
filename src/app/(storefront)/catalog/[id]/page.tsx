@@ -3,13 +3,12 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import type { Account, AccountPricing, PackOption, PriceListItem, Product } from "@/lib/supabase/types";
-import { resolvePrice } from "@/lib/utils/pricing";
+import type { Account, Product } from "@/lib/supabase/types";
 import { isProductVisibleToAccount } from "@/lib/products/queries";
 import { GROUP_LABELS, allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
 import { dateShort, money } from "@/lib/utils/format";
 import { ProductDetailContent } from "./ProductDetailContent";
-import { defaultPackRow, optionPackRow, type PackRow } from "./packs";
+import { loadGroupedPacks } from "./packs";
 
 export default async function ProductDetail({
   params,
@@ -55,42 +54,15 @@ export default async function ProductDetail({
     if (!p.is_active || !channelOk || !groupOk || !visibilityOk) notFound();
   }
 
-  const [overrideRes, listItemRes] = await Promise.all([
-    account
-      ? db
-          .from("account_pricing")
-          .select("*")
-          .eq("account_id", account.id)
-          .eq("product_id", id)
-          .maybeSingle()
-      : Promise.resolve({ data: null as AccountPricing | null }),
-    account?.price_list_id
-      ? db
-          .from("price_list_items")
-          .select("*")
-          .eq("price_list_id", account.price_list_id)
-          .eq("product_id", id)
-          .maybeSingle()
-      : Promise.resolve({ data: null as PriceListItem | null }),
-  ]);
-  const customPrice = overrideRes.data as AccountPricing | null;
-  const priceListItem = listItemRes.data as PriceListItem | null;
-
-  const defaultPrice = resolvePrice(p, { account, customPrice, priceListItem, isB2B });
-
-  // Build the packs list: default option first, then any pack_options the
-  // product defines. Each option is priced using the same tier/override
-  // logic as the default.
-  const packs: PackRow[] = [];
-  if (defaultPrice != null) packs.push(defaultPackRow(p, defaultPrice));
-  const options = (p.pack_options as PackOption[] | null) ?? [];
-  for (const opt of options) {
-    const price = resolvePrice(
-      { wholesale_price: opt.wholesale_price, retail_price: opt.retail_price },
-      { account, customPrice, priceListItem, isB2B },
-    );
-    if (price != null) packs.push(optionPackRow(p, opt, price));
-  }
+  // Build packs spanning the product AND any sibling products that share a
+  // base name (e.g. "Whole Milk — Gallon" + "Whole Milk — Half Gallon" both
+  // appear in the same detail card so the buyer can pick a size without
+  // bouncing between pages).
+  const { packs, products: groupedProducts } = await loadGroupedPacks(db, p, {
+    account,
+    isB2B,
+    impersonating: Boolean(impersonating),
+  });
 
   // Is this product already saved to the buyer's order guide?
   let inGuide = false;
@@ -161,6 +133,7 @@ export default async function ProductDetail({
         <ProductDetailContent
           product={p}
           packs={packs}
+          groupedProductCount={groupedProducts.length}
           isB2B={isB2B}
           inGuide={inGuide}
         />
