@@ -47,9 +47,23 @@ export async function POST(request: Request) {
       sms_sid: smsSid,
     });
     if (triageErr) {
-      // Don't 5xx — Twilio would retry forever. Log loud so we can fix the
-      // schema (most likely cause: 0020 hasn't been applied yet).
       console.error("[sms inbound] sms_triage insert failed:", triageErr.message, "from:", fromPhone);
+      // Fallback: if sms_triage is missing (e.g. migration 0020 hasn't
+      // been applied yet), still surface the message to admins via the
+      // messages table with a null account_id — admin RLS sees it. We
+      // include the from_phone in the body so the rep can match by hand.
+      const { error: fallbackErr } = await svc.from("messages").insert({
+        account_id: null,
+        from_profile_id: null,
+        body: `[unmatched ${fromPhone}] ${body}`,
+        channel: "sms",
+        direction: "inbound",
+        sms_sid: smsSid,
+        from_phone: fromPhone,
+      });
+      if (fallbackErr) {
+        console.error("[sms inbound] messages fallback also failed:", fallbackErr.message);
+      }
     }
     return twimlOk();
   }

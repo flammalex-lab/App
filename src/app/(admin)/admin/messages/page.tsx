@@ -26,10 +26,14 @@ export default async function AdminMessagesPage({
   // DB-side DISTINCT ON via the RPC added in migration 0020. The old
   // 500-message JS dedupe missed long-tail conversations once the table
   // grew past a couple hundred active accounts.
-  const { data } = await db.rpc("latest_messages_per_account", {
+  const { data, error } = await db.rpc("latest_messages_per_account", {
     p_limit: PAGE_SIZE + 1, // fetch one extra to know if a next page exists
     p_offset: page * PAGE_SIZE,
   });
+  // Most common cause of error here is migration 0020 not yet applied, in
+  // which case the RPC doesn't exist. Surface that loudly to the admin
+  // instead of rendering a misleading "no conversations yet" empty state.
+  const rpcError = error ? error.message : null;
   const rows = ((data as ThreadRow[] | null) ?? []).slice(0, PAGE_SIZE);
   const hasNext = ((data as ThreadRow[] | null) ?? []).length > PAGE_SIZE;
 
@@ -39,6 +43,14 @@ export default async function AdminMessagesPage({
   return (
     <div className="max-w-5xl">
       <h1 className="text-3xl mb-4">Messages</h1>
+      {rpcError ? (
+        <div className="rounded-md bg-red-50 border border-red-200 text-red-900 text-sm px-3 py-2 mb-4">
+          <strong>Messages can&apos;t load.</strong>{" "}
+          The <code>latest_messages_per_account</code> RPC errored:{" "}
+          <span className="mono text-xs">{rpcError}</span>{" "}
+          (Most likely cause: migration 0020 hasn&apos;t been applied in Supabase yet.)
+        </div>
+      ) : null}
       <div className="card divide-y divide-black/5">
         {rows.map((t) => (
           <Link

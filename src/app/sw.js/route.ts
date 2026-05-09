@@ -1,33 +1,46 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Service worker is served from a route handler so we can stamp the
- * current build SHA into the cache name. Without a per-deploy version,
+ * current build id into the cache name. Without a per-deploy version,
  * the SW serves the prior shell forever after a deploy (CLAUDE.md
  * already calls this out as a recurring "I don't see my changes" symptom).
  *
- * Build-id resolution:
+ * Build-id resolution (in priority order, all stable across instances):
  *   1. VERCEL_GIT_COMMIT_SHA — auto-set on Vercel deploys
- *   2. NEXT_PUBLIC_BUILD_ID — opt-in for self-hosted prod
- *      (e.g. `NEXT_PUBLIC_BUILD_ID=$(git rev-parse --short HEAD) next build`)
- *   3. Self-hosted prod fallback — random UUID captured at module load.
- *      Each cold start at least bumps the cache name (suboptimal: forces
- *      a re-fetch of the shell on every server boot, but better than a
- *      frozen string that never invalidates).
- *   4. Dev — `dev-${Date.now()}`, stable per process so HMR works.
+ *   2. NEXT_PUBLIC_BUILD_ID — opt-in env override
+ *   3. .next/BUILD_ID — written by `next build`, identical across
+ *      instances of the same deploy. Works for self-hosted serverless
+ *      where multiple workers handle the same release; a per-process
+ *      random would have caused cache thrashing as clients moved
+ *      between instances.
+ *   4. Dev — `dev-${Date.now()}`, captured once per process so HMR
+ *      doesn't churn within a single `next dev` session.
  */
+function readNextBuildId(): string | null {
+  try {
+    return readFileSync(join(process.cwd(), ".next", "BUILD_ID"), "utf-8").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 const PROD_BUILD_ID =
-  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? process.env.NEXT_PUBLIC_BUILD_ID ?? null;
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ??
+  process.env.NEXT_PUBLIC_BUILD_ID ??
+  readNextBuildId();
 const DEV_BUILD_ID = `dev-${Date.now()}`;
-const PROD_FALLBACK = `prod-${randomUUID().slice(0, 12)}`;
 const BUILD_ID =
-  PROD_BUILD_ID ?? (process.env.NODE_ENV === "production" ? PROD_FALLBACK : DEV_BUILD_ID);
-if (!PROD_BUILD_ID && process.env.NODE_ENV === "production") {
-  console.warn(
-    "[sw] No VERCEL_GIT_COMMIT_SHA or NEXT_PUBLIC_BUILD_ID set in production — " +
-      `using per-process fallback "${PROD_FALLBACK}". The shell will be re-fetched on every cold start. ` +
-      "Set NEXT_PUBLIC_BUILD_ID at build time to fix.",
+  PROD_BUILD_ID ?? (process.env.NODE_ENV === "production" ? null : DEV_BUILD_ID);
+if (!BUILD_ID) {
+  // Fail fast: refuse to ship a SW with a frozen / per-instance build id.
+  // The /sw.js route returns 500 below until the operator sets one of the
+  // accepted env vars or runs a real `next build`.
+  console.error(
+    "[sw] No VERCEL_GIT_COMMIT_SHA, NEXT_PUBLIC_BUILD_ID, or .next/BUILD_ID found in production. " +
+      "Service worker will return 500 until one is set.",
   );
 }
 
@@ -135,6 +148,12 @@ self.addEventListener("notificationclick", (event) => {
 `;
 
 export async function GET() {
+  if (!BUILD_ID) {
+    return NextResponse.json(
+      { error: "Service worker disabled: no stable BUILD_ID configured" },
+      { status: 500 },
+    );
+  }
   return new NextResponse(SW, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",

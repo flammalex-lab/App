@@ -20,17 +20,19 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), interest-cohort=()" },
-  // Starter CSP. NOTE: `script-src 'unsafe-inline' 'unsafe-eval'` defangs
-  // the XSS-mitigation value of CSP — every other directive (frame-ancestors,
-  // base-uri, form-action) still earns its keep, but inline-script blocking
-  // does not. TODO(audit-H7-followup): adopt nonce-based CSP — generate a
-  // nonce in middleware, attach to <Script nonce>, and Next's auto-injected
-  // inline scripts; then drop 'unsafe-inline' / 'unsafe-eval' from script-src.
+  // Starter CSP. NOTE: `script-src 'unsafe-inline'` still defangs the
+  // headline XSS-mitigation value of CSP — Next's runtime injects inline
+  // boot scripts. The other directives (frame-ancestors, base-uri,
+  // form-action) earn their keep regardless. We dropped 'unsafe-eval'
+  // since Next 16 only needs it in dev. TODO(audit-followup): adopt
+  // nonce-based CSP — generate a nonce in middleware, attach to <Script
+  // nonce>, and Next's auto-injected inline scripts; then drop
+  // 'unsafe-inline' too.
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.network",
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://m.stripe.network",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
