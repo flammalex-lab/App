@@ -58,6 +58,12 @@ const securityHeaders = [
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      // Defense-in-depth: tells browsers to upgrade any leftover http://
+      // sub-resource to https:// before fetching, and refuses to load
+      // any genuine mixed (passive) content. Both are free wins on a
+      // site that is already https-only on the deploy.
+      "upgrade-insecure-requests",
+      "block-all-mixed-content",
     ].join("; "),
   },
 ];

@@ -23,6 +23,10 @@ export default async function AdminOrdersPage({
   // runs SELECT COUNT(*) over the filtered table on every request, which
   // becomes expensive at 100k+ orders. The +1 row tells us whether there's
   // a next page (matches the pattern in admin/messages).
+  //
+  // PostgREST .range(from, to) is INCLUSIVE on both ends, so passing
+  // (PAGE_SIZE + PAGE_SIZE) returns PAGE_SIZE+1 rows (indices 0..PAGE_SIZE
+  // inclusive) — exactly what we want for the lookahead.
   let query = db
     .from("orders")
     .select("*, account:accounts(name)")

@@ -80,7 +80,12 @@ export async function POST(request: Request) {
         from_phone: fromPhone,
       });
       if (fallbackErr) {
+        // Both inserts failed — the SMS is about to be lost. Return 500
+        // so Twilio retries (Twilio backs off and eventually escalates
+        // via the failed-message hook); this is strictly better than
+        // returning 200 and dropping silently with only a console log.
         console.error("[sms inbound] messages fallback also failed:", fallbackErr.message);
+        return new NextResponse("triage + fallback both failed", { status: 500 });
       }
     }
     return twimlOk();

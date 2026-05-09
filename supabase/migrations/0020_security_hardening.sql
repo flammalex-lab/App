@@ -40,12 +40,21 @@ begin
   if exists (select 1 from orders where account_id is null) then
     select id into unassigned_id
       from accounts
-     where name = 'Unassigned (orphaned orders)'
+     where name = '[ORPHANED] needs manual reconciliation'
      limit 1;
     if unassigned_id is null then
       insert into accounts (name, type, channel, status, notes)
-      values ('Unassigned (orphaned orders)', 'other', 'foodservice', 'inactive',
-              'Auto-created by 0020_security_hardening to backfill orders.account_id NOT NULL')
+      values (
+        '[ORPHANED] needs manual reconciliation',
+        'other',
+        'foodservice',
+        'inactive',
+        'Auto-created by 0020_security_hardening so orders.account_id can flip to NOT NULL. ' ||
+        'Each row pointing here represents an order whose original account_id became null ' ||
+        '(account deleted with `on delete set null` in 0001). Investigate the linked orders ' ||
+        '— they may represent revenue tied to a deleted account or a previous bug — and ' ||
+        're-attach to a real account where possible. status=inactive keeps it out of normal admin lists.'
+      )
       returning id into unassigned_id;
     end if;
     update orders set account_id = unassigned_id where account_id is null;
