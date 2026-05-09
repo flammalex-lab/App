@@ -41,10 +41,10 @@ export async function GET(request: Request) {
       .eq("requested_delivery_date", next.deliveryDate.toISOString().slice(0, 10))
       .neq("status", "cancelled")
       .limit(1);
-    if ((existing as any[] | null)?.length) continue;
+    if ((existing as { id: string }[] | null)?.length) continue;
 
     const { data: buyers } = await svc.from("profiles").select("id, phone").eq("account_id", a.id).limit(1);
-    const buyer = (buyers as any[] | null)?.[0];
+    const buyer = (buyers as { id: string; phone: string | null }[] | null)?.[0];
     if (!buyer?.phone) continue;
 
     await enqueueAndSend({

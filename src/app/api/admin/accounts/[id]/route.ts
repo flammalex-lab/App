@@ -9,8 +9,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const svc = createServiceClient();
   if (id === "new") {
     const { data, error } = await svc.from("accounts").insert(body).select("id").single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ id: (data as any).id });
+    if (error || !data) return NextResponse.json({ error: error?.message ?? "no row" }, { status: 500 });
+    return NextResponse.json({ id: (data as { id: string }).id });
   }
   const { error } = await svc.from("accounts").update(body).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

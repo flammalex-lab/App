@@ -52,8 +52,13 @@ function escapeXml(s: string): string {
  * Returns the best image for a product: real image_url if present, else
  * the FLF logo as a placeholder. Used everywhere products render until
  * we have real product photography uploaded.
+ *
+ * Takes only image_url because that's all the implementation actually
+ * needs — callers include the BarcodeScanner cart-line view, which
+ * doesn't have a category to hand in. The function used to take
+ * `{ image_url, category, name }` but never read the latter two.
  */
-export function productImage(p: { image_url: string | null; category: Category; name: string }): string {
+export function productImage(p: { image_url: string | null }): string {
   return p.image_url ?? "/images/flf-logo.png";
 }
 

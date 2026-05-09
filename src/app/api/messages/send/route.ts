@@ -32,16 +32,19 @@ export async function POST(request: Request) {
   let accountId: string | null = session.profile.account_id;
 
   if (impersonating) {
-    const { data: target } = await svc
+    const { data: targetRow } = await svc
       .from("profiles")
       .select("id, first_name, phone, account_id")
       .eq("id", impersonating)
       .maybeSingle();
+    const target = targetRow as
+      | { id: string; first_name: string | null; phone: string | null; account_id: string | null }
+      | null;
     if (target) {
-      fromProfileId = (target as any).id;
-      fromFirstName = (target as any).first_name ?? "";
-      fromPhone = (target as any).phone;
-      accountId = (target as any).account_id;
+      fromProfileId = target.id;
+      fromFirstName = target.first_name ?? "";
+      fromPhone = target.phone;
+      accountId = target.account_id;
     }
   } else {
     const { active } = await resolveActiveAccount(fromProfileId, accountId);
@@ -54,16 +57,17 @@ export async function POST(request: Request) {
   let toProfileId: string | null = null;
   let accountName: string | null = null;
   if (accountId) {
-    const { data: account } = await svc
+    const { data: accountRow } = await svc
       .from("accounts")
       .select("salesperson_id, name")
       .eq("id", accountId)
       .maybeSingle();
-    toProfileId = ((account as any)?.salesperson_id as string | null) ?? null;
-    accountName = ((account as any)?.name as string | null) ?? null;
+    const account = accountRow as { salesperson_id: string | null; name: string } | null;
+    toProfileId = account?.salesperson_id ?? null;
+    accountName = account?.name ?? null;
   }
   if (!toProfileId) {
-    const { data: fallbackAdmin } = await svc
+    const { data: fallbackAdminRow } = await svc
       .from("profiles")
       .select("id, phone")
       .eq("role", "admin")
@@ -71,7 +75,8 @@ export async function POST(request: Request) {
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    toProfileId = ((fallbackAdmin as any)?.id as string | null) ?? null;
+    const fallbackAdmin = fallbackAdminRow as { id: string; phone: string | null } | null;
+    toProfileId = fallbackAdmin?.id ?? null;
   }
 
   const { data: inserted, error: insertErr } = await svc
@@ -94,13 +99,14 @@ export async function POST(request: Request) {
   // Forward to the recipient via SMS if they've opted in. Otherwise the
   // message stays in-app only.
   if (toProfileId) {
-    const { data: rep } = await svc
+    const { data: repRow } = await svc
       .from("profiles")
       .select("phone, sms_opted_in")
       .eq("id", toProfileId)
       .maybeSingle();
-    const phone = (rep as any)?.phone as string | null;
-    const optedIn = Boolean((rep as any)?.sms_opted_in);
+    const rep = repRow as { phone: string | null; sms_opted_in: boolean } | null;
+    const phone = rep?.phone ?? null;
+    const optedIn = Boolean(rep?.sms_opted_in);
     if (phone && optedIn) {
       const prefix = accountName ? `[${accountName}]` : "[no account]";
       await sendSms({

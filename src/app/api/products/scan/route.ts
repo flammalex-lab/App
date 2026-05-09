@@ -3,8 +3,8 @@ import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
-import { allowedGroupsFor } from "@/lib/constants";
-import type { AccountPricing, PriceListItem, Product } from "@/lib/supabase/types";
+import { allowedGroupsFor, type ProductGroup } from "@/lib/constants";
+import type { AccountPricing, PriceListItem, Product, Profile } from "@/lib/supabase/types";
 import { resolvePrice } from "@/lib/utils/pricing";
 import { isProductVisibleToAccount } from "@/lib/products/queries";
 
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     .eq("id", profileId)
     .maybeSingle();
   if (!meRow) return NextResponse.json({ error: "profile not found" }, { status: 404 });
-  const me = meRow as any;
+  const me = meRow as Profile;
 
   // Lookup: UPC match first, then SKU. Case-insensitive for both.
   const { data: candidatesRaw } = await db
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
   if (
     isB2B &&
     product.product_group &&
-    !allowed.includes(product.product_group as any)
+    !allowed.includes(product.product_group as ProductGroup)
   ) {
     return NextResponse.json(
       {

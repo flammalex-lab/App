@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 /**
  * Tappable / typeable quantity input. On mobile, focusing the input
@@ -21,13 +21,17 @@ export function QtyInput({
   className?: string;
   ariaLabel?: string;
 }) {
+  // Two state slots: the local edit buffer, and a "last seen" value-prop.
+  // When the prop changes (e.g. + button bumps qty externally) we sync
+  // the buffer during render — the canonical React docs pattern for
+  // "adjust state when a prop changes" without an effect cascade.
   const [local, setLocal] = useState<string>(String(value));
-  const ref = useRef<HTMLInputElement>(null);
-
-  // Sync external changes (e.g. + button) into the local view
-  useEffect(() => {
+  const [lastValueProp, setLastValueProp] = useState(value);
+  if (value !== lastValueProp) {
+    setLastValueProp(value);
     setLocal(String(value));
-  }, [value]);
+  }
+  const ref = useRef<HTMLInputElement>(null);
 
   function commit() {
     const n = Number(local);

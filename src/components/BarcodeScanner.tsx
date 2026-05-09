@@ -57,12 +57,23 @@ export function BarcodeScanner({
   const [manualCode, setManualCode] = useState("");
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // Render-time state reset on `open` toggling false: avoids the
+  // setState-in-effect cascade that React 19's hook lint flags. The
+  // camera setup/teardown stays in the effect below — that's the
+  // legitimate "subscribe to an external system" pattern.
+  const [lastOpen, setLastOpen] = useState(open);
+  if (lastOpen !== open) {
+    setLastOpen(open);
+    if (!open) {
+      setBanner({ kind: "idle" });
+      setCameraError(null);
+    }
+  }
+
   useEffect(() => {
     if (!open) {
       controlsRef.current?.stop();
       controlsRef.current = null;
-      setBanner({ kind: "idle" });
-      setCameraError(null);
       cooldownRef.current = null;
       return;
     }
@@ -206,7 +217,6 @@ export function BarcodeScanner({
 
       {/* Camera viewport */}
       <div className="relative mx-3 rounded-2xl overflow-hidden bg-black/60 aspect-[4/3]">
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
@@ -275,7 +285,7 @@ export function BarcodeScanner({
                 <li key={`${l.productId}:${l.variantKey ?? "default"}`} className="flex items-center gap-3 py-2.5 px-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={productImage({ id: l.productId, image_url: null, name: l.name } as any)}
+                    src={productImage({ image_url: null })}
                     alt=""
                     className="h-12 w-12 rounded-md object-cover bg-gradient-radial-soft shrink-0"
                   />
