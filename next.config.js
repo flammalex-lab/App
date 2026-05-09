@@ -74,8 +74,6 @@ const nextConfig = {
   images: {
     remotePatterns: [
       ...supabaseImagePatterns(),
-      // Unsplash kept for placeholder images during dev.
-      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
   async headers() {

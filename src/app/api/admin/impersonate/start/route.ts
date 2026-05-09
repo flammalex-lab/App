@@ -50,6 +50,17 @@ function originOk(request: Request): boolean {
 
 export async function POST(request: Request) {
   if (!originOk(request)) {
+    // Log the missing-headers case so an admin reporting a 403 they don't
+    // understand can be diagnosed quickly: usually a corporate proxy or
+    // privacy extension that strips Origin / Referer / Sec-Fetch-Site.
+    console.warn(
+      "[impersonate] cross-origin request rejected (or all CSRF signals stripped):",
+      {
+        origin: request.headers.get("origin"),
+        referer: request.headers.get("referer"),
+        secFetchSite: request.headers.get("sec-fetch-site"),
+      },
+    );
     return NextResponse.json({ error: "cross-origin request rejected" }, { status: 403 });
   }
 
