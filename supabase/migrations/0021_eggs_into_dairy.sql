@@ -11,11 +11,11 @@
 -- expect "Whole Milk — Gallon" and "Large Brown Eggs — Carton". Inserts the
 -- missing word right before the em-dash that separates pack info.
 --
--- Idempotent: re-running is a no-op once names already contain "milk" /
--- "eggs" and no rows still have category='eggs'.
+-- Idempotent: name updates are gated on the missing word, and the enum
+-- recreate is gated on 'eggs' still existing.
 
--- 1. Update product names. Done BEFORE the category migration so the
---    category filter still works.
+-- 1. Update product names BEFORE the category migration so the category
+--    filter still works to scope which rows we touch.
 
 -- 1a. Eggs: insert "Eggs" before the em-dash if the name doesn't already
 --     contain "egg".
@@ -41,47 +41,44 @@ update products
    and name !~* '\ymilk\y'
    and name !~* '(yogurt|cheese|cream|butter|kefir|ricotta|mozzarella|cheddar|brie|gouda|feta|chocolate)';
 
--- 2. Move products with category='eggs' to category='dairy'.
-update products
-   set category = 'dairy'::category_t
- where category::text = 'eggs';
+-- 2. Recreate the enum without 'eggs'. Same approach as 0020: build the
+--    new enum in one go and remap eggs -> dairy in the USING clause, so
+--    we never need to use a freshly-added value in the same transaction.
 
--- 3. Update accounts.enabled_categories: replace eggs with dairy (dedup).
-update accounts
-   set enabled_categories = (
-     select array_agg(distinct cat)
-       from (
-         select case when c::text = 'eggs' then 'dairy' else c::text end::category_t as cat
-           from unnest(enabled_categories) as c
-       ) sub
-   )
- where exists (
-   select 1 from unnest(enabled_categories) c where c::text = 'eggs'
- );
-
--- 4. Drop the QB income-account row for eggs. Egg sales now book to the
---    dairy account; admin can rename in Settings if they want a separate
---    Egg Sales line on the P&L.
-delete from qb_settings where key = 'income_account.eggs';
-
--- 5. Recreate the enum without 'eggs' so the type matches the data.
 do $$ begin
   if exists (
     select 1 from pg_enum e
       join pg_type t on t.oid = e.enumtypid
      where t.typname = 'category_t' and e.enumlabel = 'eggs'
   ) then
-    create type category_t_new as enum ('meat', 'dairy', 'produce', 'pantry', 'beverages');
+    drop type if exists category_t_new;
+
+    create type category_t_new as enum (
+      'meat', 'dairy', 'produce', 'pantry', 'beverages'
+    );
 
     alter table accounts alter column enabled_categories drop default;
 
     alter table products
       alter column category type category_t_new
-      using category::text::category_t_new;
+      using (
+        case when category::text = 'eggs' then 'dairy'
+             else category::text
+        end
+      )::category_t_new;
 
     alter table accounts
       alter column enabled_categories type category_t_new[]
-      using enabled_categories::text[]::category_t_new[];
+      using (
+        array(
+          select distinct (
+            case when c::text = 'eggs' then 'dairy'
+                 else c::text
+            end
+          )::category_t_new
+          from unnest(enabled_categories) as c
+        )
+      );
 
     alter table accounts
       alter column enabled_categories
@@ -91,3 +88,8 @@ do $$ begin
     alter type category_t_new rename to category_t;
   end if;
 end $$;
+
+-- 3. Drop the QB income-account row for eggs. Egg sales now book to the
+--    dairy account; admin can rename in Settings if they want a separate
+--    Egg Sales line on the P&L.
+delete from qb_settings where key = 'income_account.eggs';

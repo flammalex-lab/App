@@ -7,54 +7,17 @@
 -- separate income-account rows for QuickBooks. Folding them into one 'meat'
 -- category matches how the catalog and order guides actually behave.
 --
--- Plan:
---   1. Add 'meat' to category_t so we can write it during the data migration.
---   2. Rewrite products.category and accounts.enabled_categories to use 'meat'.
---   3. Collapse income_account.beef / pork / lamb into income_account.meat.
---   4. Recreate the enum without beef/pork/lamb so the type matches the data.
+-- Implementation note: we do NOT add 'meat' to the existing enum first.
+-- Postgres forbids using a newly-added enum value in the same transaction
+-- it was added in (the Supabase SQL editor wraps the whole migration in one
+-- transaction), which would silently leave beef/pork/lamb rows in place and
+-- then fail at the recreate step. Instead we build a fresh `category_t_new`
+-- with 'meat' already in it and remap rows inside the USING clause of the
+-- column type change.
 --
--- Idempotent: re-running is a no-op once the data is already on 'meat'.
+-- Idempotent: gated on beef/pork/lamb still being present in the enum, so
+-- re-running after a successful migration is a no-op.
 
--- 1. Add 'meat' to the existing enum.
-do $$ begin
-  alter type category_t add value if not exists 'meat';
-exception when duplicate_object then null;
-end $$;
-
--- 2a. Migrate products.
-update products
-   set category = 'meat'::category_t
- where category::text in ('beef', 'pork', 'lamb');
-
--- 2b. Migrate accounts.enabled_categories arrays (replace beef/pork/lamb with
---     meat, dedup, and preserve the rest).
-update accounts
-   set enabled_categories = (
-     select array_agg(distinct cat)
-       from (
-         select case
-                  when c::text in ('beef', 'pork', 'lamb') then 'meat'
-                  else c::text
-                end::category_t as cat
-           from unnest(enabled_categories) as c
-       ) sub
-   )
- where exists (
-   select 1 from unnest(enabled_categories) c
-    where c::text in ('beef', 'pork', 'lamb')
- );
-
--- 3. Consolidate QB income-account mapping rows. Admin can rename the label
---    from Settings; we just need a single key for the meat bucket.
-insert into qb_settings (key, value)
-values ('income_account.meat', 'Meat Sales')
-on conflict (key) do nothing;
-
-delete from qb_settings
- where key in ('income_account.beef', 'income_account.pork', 'income_account.lamb');
-
--- 4. Recreate the enum without beef/pork/lamb. All product/account rows have
---    already been migrated above, so the text-cast is total.
 do $$ begin
   if exists (
     select 1 from pg_enum e
@@ -62,17 +25,43 @@ do $$ begin
      where t.typname = 'category_t'
        and e.enumlabel in ('beef', 'pork', 'lamb')
   ) then
-    create type category_t_new as enum ('meat', 'eggs', 'dairy', 'produce', 'pantry', 'beverages');
+    -- Drop any leftover from a previous partial run before we recreate.
+    drop type if exists category_t_new;
+
+    create type category_t_new as enum (
+      'meat', 'eggs', 'dairy', 'produce', 'pantry', 'beverages'
+    );
 
     alter table accounts alter column enabled_categories drop default;
 
+    -- Map beef/pork/lamb -> meat in the USING clause; everything else
+    -- passes through. The text round-trip is what lets the cast cross
+    -- enum types — direct enum-to-enum casts aren't allowed.
     alter table products
       alter column category type category_t_new
-      using category::text::category_t_new;
+      using (
+        case
+          when category::text in ('beef', 'pork', 'lamb') then 'meat'
+          else category::text
+        end
+      )::category_t_new;
 
+    -- Same mapping for accounts.enabled_categories. `array(select distinct …)`
+    -- per-row dedups any account that had multiple of beef/pork/lamb enabled
+    -- (which would otherwise collapse to duplicate 'meat' entries).
     alter table accounts
       alter column enabled_categories type category_t_new[]
-      using enabled_categories::text[]::category_t_new[];
+      using (
+        array(
+          select distinct (
+            case
+              when c::text in ('beef', 'pork', 'lamb') then 'meat'
+              else c::text
+            end
+          )::category_t_new
+          from unnest(enabled_categories) as c
+        )
+      );
 
     alter table accounts
       alter column enabled_categories
@@ -82,3 +71,12 @@ do $$ begin
     alter type category_t_new rename to category_t;
   end if;
 end $$;
+
+-- Consolidate QB income-account mapping rows. Admin can rename the label
+-- from Settings; we just need a single key for the meat bucket.
+insert into qb_settings (key, value)
+values ('income_account.meat', 'Meat Sales')
+on conflict (key) do nothing;
+
+delete from qb_settings
+ where key in ('income_account.beef', 'income_account.pork', 'income_account.lamb');
