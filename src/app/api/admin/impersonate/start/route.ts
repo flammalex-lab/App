@@ -68,45 +68,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "cannot impersonate another admin" }, { status: 403 });
   }
 
-  // The audit log is a hard requirement — refuse to set the cookie if
-  // we can't record the impersonation. Otherwise a DB hiccup would leave
-  // an admin actively impersonating a buyer with no trail.
-  const { data: logRow, error: logErr } = await svc
+  // Audit log first, then cookie. The log is append-only — a row records
+  // an *attempt*, not a confirmed-active session. We don't roll back on
+  // cookie-set failure: a hostile admin who could induce a cookie write
+  // failure could otherwise scrub their own attempts from the trail.
+  // Operators reviewing the log can correlate with ordinary access logs
+  // to see whether an attempt actually became a session.
+  const { error: logErr } = await svc
     .from("admin_impersonation_log")
     .insert({
       admin_profile_id: admin.userId,
       target_profile_id: profileId,
       reason: "admin-initiated",
-    })
-    .select("id")
-    .single();
-  if (logErr || !logRow) {
+    });
+  if (logErr) {
     return NextResponse.json(
-      { error: `audit log failed: ${logErr?.message ?? "no row"}` },
+      { error: `audit log failed: ${logErr.message}` },
       { status: 500 },
     );
   }
 
-  // Cookie set is the last step. setImpersonation() rarely throws — Next's
-  // cookies().set(...) just queues a Set-Cookie header — but if it does
-  // (cookie store called outside a request context, env error in
-  // signImpersonationToken, etc.), best-effort rollback the audit log
-  // entry so the trail isn't permanently misleading. Best-effort because
-  // the rollback DELETE itself can fail (DB blip), in which case we log
-  // and accept the orphan rather than 500-loop.
+  // Cookie set. setImpersonation() rarely throws — Next's cookies().set()
+  // queues a Set-Cookie header — but if it does, the audit row stays as
+  // evidence of the attempt and we surface the failure to the caller.
   try {
     await setImpersonation(profileId);
   } catch (e) {
-    const { error: rollbackErr } = await svc
-      .from("admin_impersonation_log")
-      .delete()
-      .eq("id", (logRow as { id: string }).id);
-    if (rollbackErr) {
-      console.error(
-        "[impersonate] cookie write failed AND audit-log rollback failed — leaving orphan log row",
-        { logId: (logRow as { id: string }).id, rollbackErr: rollbackErr.message },
-      );
-    }
     const msg = e instanceof Error ? e.message : "unknown error";
     return NextResponse.json({ error: `impersonation cookie write failed: ${msg}` }, { status: 500 });
   }

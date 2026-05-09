@@ -32,11 +32,19 @@ export async function POST(request: Request) {
 
   if (!fromPhone) return twimlOk();
   const svc = createServiceClient();
-  const { data: profile } = await svc
+  // profiles.phone has no unique constraint — two profiles can legitimately
+  // share a number (re-registration, admin-created duplicates, DTC+B2B
+  // overlap). .maybeSingle() would error on >1 row and silently drop the
+  // SMS into triage. Take the oldest matching profile (most likely the
+  // long-standing canonical one) and let admin clean up dupes via the
+  // sms_triage UI when they show up.
+  const { data: profileRows } = await svc
     .from("profiles")
     .select("id, account_id")
     .eq("phone", fromPhone)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const profile = (profileRows as { id: string; account_id: string | null }[] | null)?.[0] ?? null;
 
   // Unknown phone — park the message in the sms_triage table so a rep
   // can attach it to a profile by hand, instead of silently dropping.
@@ -82,8 +90,8 @@ export async function POST(request: Request) {
   // any account this profile is linked to via profile_accounts. Fall back
   // to a profile-scoped null-account thread (migration 0014) so unknown
   // / multi-account / between-accounts messages still reach the rep.
-  const profileId = (profile as { id: string }).id;
-  let accountId = (profile as { account_id: string | null }).account_id;
+  const profileId = profile.id;
+  let accountId = profile.account_id;
   if (!accountId) {
     // Belt-and-suspenders: there's a unique partial index on
     // profile_accounts(profile_id) where is_default=true (migration 0020)
