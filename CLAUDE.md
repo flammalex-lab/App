@@ -31,24 +31,28 @@ Alex sometimes pushes screenshots/assets to `claude/fingerlakes-farms-portal-SZY
 by accident — pull those commits over via `git checkout <sha> -- public/images/pepper/`
 when needed.
 
-### Self-review, then merge straight to `main`
-Production deploys from `main` on Vercel. Skip the PR/GitHub-review loop —
-no cloud reviews, no Copilot review, no `/review` or `/ultrareview`, no
-bouncing through the GitHub UI. Alex trusts you to be the coder *and* the
-reviewer; you don't need an explicit "go ahead" before merging.
+### Self-review, then ship via API-merged PR
+Production deploys from `main` on Vercel. The sandbox proxy blocks direct
+pushes to `main`, so a PR is unavoidable as a transport — but the *review
+loop* around it is not. Alex trusts you to be the coder *and* the reviewer;
+you don't need an explicit "go ahead" before shipping routine work.
 
-The flow is:
+The flow:
 1. Make changes on a working branch and commit.
-2. Self-review the diff before merging — re-read what you changed, check
-   for obvious bugs/regressions, confirm tests/typecheck still pass when
-   relevant. If something feels risky or ambiguous, surface it in chat
-   *before* merging instead of asking permission for routine work.
-3. Fast-forward or squash-merge the working branch into `main` locally,
-   then `git push -u origin main`. Keep the project moving.
-4. Mention what you merged in your end-of-turn summary so Alex can see
-   what shipped.
+2. Self-review the diff — re-read what you changed, check for obvious
+   bugs/regressions, confirm tests/typecheck still pass when relevant.
+   If something feels risky or ambiguous, surface it in chat *before*
+   shipping instead of asking permission for routine work.
+3. Push the branch, open a PR with `mcp__github__create_pull_request`,
+   then immediately merge it with `mcp__github__merge_pull_request`
+   (squash by default). Do **not** run `/review`, `/ultrareview`, or
+   `request_copilot_review` — those burn credits Alex doesn't want spent.
+   Don't wait for Alex to approve the PR in the GitHub UI; the API merge
+   *is* the ship action.
+4. Mention the PR number and what shipped in your end-of-turn summary.
 
-Open a PR only when Alex explicitly asks for one for a specific change.
+Open a PR *without* immediately merging only when Alex explicitly asks
+for review on a specific change before it lands.
 
 ### Style
 - FLF brand: editorial / farm-forward, not Shopify-corporate. Display font
