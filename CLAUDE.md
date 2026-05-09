@@ -31,6 +31,14 @@ Alex sometimes pushes screenshots/assets to `claude/fingerlakes-farms-portal-SZY
 by accident — pull those commits over via `git checkout <sha> -- public/images/pepper/`
 when needed.
 
+### Always open a PR after pushing
+Production deploys from `main` on Vercel — feature branches don't go live
+until they're merged. So whenever you push commits to a working branch,
+**open (or update) a pull request to `main` automatically** without
+waiting for Alex to ask. Use the GitHub MCP tools. If a PR already exists
+for the branch, just push the new commits and let the existing PR pick
+them up. This overrides the default "don't auto-PR" rule.
+
 ### Style
 - FLF brand: editorial / farm-forward, not Shopify-corporate. Display font
   Bricolage Grotesque, brand-blue + accent-rust + accent-gold + brand-green
