@@ -59,10 +59,15 @@ do $$ begin
 
     alter table accounts alter column enabled_categories drop default;
 
+    -- Defensive: also fold 'cheese' (an ad-hoc enum value present in some
+    -- production databases, not introduced by any migration in this repo)
+    -- into 'dairy', matching the product_group folding from 0006. Same
+    -- mapping is in 0020; repeated here in case 0020 ran on a db that
+    -- didn't yet have 'cheese' in the enum but a later one does.
     alter table products
       alter column category type category_t_new
       using (
-        case when category::text = 'eggs' then 'dairy'
+        case when category::text in ('eggs', 'cheese') then 'dairy'
              else category::text
         end
       )::category_t_new;
@@ -72,7 +77,7 @@ do $$ begin
       using (
         array(
           select distinct (
-            case when c::text = 'eggs' then 'dairy'
+            case when c::text in ('eggs', 'cheese') then 'dairy'
                  else c::text
             end
           )::category_t_new
