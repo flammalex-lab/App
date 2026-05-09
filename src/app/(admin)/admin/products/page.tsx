@@ -10,12 +10,21 @@ export default async function AdminProductsPage() {
   const db = await createClient();
   const { data } = await db.from("products").select("*").order("sort_order");
   const products = (data as Product[] | null) ?? [];
+  const pendingNamingReview = products.filter((p) => p.needs_naming_review && p.is_active).length;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-3xl">Products</h1>
-        <Link href="/admin/products/new" className="btn-primary text-sm">New product</Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/products/name-review" className="text-sm underline">
+            Name review
+            {pendingNamingReview > 0 ? (
+              <span className="ml-1 badge-gray">{pendingNamingReview}</span>
+            ) : null}
+          </Link>
+          <Link href="/admin/products/new" className="btn-primary text-sm">New product</Link>
+        </div>
       </div>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
