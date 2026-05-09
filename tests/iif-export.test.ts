@@ -127,7 +127,7 @@ describe("CSV export — escaping", () => {
 
   it("emits a header row", () => {
     const bundle = buildCSVExport([baseInvoice()]);
-    expect(bundle.body.split("\n")[0]).toBe(
+    expect((bundle.body as string).split("\n")[0]).toBe(
       "Invoice #,Customer,Date,Ship Date,Terms,Item Description,Qty,Unit Price,Amount,Income Account",
     );
   });
