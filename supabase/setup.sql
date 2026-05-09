@@ -13,7 +13,7 @@ create type pricing_tier_t    as enum ('standard', 'volume', 'custom');
 create type account_status_t  as enum ('prospect', 'active', 'inactive', 'churned');
 create type delivery_zone_t   as enum ('finger_lakes', 'nyc_metro', 'hudson_valley', 'long_island', 'nj_pa_ct');
 create type brand_t           as enum ('grasslands', 'meadow_creek', 'fingerlakes_farms');
-create type category_t        as enum ('meat', 'dairy', 'produce', 'pantry', 'beverages');
+create type category_t        as enum ('meat', 'dairy', 'cheese', 'produce', 'pantry', 'beverages');
 create type cut_type_t        as enum ('primal', 'sub_primal', 'retail_cut', 'value_added', 'whole');
 create type order_type_t      as enum ('b2b', 'dtc');
 create type order_status_t    as enum ('draft', 'pending', 'confirmed', 'processing', 'ready', 'shipped', 'delivered', 'cancelled');
@@ -40,7 +40,7 @@ create table accounts (
   pricing_tier pricing_tier_t not null default 'standard',
   status account_status_t not null default 'prospect',
   -- buying profile: which categories this account is allowed to see / order
-  enabled_categories category_t[] not null default '{meat,dairy,produce}',
+  enabled_categories category_t[] not null default '{meat,dairy,cheese,produce}',
   -- contact
   primary_contact_name text,
   primary_contact_email text,
@@ -365,6 +365,7 @@ create table qb_settings (
 insert into qb_settings (key, value) values
   ('income_account.meat',    'Meat Sales'),
   ('income_account.dairy',   'Dairy Sales'),
+  ('income_account.cheese',  'Cheese Sales'),
   ('income_account.produce', 'Produce Sales'),
   ('default_terms',          'Net 30'),
   ('ar_account',             'Accounts Receivable'),

@@ -7,6 +7,13 @@
 -- separate income-account rows for QuickBooks. Folding them into one 'meat'
 -- category matches how the catalog and order guides actually behave.
 --
+-- Cheese: kept as its own first-class category here. It was added to
+-- category_t in production via an ad-hoc ALTER TYPE (no migration in this
+-- repo introduced it), but cheese is conceptually distinct from dairy
+-- (different shelf life, sales channel, buyer specialty — see the
+-- separate Cheese template in 0012 and the cheese_buyer type in 0006).
+-- The new enum lists it alongside dairy.
+--
 -- Implementation note: we do NOT add 'meat' to the existing enum first.
 -- Postgres forbids using a newly-added enum value in the same transaction
 -- it was added in (the Supabase SQL editor wraps the whole migration in one
@@ -29,31 +36,27 @@ do $$ begin
     drop type if exists category_t_new;
 
     create type category_t_new as enum (
-      'meat', 'eggs', 'dairy', 'produce', 'pantry', 'beverages'
+      'meat', 'eggs', 'dairy', 'cheese', 'produce', 'pantry', 'beverages'
     );
 
     alter table accounts alter column enabled_categories drop default;
 
-    -- Map beef/pork/lamb -> meat and cheese -> dairy in the USING clause;
-    -- everything else passes through. The text round-trip is what lets the
-    -- cast cross enum types — direct enum-to-enum casts aren't allowed.
-    -- 'cheese' isn't in any migration in this repo but exists in production
-    -- (added ad-hoc to category_t at some point); folding into dairy matches
-    -- how product_group already groups it (see 0006).
+    -- Map beef/pork/lamb -> meat in the USING clause; everything else
+    -- (including cheese, which is its own first-class value in the new
+    -- enum) passes through. The text round-trip is what lets the cast
+    -- cross enum types — direct enum-to-enum casts aren't allowed.
     alter table products
       alter column category type category_t_new
       using (
         case
           when category::text in ('beef', 'pork', 'lamb') then 'meat'
-          when category::text = 'cheese' then 'dairy'
           else category::text
         end
       )::category_t_new;
 
     -- Same mapping for accounts.enabled_categories. `array(select distinct …)`
     -- per-row dedups any account that had multiple of beef/pork/lamb enabled
-    -- (which would otherwise collapse to duplicate 'meat' entries), or that
-    -- had both cheese and dairy.
+    -- (which would otherwise collapse to duplicate 'meat' entries).
     alter table accounts
       alter column enabled_categories type category_t_new[]
       using (
@@ -61,7 +64,6 @@ do $$ begin
           select distinct (
             case
               when c::text in ('beef', 'pork', 'lamb') then 'meat'
-              when c::text = 'cheese' then 'dairy'
               else c::text
             end
           )::category_t_new

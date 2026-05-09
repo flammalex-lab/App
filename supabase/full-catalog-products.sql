@@ -124,15 +124,15 @@ on conflict (sku) do nothing;
 
 -- ============ DAIRY — Cheese ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('DY-CMD-001','fingerlakes_farms','dairy','Ithaca Raw Milk Mild Cheddar — 8oz','12 pk','case','12/8 oz',54.00,true,false,550),
-('DY-CSD-001','fingerlakes_farms','dairy','Ithaca Raw Milk Sharp Cheddar — 8oz','12 pk','case','12/8 oz',60.00,true,false,551),
-('DY-MBL-001','fingerlakes_farms','dairy','Muranda Blue Cheese','Cut to order','lb',null,23.50,true,false,555),
-('DY-MPR-001','fingerlakes_farms','dairy','Muranda Farm House Parm','Cut to order','lb',null,19.50,true,false,556),
-('DY-MGD-001','fingerlakes_farms','dairy','Muranda Gotcha Gouda','Cut to order','lb',null,15.50,true,false,557),
-('DY-MCC-001','fingerlakes_farms','dairy','Muranda Old Man Cheddar','Cut to order','lb',null,15.00,true,false,558),
-('DY-SLC-001','fingerlakes_farms','dairy','Silver Lake Gruyere — 8oz','East Hill Creamery, 14-month aged','case','12/8 oz',120.00,true,false,560),
-('DY-CRM-001','fingerlakes_farms','dairy','Jones NY Crème Cheese — Tub','','each','32 oz',10.75,true,false,565),
-('DY-FTA-001','fingerlakes_farms','dairy','Jones Feta — 5 lb Pail','','each','5 lb',64.50,true,false,566)
+('DY-CMD-001','fingerlakes_farms','cheese','Ithaca Raw Milk Mild Cheddar — 8oz','12 pk','case','12/8 oz',54.00,true,false,550),
+('DY-CSD-001','fingerlakes_farms','cheese','Ithaca Raw Milk Sharp Cheddar — 8oz','12 pk','case','12/8 oz',60.00,true,false,551),
+('DY-MBL-001','fingerlakes_farms','cheese','Muranda Blue Cheese','Cut to order','lb',null,23.50,true,false,555),
+('DY-MPR-001','fingerlakes_farms','cheese','Muranda Farm House Parm','Cut to order','lb',null,19.50,true,false,556),
+('DY-MGD-001','fingerlakes_farms','cheese','Muranda Gotcha Gouda','Cut to order','lb',null,15.50,true,false,557),
+('DY-MCC-001','fingerlakes_farms','cheese','Muranda Old Man Cheddar','Cut to order','lb',null,15.00,true,false,558),
+('DY-SLC-001','fingerlakes_farms','cheese','Silver Lake Gruyere — 8oz','East Hill Creamery, 14-month aged','case','12/8 oz',120.00,true,false,560),
+('DY-CRM-001','fingerlakes_farms','cheese','Jones NY Crème Cheese — Tub','','each','32 oz',10.75,true,false,565),
+('DY-FTA-001','fingerlakes_farms','cheese','Jones Feta — 5 lb Pail','','each','5 lb',64.50,true,false,566)
 on conflict (sku) do nothing;
 
 -- ============ PRODUCE — Organic Vegetables ============
@@ -349,43 +349,43 @@ on conflict (sku) do nothing;
 
 -- ============ MURANDA CHEESE — all ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('DY-MBC-001','fingerlakes_farms','dairy','Muranda Bel Ceillo','Asiago/Provolone, cut to order','lb',null,16.00,true,false,552),
-('DY-MSG-001','fingerlakes_farms','dairy','Muranda Smoked Gouda','Cut to order','lb',null,16.50,true,false,553),
-('DY-MRB-001','fingerlakes_farms','dairy','Muranda Red Buddy','Cut to order','lb',null,15.00,true,false,554)
+('DY-MBC-001','fingerlakes_farms','cheese','Muranda Bel Ceillo','Asiago/Provolone, cut to order','lb',null,16.00,true,false,552),
+('DY-MSG-001','fingerlakes_farms','cheese','Muranda Smoked Gouda','Cut to order','lb',null,16.50,true,false,553),
+('DY-MRB-001','fingerlakes_farms','cheese','Muranda Red Buddy','Cut to order','lb',null,15.00,true,false,554)
 on conflict (sku) do nothing;
 
 -- ============ ITHACA CHEDDAR — all sizes ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('DY-CMD-002','fingerlakes_farms','dairy','Ithaca Raw Milk Mild Cheddar — 1 lb','10 pk','case','10/1 lb',85.00,true,false,561),
-('DY-CMD-003','fingerlakes_farms','dairy','Ithaca Raw Milk Mild Cheddar — 5 lb','1 pk','each','5 lb',8.50,true,false,562),
-('DY-CSD-002','fingerlakes_farms','dairy','Ithaca Raw Milk Sharp Cheddar — 1 lb','10 pk','case','10/1 lb',95.00,true,false,563),
-('DY-CSD-003','fingerlakes_farms','dairy','Ithaca Raw Milk Sharp Cheddar — 5 lb','1 pk','each','5 lb',9.50,true,false,564)
+('DY-CMD-002','fingerlakes_farms','cheese','Ithaca Raw Milk Mild Cheddar — 1 lb','10 pk','case','10/1 lb',85.00,true,false,561),
+('DY-CMD-003','fingerlakes_farms','cheese','Ithaca Raw Milk Mild Cheddar — 5 lb','1 pk','each','5 lb',8.50,true,false,562),
+('DY-CSD-002','fingerlakes_farms','cheese','Ithaca Raw Milk Sharp Cheddar — 1 lb','10 pk','case','10/1 lb',95.00,true,false,563),
+('DY-CSD-003','fingerlakes_farms','cheese','Ithaca Raw Milk Sharp Cheddar — 5 lb','1 pk','each','5 lb',9.50,true,false,564)
 on conflict (sku) do nothing;
 
 -- ============ LIVELY RUN DAIRY — cow + goat cheese ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('DY-LRB-001','fingerlakes_farms','dairy','Lively Run Blue Yonder','Cow cheese, 12/4 oz','case','12/4 oz',53.00,true,false,580),
-('DY-LRB-002','fingerlakes_farms','dairy','Lively Run Blue Yonder Wheel','Cut to order','lb',null,18.00,true,false,581),
-('DY-LRS-001','fingerlakes_farms','dairy','Lively Run Sheldrake','Brie style wheel, 6/8 oz','case','6/8 oz',55.95,true,false,582),
-('DY-LRH-001','fingerlakes_farms','dairy','Lively Run Shire','Cow, 12/4 oz','case','12/4 oz',54.50,true,false,583),
-('DY-LRC-001','fingerlakes_farms','dairy','Lively Run Sweet Chevre Assortment','Goat cheese, 12/4 oz','case','12/4 oz',50.00,true,false,584),
-('DY-LRC-002','fingerlakes_farms','dairy','Lively Run Chevre Plain','Goat cheese, 20/4 oz','case','20/4 oz',80.00,true,false,585),
-('DY-LRC-003','fingerlakes_farms','dairy','Lively Run Chevre Plain — 5 lb Cryo','Goat cheese','each','5 lb',66.50,true,false,586),
-('DY-LRC-004','fingerlakes_farms','dairy','Lively Run Chevre Assorted','Goat cheese, 20/4 oz','case','20/4 oz',80.00,true,false,587),
-('DY-LRG-001','fingerlakes_farms','dairy','Lively Run Finger Lakes Gold','Goat cheese, 12/4 oz','case','12/4 oz',62.25,true,false,588),
-('DY-LRG-002','fingerlakes_farms','dairy','Lively Run Finger Lakes Gold Wheel','Cut to order','lb',null,21.00,true,false,589),
-('DY-LRB-003','fingerlakes_farms','dairy','Lively Run Cayuga Blue','Goat cheese, 12/4 oz cryo','case','12/4 oz',67.85,true,false,590),
-('DY-LRB-004','fingerlakes_farms','dairy','Lively Run Cayuga Blue Wheel','Cut to order','lb',null,21.25,true,false,591),
-('DY-LRF-001','fingerlakes_farms','dairy','Lively Run Feta','Goat cheese, 24/4 oz cryo','case','24/4 oz',94.15,true,false,592),
-('DY-LRS-002','fingerlakes_farms','dairy','Gitane on Wick','Specialty, 12/4 oz','case','12/4 oz',67.00,true,false,593),
-('DY-LRS-003','fingerlakes_farms','dairy','Chamomilla','Tomme-style w/ chamomile tea, 12/4 oz','case','12/4 oz',67.00,true,false,594),
-('DY-LRS-004','fingerlakes_farms','dairy','Tom','Young cheese w/ fruity notes, 12/4 oz','case','12/4 oz',67.00,true,false,595),
+('DY-LRB-001','fingerlakes_farms','cheese','Lively Run Blue Yonder','Cow cheese, 12/4 oz','case','12/4 oz',53.00,true,false,580),
+('DY-LRB-002','fingerlakes_farms','cheese','Lively Run Blue Yonder Wheel','Cut to order','lb',null,18.00,true,false,581),
+('DY-LRS-001','fingerlakes_farms','cheese','Lively Run Sheldrake','Brie style wheel, 6/8 oz','case','6/8 oz',55.95,true,false,582),
+('DY-LRH-001','fingerlakes_farms','cheese','Lively Run Shire','Cow, 12/4 oz','case','12/4 oz',54.50,true,false,583),
+('DY-LRC-001','fingerlakes_farms','cheese','Lively Run Sweet Chevre Assortment','Goat cheese, 12/4 oz','case','12/4 oz',50.00,true,false,584),
+('DY-LRC-002','fingerlakes_farms','cheese','Lively Run Chevre Plain','Goat cheese, 20/4 oz','case','20/4 oz',80.00,true,false,585),
+('DY-LRC-003','fingerlakes_farms','cheese','Lively Run Chevre Plain — 5 lb Cryo','Goat cheese','each','5 lb',66.50,true,false,586),
+('DY-LRC-004','fingerlakes_farms','cheese','Lively Run Chevre Assorted','Goat cheese, 20/4 oz','case','20/4 oz',80.00,true,false,587),
+('DY-LRG-001','fingerlakes_farms','cheese','Lively Run Finger Lakes Gold','Goat cheese, 12/4 oz','case','12/4 oz',62.25,true,false,588),
+('DY-LRG-002','fingerlakes_farms','cheese','Lively Run Finger Lakes Gold Wheel','Cut to order','lb',null,21.00,true,false,589),
+('DY-LRB-003','fingerlakes_farms','cheese','Lively Run Cayuga Blue','Goat cheese, 12/4 oz cryo','case','12/4 oz',67.85,true,false,590),
+('DY-LRB-004','fingerlakes_farms','cheese','Lively Run Cayuga Blue Wheel','Cut to order','lb',null,21.25,true,false,591),
+('DY-LRF-001','fingerlakes_farms','cheese','Lively Run Feta','Goat cheese, 24/4 oz cryo','case','24/4 oz',94.15,true,false,592),
+('DY-LRS-002','fingerlakes_farms','cheese','Gitane on Wick','Specialty, 12/4 oz','case','12/4 oz',67.00,true,false,593),
+('DY-LRS-003','fingerlakes_farms','cheese','Chamomilla','Tomme-style w/ chamomile tea, 12/4 oz','case','12/4 oz',67.00,true,false,594),
+('DY-LRS-004','fingerlakes_farms','cheese','Tom','Young cheese w/ fruity notes, 12/4 oz','case','12/4 oz',67.00,true,false,595),
 -- East Hill
-('DY-EHS-002','fingerlakes_farms','dairy','Silver Lake Gruyere Half Wheel','14-month aged, 6-8 lbs','lb',null,15.35,true,false,596),
-('DY-EHU-001','fingerlakes_farms','dairy','Underpass Reserve Raclette — 8oz','2-year aged, 12 pk','case','12/8 oz',100.00,true,false,597),
-('DY-EHU-002','fingerlakes_farms','dairy','Underpass Reserve Raclette Half Wheel','2-year aged, 3-4 lbs','lb',null,15.35,true,false,598),
+('DY-EHS-002','fingerlakes_farms','cheese','Silver Lake Gruyere Half Wheel','14-month aged, 6-8 lbs','lb',null,15.35,true,false,596),
+('DY-EHU-001','fingerlakes_farms','cheese','Underpass Reserve Raclette — 8oz','2-year aged, 12 pk','case','12/8 oz',100.00,true,false,597),
+('DY-EHU-002','fingerlakes_farms','cheese','Underpass Reserve Raclette Half Wheel','2-year aged, 3-4 lbs','lb',null,15.35,true,false,598),
 -- Jones extras
-('DY-JCC-001','fingerlakes_farms','dairy','Jones Vegetable Crème Cheese','12/8 oz','case','12/8 oz',43.50,true,false,599)
+('DY-JCC-001','fingerlakes_farms','cheese','Jones Vegetable Crème Cheese','12/8 oz','case','12/8 oz',43.50,true,false,599)
 on conflict (sku) do nothing;
 
 -- ============ KITCHEN STAPLES — extras ============

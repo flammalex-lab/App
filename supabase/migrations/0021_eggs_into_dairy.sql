@@ -2,9 +2,12 @@
 -- milk and egg variants always say "milk" / "eggs" in the name itself.
 --
 -- Same reasoning as 0020: buyers already see eggs grouped with dairy under
--- the "Dairy & Cheese" group on the catalog (see migrations 0006 + 0012),
--- so the separate enum value just forced extra checkbox / picker UI without
--- ever changing what a buyer or admin sees.
+-- the "Dairy" group on the catalog (see migrations 0006 + 0012), so the
+-- separate enum value just forced extra checkbox / picker UI without ever
+-- changing what a buyer or admin sees.
+--
+-- Cheese stays its own category — distinct from dairy (different shelf
+-- life, buyer specialty, order-guide template). Only eggs gets folded.
 --
 -- Naming: a fluid milk or egg product whose name is "Whole — Gallon" or
 -- "Large Brown — Carton" reads ambiguously in the order guide — buyers
@@ -44,6 +47,7 @@ update products
 -- 2. Recreate the enum without 'eggs'. Same approach as 0020: build the
 --    new enum in one go and remap eggs -> dairy in the USING clause, so
 --    we never need to use a freshly-added value in the same transaction.
+--    Cheese passes through untouched.
 
 do $$ begin
   if exists (
@@ -54,20 +58,15 @@ do $$ begin
     drop type if exists category_t_new;
 
     create type category_t_new as enum (
-      'meat', 'dairy', 'produce', 'pantry', 'beverages'
+      'meat', 'dairy', 'cheese', 'produce', 'pantry', 'beverages'
     );
 
     alter table accounts alter column enabled_categories drop default;
 
-    -- Defensive: also fold 'cheese' (an ad-hoc enum value present in some
-    -- production databases, not introduced by any migration in this repo)
-    -- into 'dairy', matching the product_group folding from 0006. Same
-    -- mapping is in 0020; repeated here in case 0020 ran on a db that
-    -- didn't yet have 'cheese' in the enum but a later one does.
     alter table products
       alter column category type category_t_new
       using (
-        case when category::text in ('eggs', 'cheese') then 'dairy'
+        case when category::text = 'eggs' then 'dairy'
              else category::text
         end
       )::category_t_new;
@@ -77,7 +76,7 @@ do $$ begin
       using (
         array(
           select distinct (
-            case when c::text in ('eggs', 'cheese') then 'dairy'
+            case when c::text = 'eggs' then 'dairy'
                  else c::text
             end
           )::category_t_new
