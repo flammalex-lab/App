@@ -28,11 +28,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "cannot impersonate another admin" }, { status: 403 });
   }
 
-  await svc.from("admin_impersonation_log").insert({
+  // The audit log is a hard requirement — refuse to set the cookie if
+  // we can't record the impersonation. Otherwise a DB hiccup would leave
+  // an admin actively impersonating a buyer with no trail.
+  const { error: logErr } = await svc.from("admin_impersonation_log").insert({
     admin_profile_id: admin.userId,
     target_profile_id: profileId,
     reason: "admin-initiated",
   });
+  if (logErr) {
+    return NextResponse.json(
+      { error: `audit log failed: ${logErr.message}` },
+      { status: 500 },
+    );
+  }
 
   await setImpersonation(profileId);
   return NextResponse.redirect(new URL("/guide", request.url), { status: 303 });

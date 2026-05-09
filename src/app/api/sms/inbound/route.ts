@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const body = params["Body"] ?? "";
   const smsSid = params["MessageSid"] ?? params["SmsSid"];
 
-  if (!fromPhone) return new NextResponse("", { status: 200 });
+  if (!fromPhone) return twimlOk();
   const svc = createServiceClient();
   const { data: profile } = await svc
     .from("profiles")
@@ -41,15 +41,17 @@ export async function POST(request: Request) {
   // Unknown phone — park the message in the sms_triage table so a rep
   // can attach it to a profile by hand, instead of silently dropping.
   if (!profile) {
-    await svc.from("sms_triage").insert({
+    const { error: triageErr } = await svc.from("sms_triage").insert({
       from_phone: fromPhone,
       body,
       sms_sid: smsSid,
     });
-    return new NextResponse(
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>",
-      { headers: { "Content-Type": "text/xml" } },
-    );
+    if (triageErr) {
+      // Don't 5xx — Twilio would retry forever. Log loud so we can fix the
+      // schema (most likely cause: 0020 hasn't been applied yet).
+      console.error("[sms inbound] sms_triage insert failed:", triageErr.message, "from:", fromPhone);
+    }
+    return twimlOk();
   }
 
   // Resolve a destination account: legacy profile.account_id first, then
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
     accountId = (link as { account_id: string } | null)?.account_id ?? null;
   }
 
-  await svc.from("messages").insert({
+  const { error: msgErr } = await svc.from("messages").insert({
     account_id: accountId,
     from_profile_id: profileId,
     body,
@@ -78,7 +80,19 @@ export async function POST(request: Request) {
     sms_sid: smsSid,
     from_phone: fromPhone,
   });
-  return new NextResponse("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>", {
-    headers: { "Content-Type": "text/xml" },
-  });
+  if (msgErr) {
+    console.error("[sms inbound] messages insert failed:", msgErr.message, "from:", fromPhone);
+  }
+  return twimlOk();
+}
+
+// Empty-but-well-formed TwiML response. Twilio accepts an empty 200 too,
+// but a TwiML envelope keeps the response shape consistent across both
+// success paths (known + unknown phone) and tells Twilio explicitly
+// "no further action".
+function twimlOk(): NextResponse {
+  return new NextResponse(
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>",
+    { headers: { "Content-Type": "text/xml" } },
+  );
 }

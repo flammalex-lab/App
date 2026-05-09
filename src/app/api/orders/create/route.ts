@@ -89,14 +89,14 @@ export async function POST(request: Request) {
   let deliveryFee = 0;
   let orderMinimum = 0;
   if (isB2B && accountRow) {
-    const acctMin = (accountRow as Account & { order_minimum: number | null }).order_minimum;
+    const acctMin = accountRow.order_minimum;
     if (accountRow.delivery_zone) {
       const { data: zone } = await svc
         .from("delivery_zones")
         .select("delivery_fee, order_minimum")
         .eq("zone", accountRow.delivery_zone)
         .maybeSingle();
-      const zoneRow = zone as (DeliveryZoneRow & { order_minimum: number | null }) | null;
+      const zoneRow = zone as DeliveryZoneRow | null;
       deliveryFee = Number(zoneRow?.delivery_fee ?? 0);
       orderMinimum = Number(acctMin ?? zoneRow?.order_minimum ?? 0);
     } else {

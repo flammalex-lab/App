@@ -11,13 +11,22 @@ import { NextResponse } from "next/server";
  */
 // Prefer Vercel's commit SHA. Self-hosted production deploys should set
 // NEXT_PUBLIC_BUILD_ID at build time (e.g. `NEXT_PUBLIC_BUILD_ID=$(git rev-parse --short HEAD) next build`)
-// so the cache name doesn't churn on every cold start. Date.now() is a
-// last-resort fallback for `next dev`; using it in prod means each cold
-// boot of a non-Vercel host invalidates the offline shell.
+// so the cache name bumps on every release. Date.now() is captured *once*
+// at module load — that's fine for `next dev` (gives a fresh shell per
+// server restart) but in production we'd be reusing the same string
+// across every deploy, so we stamp 'prod-unknown' and warn loudly so the
+// missing build-id is impossible to miss in the logs.
 const PROD_BUILD_ID =
   process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? process.env.NEXT_PUBLIC_BUILD_ID ?? null;
+const DEV_BUILD_ID = `dev-${Date.now()}`;
 const BUILD_ID =
-  PROD_BUILD_ID ?? (process.env.NODE_ENV === "production" ? "prod-unknown" : `dev-${Date.now()}`);
+  PROD_BUILD_ID ?? (process.env.NODE_ENV === "production" ? "prod-unknown" : DEV_BUILD_ID);
+if (!PROD_BUILD_ID && process.env.NODE_ENV === "production") {
+  console.warn(
+    "[sw] No VERCEL_GIT_COMMIT_SHA or NEXT_PUBLIC_BUILD_ID set in production — " +
+      "service-worker cache name will not bump between deploys. Set NEXT_PUBLIC_BUILD_ID at build time.",
+  );
+}
 
 const SW = `// Generated at request time. CACHE bumps on every deploy so a stale
 // shell can't be served after a release.
