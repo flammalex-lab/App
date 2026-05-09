@@ -1,8 +1,15 @@
 name: Claude PR review
 
-# Sends every PR's diff to Claude via the Anthropic SDK for a structured
+# Sends a PR's diff to Claude via the Anthropic SDK for a structured
 # review. Posts a comment on the PR, and fails the check if any finding
 # is tagged severity=critical.
+#
+# Triggers ONLY on `opened` and `reopened` — NOT on `synchronize`. That
+# means a PR gets one Claude review when it's opened, and re-iteration
+# (responding to feedback, fixing CI, etc.) doesn't keep re-billing the
+# Anthropic API on every push. To re-review a PR explicitly, run the
+# workflow manually via Actions → Claude PR review → "Run workflow" with
+# a PR number, or close+reopen the PR.
 #
 # Requires two repo secrets:
 #   ANTHROPIC_API_KEY — https://console.anthropic.com/settings/keys
@@ -10,7 +17,13 @@ name: Claude PR review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to re-review"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -19,8 +32,8 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
-    # Skip on draft PRs and bot-authored PRs.
-    if: github.event.pull_request.draft == false && github.event.pull_request.user.type != 'Bot'
+    # Skip on draft PRs and bot-authored PRs (workflow_dispatch always runs).
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == false && github.event.pull_request.user.type != 'Bot')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,7 +51,9 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # For workflow_dispatch, use the manually-supplied PR number;
+          # otherwise pull from the pull_request event payload.
+          PR_NUMBER: ${{ github.event.inputs.pr_number || github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
           REPO: ${{ github.repository }}

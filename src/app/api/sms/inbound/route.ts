@@ -31,8 +31,8 @@ export async function POST(request: Request) {
   const allowUnsigned = process.env.ALLOW_UNSIGNED_TWILIO === "true" && !isDeployed;
   if (process.env.ALLOW_UNSIGNED_TWILIO === "true" && isDeployed) {
     console.warn(
-      "[sms inbound] ALLOW_UNSIGNED_TWILIO=true is set in a deployed environment and will be IGNORED. " +
-        "Remove the env var.",
+      "[sms inbound] Refusing unsigned request despite ALLOW_UNSIGNED_TWILIO=true (deployed env). " +
+        "Remove the env var from this deploy.",
     );
   }
   if (!valid && !allowUnsigned) {
@@ -49,15 +49,22 @@ export async function POST(request: Request) {
   // share a number (re-registration, admin-created duplicates, DTC+B2B
   // overlap). .maybeSingle() would error on >1 row and silently drop the
   // SMS into triage. Take the oldest matching profile (most likely the
-  // long-standing canonical one) and let admin clean up dupes via the
-  // sms_triage UI when they show up.
+  // long-standing canonical one). Limit(2) instead of (1) so duplicates
+  // surface as a warning in logs without changing routing behavior — gives
+  // admins a signal to clean up dupes when they appear.
   const { data: profileRows } = await svc
     .from("profiles")
     .select("id, account_id")
     .eq("phone", fromPhone)
     .order("created_at", { ascending: true })
-    .limit(1);
-  const profile = (profileRows as { id: string; account_id: string | null }[] | null)?.[0] ?? null;
+    .limit(2);
+  const profileMatches = (profileRows as { id: string; account_id: string | null }[] | null) ?? [];
+  if (profileMatches.length > 1) {
+    console.warn(
+      `[sms inbound] duplicate profiles share phone ${fromPhone} — routing to oldest. Admin should reconcile.`,
+    );
+  }
+  const profile = profileMatches[0] ?? null;
 
   // Unknown phone — park the message in the sms_triage table so a rep
   // can attach it to a profile by hand, instead of silently dropping.

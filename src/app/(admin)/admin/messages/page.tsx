@@ -70,7 +70,7 @@ export default async function AdminMessagesPage({
             </div>
           </Link>
         ))}
-        {!rows.length ? (
+        {!rows.length && !rpcError ? (
           <div className="p-4 text-sm text-ink-secondary">No conversations yet.</div>
         ) : null}
       </div>
