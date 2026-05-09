@@ -35,8 +35,11 @@ export async function POST(request: Request) {
     .select("id")
     .maybeSingle();
   if (claimErr) {
-    // 23505 = unique_violation — another concurrent delivery already won.
-    if ((claimErr as { code?: string }).code === "23505") {
+    // Lost the race / already processed — Postgres SQLSTATE 23505. PostgREST
+    // surfaces this on `.code` most of the time but occasionally only via
+    // `.message` / `.details`, so check all three to avoid 500-looping
+    // Stripe retries.
+    if (isUniqueViolation(claimErr)) {
       return NextResponse.json({ received: true, deduped: true });
     }
     return NextResponse.json({ error: claimErr.message }, { status: 500 });
@@ -80,25 +83,26 @@ export async function POST(request: Request) {
         if (orderId) {
           // Out-of-order delivery guard: Stripe retries can deliver an
           // older partial-refund event after we've already processed a
-          // full refund. Don't downgrade `refunded` → `partially_refunded`
-          // (or undo a `cancelled` status).
-          const { data: current } = await svc
-            .from("orders")
-            .select("payment_status, status")
-            .eq("id", orderId)
-            .maybeSingle();
-          const cur = current as { payment_status: string; status: string } | null;
+          // full refund. We avoid the SELECT-then-UPDATE race by baking
+          // the comparison into the WHERE clause:
+          //  • Full refund: always wins (refunded + cancelled is the
+          //    terminal state; re-applying is idempotent).
+          //  • Partial refund: only flip if the order isn't already
+          //    'refunded' (the .neq filter does the comparison atomically
+          //    against whatever the row currently says).
           const fullyRefunded = charge.amount_refunded >= charge.amount;
-          const update: { payment_status?: string; status?: string } = {};
           if (fullyRefunded) {
-            update.payment_status = "refunded";
-            if (cur?.status !== "cancelled") update.status = "cancelled";
-          } else if (cur?.payment_status !== "refunded") {
-            // Only flip to partially_refunded if we're not already past it.
-            update.payment_status = "partially_refunded";
-          }
-          if (Object.keys(update).length) {
-            const { error } = await svc.from("orders").update(update).eq("id", orderId);
+            const { error } = await svc
+              .from("orders")
+              .update({ payment_status: "refunded", status: "cancelled" })
+              .eq("id", orderId);
+            if (error) mutationError = error.message;
+          } else {
+            const { error } = await svc
+              .from("orders")
+              .update({ payment_status: "partially_refunded" })
+              .eq("id", orderId)
+              .neq("payment_status", "refunded");
             if (error) mutationError = error.message;
           }
         }
@@ -119,8 +123,8 @@ export async function POST(request: Request) {
         // Other events: dedupe row stays as audit; no mutation.
         break;
     }
-  } catch (e: any) {
-    mutationError = e?.message ?? "unknown mutation error";
+  } catch (e) {
+    mutationError = e instanceof Error ? e.message : "unknown mutation error";
   }
 
   // Mutation failed — roll back the dedupe claim so Stripe's retry can win.
@@ -135,6 +139,19 @@ export async function POST(request: Request) {
 function extractOrderId(event: Stripe.Event): string | null {
   const obj = event.data.object as unknown as { metadata?: Record<string, string> };
   return obj?.metadata?.order_id ?? null;
+}
+
+/**
+ * Detect a Postgres unique-violation across the two surfaces PostgREST
+ * exposes (`code` is the cleanest, but it sometimes only sets `message` /
+ * `details`). Belt-and-suspenders so the dedupe path doesn't 500-loop
+ * Stripe retries when the error shape is missing `.code`.
+ */
+function isUniqueViolation(err: { code?: string; message?: string; details?: string } | null): boolean {
+  if (!err) return false;
+  if (err.code === "23505") return true;
+  const blob = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
+  return blob.includes("duplicate key") || blob.includes("already exists");
 }
 
 async function orderIdForPaymentIntent(svc: Svc, pi: Stripe.PaymentIntent): Promise<string | null> {

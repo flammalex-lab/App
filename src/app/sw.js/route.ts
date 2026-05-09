@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 
 /**
  * Service worker is served from a route handler so we can stamp the
@@ -6,25 +7,27 @@ import { NextResponse } from "next/server";
  * the SW serves the prior shell forever after a deploy (CLAUDE.md
  * already calls this out as a recurring "I don't see my changes" symptom).
  *
- * Vercel sets VERCEL_GIT_COMMIT_SHA automatically; locally we fall back
- * to the process start time so a `next dev` restart bumps the version.
+ * Build-id resolution:
+ *   1. VERCEL_GIT_COMMIT_SHA — auto-set on Vercel deploys
+ *   2. NEXT_PUBLIC_BUILD_ID — opt-in for self-hosted prod
+ *      (e.g. `NEXT_PUBLIC_BUILD_ID=$(git rev-parse --short HEAD) next build`)
+ *   3. Self-hosted prod fallback — random UUID captured at module load.
+ *      Each cold start at least bumps the cache name (suboptimal: forces
+ *      a re-fetch of the shell on every server boot, but better than a
+ *      frozen string that never invalidates).
+ *   4. Dev — `dev-${Date.now()}`, stable per process so HMR works.
  */
-// Prefer Vercel's commit SHA. Self-hosted production deploys should set
-// NEXT_PUBLIC_BUILD_ID at build time (e.g. `NEXT_PUBLIC_BUILD_ID=$(git rev-parse --short HEAD) next build`)
-// so the cache name bumps on every release. Date.now() is captured *once*
-// at module load — that's fine for `next dev` (gives a fresh shell per
-// server restart) but in production we'd be reusing the same string
-// across every deploy, so we stamp 'prod-unknown' and warn loudly so the
-// missing build-id is impossible to miss in the logs.
 const PROD_BUILD_ID =
   process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? process.env.NEXT_PUBLIC_BUILD_ID ?? null;
 const DEV_BUILD_ID = `dev-${Date.now()}`;
+const PROD_FALLBACK = `prod-${randomUUID().slice(0, 12)}`;
 const BUILD_ID =
-  PROD_BUILD_ID ?? (process.env.NODE_ENV === "production" ? "prod-unknown" : DEV_BUILD_ID);
+  PROD_BUILD_ID ?? (process.env.NODE_ENV === "production" ? PROD_FALLBACK : DEV_BUILD_ID);
 if (!PROD_BUILD_ID && process.env.NODE_ENV === "production") {
   console.warn(
     "[sw] No VERCEL_GIT_COMMIT_SHA or NEXT_PUBLIC_BUILD_ID set in production — " +
-      "service-worker cache name will not bump between deploys. Set NEXT_PUBLIC_BUILD_ID at build time.",
+      `using per-process fallback "${PROD_FALLBACK}". The shell will be re-fetched on every cold start. ` +
+      "Set NEXT_PUBLIC_BUILD_ID at build time to fix.",
   );
 }
 
@@ -32,6 +35,26 @@ const SW = `// Generated at request time. CACHE bumps on every deploy so a stale
 // shell can't be served after a release.
 const CACHE = "flf-${BUILD_ID}";
 const SHELL = ["/", "/guide", "/catalog", "/manifest.json"];
+
+// Auth-sensitive paths whose responses must never land in the SW cache.
+// /api and /auth are excluded earlier; this list catches anything that
+// renders per-account or per-buyer content. (Set-Cookie filtering is
+// useless here: the Fetch spec lists Set-Cookie as a forbidden response
+// header, so the SW can't read it.)
+const NEVER_CACHE_PREFIXES = [
+  "/account",
+  "/admin",
+  "/orders",
+  "/standing",
+  "/cart",
+  "/chat",
+  "/login",
+  "/register",
+];
+function isCacheableUrl(pathname) {
+  for (const p of NEVER_CACHE_PREFIXES) if (pathname === p || pathname.startsWith(p + "/")) return false;
+  return true;
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -55,16 +78,14 @@ self.addEventListener("fetch", (event) => {
   // Never cache API / auth / cron
   if (url.pathname.startsWith("/api") || url.pathname.startsWith("/auth")) return;
 
-  // Only cache 2xx responses without Set-Cookie. Caching errors / redirects
-  // / Set-Cookie pins them into the SW cache and serves them indefinitely.
   const cacheable = (res) =>
-    res && res.ok && res.status >= 200 && res.status < 300 && !res.headers.get("set-cookie");
+    res && res.ok && res.status >= 200 && res.status < 300;
 
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (cacheable(res)) {
+          if (cacheable(res) && isCacheableUrl(url.pathname)) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(req, copy));
           }

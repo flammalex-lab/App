@@ -180,3 +180,14 @@ alter table stripe_events enable row level security;
 create policy "stripe_events admin read" on stripe_events for select using (is_admin());
 -- No insert/update policy — only the service-role client (webhook) writes.
 
+-- ---- 9) profile_accounts: at most one default per profile ----
+-- Without this, two rows with is_default=true for the same profile are
+-- legal (only the (profile_id, account_id) primary key prevents dupes).
+-- /api/sms/inbound's "pick the default account" lookup orders by
+-- is_default desc and takes one — which would silently route to whichever
+-- row Postgres feels like returning. A unique partial index makes the
+-- "one default" invariant a hard constraint instead of a convention.
+create unique index if not exists profile_accounts_one_default_per_profile
+  on profile_accounts (profile_id)
+  where is_default = true;
+

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { getStripe } from "@/lib/stripe/client";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
+import { meetsMinimum } from "@/lib/utils/order-minimum";
 import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 
@@ -108,8 +109,9 @@ export async function POST(request: Request) {
   // Re-enforce the cart-side minimum on the server. The cart UI gates the
   // "Place order" button on this, but a misbehaving client (or a paused
   // React state) could submit anyway — reject here so we never accept
-  // under-minimum revenue.
-  if (orderMinimum > 0 && total < orderMinimum) {
+  // under-minimum revenue. Uses the same shared helper as the cart UI
+  // so the two layers can't disagree on the rule.
+  if (!meetsMinimum({ subtotal, deliveryFee, minimum: orderMinimum })) {
     return NextResponse.json(
       { error: `Order is below the minimum of $${orderMinimum.toFixed(2)} (subtotal + delivery).` },
       { status: 400 },
