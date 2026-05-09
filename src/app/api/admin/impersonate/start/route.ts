@@ -87,15 +87,26 @@ export async function POST(request: Request) {
     );
   }
 
-  // Cookie set is the last step. If it fails (cookie store write error),
-  // roll the audit log back so we don't leave a "started impersonation"
-  // entry that never actually became a session. Belt-and-suspenders —
-  // setImpersonation() itself doesn't typically throw inside a route
-  // handler, but the audit trail invariant is "log iff cookie set".
+  // Cookie set is the last step. setImpersonation() rarely throws — Next's
+  // cookies().set(...) just queues a Set-Cookie header — but if it does
+  // (cookie store called outside a request context, env error in
+  // signImpersonationToken, etc.), best-effort rollback the audit log
+  // entry so the trail isn't permanently misleading. Best-effort because
+  // the rollback DELETE itself can fail (DB blip), in which case we log
+  // and accept the orphan rather than 500-loop.
   try {
     await setImpersonation(profileId);
   } catch (e) {
-    await svc.from("admin_impersonation_log").delete().eq("id", (logRow as { id: string }).id);
+    const { error: rollbackErr } = await svc
+      .from("admin_impersonation_log")
+      .delete()
+      .eq("id", (logRow as { id: string }).id);
+    if (rollbackErr) {
+      console.error(
+        "[impersonate] cookie write failed AND audit-log rollback failed — leaving orphan log row",
+        { logId: (logRow as { id: string }).id, rollbackErr: rollbackErr.message },
+      );
+    }
     const msg = e instanceof Error ? e.message : "unknown error";
     return NextResponse.json({ error: `impersonation cookie write failed: ${msg}` }, { status: 500 });
   }

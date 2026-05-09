@@ -65,6 +65,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "dedupe row not persisted" }, { status: 500 });
   }
 
+  // ---- Mutation branches ----
+  // INVARIANT: every branch below must be idempotent — if the same event is
+  // applied twice (rollback-then-retry race window, or a rare double-claim),
+  // the second apply must produce the same end state. Today this holds because
+  // every branch is "set fields to a known state by id". DON'T add side
+  // effects here that aren't idempotent (e.g. SMS dispatch, email send,
+  // counter increments) without first introducing a `processed_at` column on
+  // orders + a `where processed_at is null` guard on the update.
   let mutationError: string | null = null;
   try {
     switch (event.type) {

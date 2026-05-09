@@ -53,11 +53,15 @@ export async function POST(request: Request) {
       // messages table with a null account_id — admin RLS sees it. We
       // include the from_phone in the body so the rep can match by hand.
       //
-      // Schema constraints this depends on:
-      //   - messages.account_id is nullable post-migration 0014_messages_nullable_account.
-      //   - messages.from_profile_id was always nullable (0001_init.sql:
-      //     `references profiles(id) on delete set null`, no NOT NULL).
-      // So this insert is schema-valid even pre-0020.
+      // Schema constraints this depends on (all pre-0020):
+      //   - messages.account_id     — nullable post-0014_messages_nullable_account.
+      //   - messages.from_profile_id — always nullable (0001_init.sql,
+      //                                `references profiles(id) on delete set null`,
+      //                                no NOT NULL).
+      //   - messages.from_phone, messages.sms_sid — both columns exist
+      //                                on the original 0001_init.sql
+      //                                messages table (text, nullable).
+      // So this insert is schema-valid even before 0020 lands.
       const { error: fallbackErr } = await svc.from("messages").insert({
         account_id: null,
         from_profile_id: null,
@@ -81,19 +85,23 @@ export async function POST(request: Request) {
   const profileId = (profile as { id: string }).id;
   let accountId = (profile as { account_id: string | null }).account_id;
   if (!accountId) {
-    const { data: link } = await svc
+    // Belt-and-suspenders: there's a unique partial index on
+    // profile_accounts(profile_id) where is_default=true (migration 0020)
+    // so the .limit(1) is only ever returning at most one row. We
+    // intentionally avoid .maybeSingle() here — it errors on >1 row,
+    // which we never expect, but means a future refactor that drops
+    // the .limit(1) would 500 instead of just picking the first match.
+    // The created_at tiebreaker is defensive in case the partial index
+    // is ever bypassed via a direct service-role write.
+    const { data: links } = await svc
       .from("profile_accounts")
       .select("account_id")
       .eq("profile_id", profileId)
-      // Defense-in-depth tiebreaker: even with the unique partial index on
-      // (profile_id) where is_default=true (added in 0020), if duplicates
-      // ever sneak in via a service-role direct write, prefer the oldest
-      // membership row instead of relying on Postgres's whim.
       .order("is_default", { ascending: false })
       .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    accountId = (link as { account_id: string } | null)?.account_id ?? null;
+      .limit(1);
+    const link = (links as { account_id: string }[] | null)?.[0];
+    accountId = link?.account_id ?? null;
   }
 
   const { error: msgErr } = await svc.from("messages").insert({
