@@ -7,13 +7,23 @@
 -- separate income-account rows for QuickBooks. Folding them into one 'meat'
 -- category matches how the catalog and order guides actually behave.
 --
--- Implementation note: we do NOT add 'meat' to the existing enum first.
--- Postgres forbids using a newly-added enum value in the same transaction
--- it was added in (the Supabase SQL editor wraps the whole migration in one
--- transaction), which would silently leave beef/pork/lamb rows in place and
--- then fail at the recreate step. Instead we build a fresh `category_t_new`
--- with 'meat' already in it and remap rows inside the USING clause of the
--- column type change.
+-- Cheese: kept as its own first-class category here. It was added to
+-- category_t in production via an ad-hoc ALTER TYPE (no migration in this
+-- repo introduced it), but cheese is conceptually distinct from dairy
+-- (different shelf life, sales channel, buyer specialty — see the
+-- separate Cheese template in 0012 and the cheese_buyer type in 0006).
+-- The new enum lists it alongside dairy.
+--
+-- Implementation notes:
+-- 1. We do NOT add 'meat' to the existing enum first. Postgres forbids
+--    using a newly-added enum value in the same transaction it was added
+--    in (the Supabase SQL editor wraps the whole migration in one
+--    transaction), which would silently leave beef/pork/lamb rows in place.
+-- 2. We do NOT remap accounts.enabled_categories inside the
+--    `ALTER COLUMN ... USING` clause via `array(SELECT…)`. Postgres rejects
+--    subqueries in transform expressions ("cannot use subquery in transform
+--    expression"). Instead: loosen the column to text[] first, do the
+--    remap with a regular UPDATE, then cast back to the new typed array.
 --
 -- Idempotent: gated on beef/pork/lamb still being present in the enum, so
 -- re-running after a successful migration is a no-op.
@@ -42,8 +52,33 @@ do $$ begin
     -- Drop any leftover from a previous partial run before we recreate.
     drop type if exists category_t_new;
 
+    -- Drop the default first; it references the old category_t.
+    alter table accounts alter column enabled_categories drop default;
+
+    -- Loosen accounts.enabled_categories to text[] so we can do the per-row
+    -- array remap with a regular UPDATE (no subquery-in-transform issues).
+    alter table accounts
+      alter column enabled_categories type text[]
+      using enabled_categories::text[];
+
+    -- Remap beef/pork/lamb -> meat across every account, dedup, preserve
+    -- the rest. Only touches rows that actually contain one of the old
+    -- values, leaving everything else untouched.
+    update accounts
+       set enabled_categories = (
+         select array_agg(distinct
+           case when c in ('beef', 'pork', 'lamb') then 'meat' else c end
+         )
+         from unnest(enabled_categories) as c
+       )
+     where exists (
+       select 1 from unnest(enabled_categories) c
+        where c in ('beef', 'pork', 'lamb')
+     );
+
+    -- Build the new enum.
     create type category_t_new as enum (
-      'meat', 'eggs', 'dairy', 'produce', 'pantry', 'beverages'
+      'meat', 'eggs', 'dairy', 'cheese', 'produce', 'pantry', 'beverages'
     );
 
     alter table accounts alter column enabled_categories drop default;
@@ -54,34 +89,22 @@ do $$ begin
     -- The cheese -> dairy fold matches how 0006 already classifies cheese
     -- products (category='dairy', product_group='cheese'); see the
     -- product_group backfill above for why that distinction is preserved.
+    -- products.category is a single value; CASE in USING is fine because
+    -- it's a regular expression, not a subquery.
     alter table products
       alter column category type category_t_new
       using (
         case
           when category::text in ('beef', 'pork', 'lamb') then 'meat'
-          when category::text = 'cheese' then 'dairy'
           else category::text
         end
       )::category_t_new;
 
-    -- Same mapping for accounts.enabled_categories. `array(select distinct …)`
-    -- per-row dedups any account that had multiple of beef/pork/lamb enabled
-    -- (which would otherwise collapse to duplicate 'meat' entries), or that
-    -- had both cheese and dairy.
+    -- Accounts column is already text[] with remapped values, so a direct
+    -- cast to the new enum array is sufficient.
     alter table accounts
       alter column enabled_categories type category_t_new[]
-      using (
-        array(
-          select distinct (
-            case
-              when c::text in ('beef', 'pork', 'lamb') then 'meat'
-              when c::text = 'cheese' then 'dairy'
-              else c::text
-            end
-          )::category_t_new
-          from unnest(enabled_categories) as c
-        )
-      );
+      using enabled_categories::category_t_new[];
 
     alter table accounts
       alter column enabled_categories

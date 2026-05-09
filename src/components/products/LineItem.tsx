@@ -49,6 +49,10 @@ export function LineItem({
   // ── Swipe-to-reveal-Remove (edit mode only) ─────────────────────────
   const [dragX, setDragX] = useState(0); // negative when dragged left
   const [revealed, setRevealed] = useState(false);
+  // `dragging` mirrors `startX.current != null` as state so we can read
+  // it during render for the transition-disable trick. Reading
+  // startX.current during render trips React 19's react-hooks/refs rule.
+  const [dragging, setDragging] = useState(false);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const axis = useRef<"horizontal" | "vertical" | null>(null);
@@ -59,6 +63,7 @@ export function LineItem({
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     axis.current = null;
+    setDragging(true);
   }
   function onTouchMove(e: React.TouchEvent) {
     if (!enableSwipe || startX.current == null || startY.current == null) return;
@@ -83,6 +88,7 @@ export function LineItem({
     startX.current = null;
     startY.current = null;
     axis.current = null;
+    setDragging(false);
   }
 
   function tapRemove() {
@@ -197,10 +203,9 @@ export function LineItem({
         onTouchEnd={onTouchEnd}
         style={{
           transform: `translateX(${dragX}px)`,
-          transition:
-            startX.current === null
-              ? "transform 200ms cubic-bezier(.2,.8,.2,1)"
-              : "none",
+          transition: dragging
+            ? "none"
+            : "transform 200ms cubic-bezier(.2,.8,.2,1)",
         }}
         className="relative"
       >

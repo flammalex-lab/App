@@ -2,14 +2,21 @@
 -- milk and egg variants always say "milk" / "eggs" in the name itself.
 --
 -- Same reasoning as 0020: buyers already see eggs grouped with dairy under
--- the "Dairy & Cheese" group on the catalog (see migrations 0006 + 0012),
--- so the separate enum value just forced extra checkbox / picker UI without
--- ever changing what a buyer or admin sees.
+-- the "Dairy" group on the catalog (see migrations 0006 + 0012), so the
+-- separate enum value just forced extra checkbox / picker UI without ever
+-- changing what a buyer or admin sees.
+--
+-- Cheese stays its own category — distinct from dairy (different shelf
+-- life, buyer specialty, order-guide template). Only eggs gets folded.
 --
 -- Naming: a fluid milk or egg product whose name is "Whole — Gallon" or
 -- "Large Brown — Carton" reads ambiguously in the order guide — buyers
 -- expect "Whole Milk — Gallon" and "Large Brown Eggs — Carton". Inserts the
 -- missing word right before the em-dash that separates pack info.
+--
+-- Implementation: same two-phase array remap as 0020 — loosen
+-- accounts.enabled_categories to text[], UPDATE, then cast back. Subqueries
+-- aren't allowed inside ALTER COLUMN ... USING transform expressions.
 --
 -- Idempotent: name updates are gated on the missing word, and the enum
 -- recreate is gated on 'eggs' still existing.
@@ -41,9 +48,7 @@ update products
    and name !~* '\ymilk\y'
    and name !~* '(yogurt|cheese|cream|butter|kefir|ricotta|mozzarella|cheddar|brie|gouda|feta|chocolate)';
 
--- 2. Recreate the enum without 'eggs'. Same approach as 0020: build the
---    new enum in one go and remap eggs -> dairy in the USING clause, so
---    we never need to use a freshly-added value in the same transaction.
+-- 2. Recreate the enum without 'eggs'. Cheese passes through untouched.
 
 do $$ begin
   if exists (
@@ -53,8 +58,25 @@ do $$ begin
   ) then
     drop type if exists category_t_new;
 
+    alter table accounts alter column enabled_categories drop default;
+
+    alter table accounts
+      alter column enabled_categories type text[]
+      using enabled_categories::text[];
+
+    update accounts
+       set enabled_categories = (
+         select array_agg(distinct
+           case when c = 'eggs' then 'dairy' else c end
+         )
+         from unnest(enabled_categories) as c
+       )
+     where exists (
+       select 1 from unnest(enabled_categories) c where c = 'eggs'
+     );
+
     create type category_t_new as enum (
-      'meat', 'dairy', 'produce', 'pantry', 'beverages'
+      'meat', 'dairy', 'cheese', 'produce', 'pantry', 'beverages'
     );
 
     alter table accounts alter column enabled_categories drop default;
@@ -73,23 +95,14 @@ do $$ begin
     alter table products
       alter column category type category_t_new
       using (
-        case when category::text in ('eggs', 'cheese') then 'dairy'
+        case when category::text = 'eggs' then 'dairy'
              else category::text
         end
       )::category_t_new;
 
     alter table accounts
       alter column enabled_categories type category_t_new[]
-      using (
-        array(
-          select distinct (
-            case when c::text in ('eggs', 'cheese') then 'dairy'
-                 else c::text
-            end
-          )::category_t_new
-          from unnest(enabled_categories) as c
-        )
-      );
+      using enabled_categories::category_t_new[];
 
     alter table accounts
       alter column enabled_categories

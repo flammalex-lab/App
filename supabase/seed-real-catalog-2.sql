@@ -21,8 +21,8 @@ insert into products (sku, brand, category, name, description, unit, pack_size, 
 ('DY-MWG-001','fingerlakes_farms','dairy','Ithaca Whole Milk — Gallon','Cream on Top Jersey Cow, 18-day shelf','each','gallon',7.25,true,true,510),
 ('DY-MWH-001','fingerlakes_farms','dairy','Ithaca Whole Milk — Half Gallon','','each','half gallon',3.75,true,true,511),
 ('DY-MWQ-001','fingerlakes_farms','dairy','Ithaca Whole Milk — Quart','','each','quart',2.35,true,true,512),
-('DY-SHW-001','fingerlakes_farms','dairy','Seneca Holstein Whole Milk — Gallon','Homogenized, 18-day shelf','each','gallon',6.40,true,false,520),
-('DY-SHR-001','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat Milk — Gallon','','each','gallon',6.40,true,false,521),
+('DY-SHW-001','fingerlakes_farms','dairy','Seneca Whole Milk — Gallon','Homogenized, 18-day shelf','each','gallon',6.40,true,false,520),
+('DY-SHR-001','fingerlakes_farms','dairy','Seneca Reduced Fat Milk — Gallon','','each','gallon',6.40,true,false,521),
 ('DY-HCR-002','fingerlakes_farms','dairy','Pittsford Heavy Cream — Gallon','','each','128 oz',27.50,true,false,530),
 ('DY-HCR-003','fingerlakes_farms','dairy','Pittsford Heavy Cream — Pint','','each','16 oz',4.10,true,true,531),
 ('DY-BTM-001','fingerlakes_farms','dairy','Pittsford Buttermilk — Quart','','each','32 oz',3.80,true,false,532),
@@ -37,15 +37,15 @@ on conflict (sku) do nothing;
 
 -- ============ DAIRY — Cheese ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('DY-CMD-001','fingerlakes_farms','dairy','Ithaca Raw Milk Mild Cheddar — 8oz','12 pk','case','12/8 oz',54.00,true,false,550),
-('DY-CSD-001','fingerlakes_farms','dairy','Ithaca Raw Milk Sharp Cheddar — 8oz','12 pk','case','12/8 oz',60.00,true,false,551),
-('DY-MBL-001','fingerlakes_farms','dairy','Muranda Blue Cheese','Cut to order','lb',null,23.50,true,false,555),
-('DY-MPR-001','fingerlakes_farms','dairy','Muranda Farm House Parm','Cut to order','lb',null,19.50,true,false,556),
-('DY-MGD-001','fingerlakes_farms','dairy','Muranda Gotcha Gouda','Cut to order','lb',null,15.50,true,false,557),
-('DY-MCC-001','fingerlakes_farms','dairy','Muranda Old Man Cheddar','Cut to order','lb',null,15.00,true,false,558),
-('DY-SLC-001','fingerlakes_farms','dairy','Silver Lake Gruyere — 8oz','East Hill Creamery, 14-month aged','case','12/8 oz',120.00,true,false,560),
-('DY-CRM-001','fingerlakes_farms','dairy','Jones NY Crème Cheese — Tub','','each','32 oz',10.75,true,false,565),
-('DY-FTA-001','fingerlakes_farms','dairy','Jones Feta — 5 lb Pail','','each','5 lb',64.50,true,false,566)
+('DY-CMD-001','fingerlakes_farms','cheese','Ithaca Raw Milk Mild Cheddar — 8oz','12 pk','case','12/8 oz',54.00,true,false,550),
+('DY-CSD-001','fingerlakes_farms','cheese','Ithaca Raw Milk Sharp Cheddar — 8oz','12 pk','case','12/8 oz',60.00,true,false,551),
+('DY-MBL-001','fingerlakes_farms','cheese','Muranda Blue Cheese','Cut to order','lb',null,23.50,true,false,555),
+('DY-MPR-001','fingerlakes_farms','cheese','Muranda Farm House Parm','Cut to order','lb',null,19.50,true,false,556),
+('DY-MGD-001','fingerlakes_farms','cheese','Muranda Gotcha Gouda','Cut to order','lb',null,15.50,true,false,557),
+('DY-MCC-001','fingerlakes_farms','cheese','Muranda Old Man Cheddar','Cut to order','lb',null,15.00,true,false,558),
+('DY-SLC-001','fingerlakes_farms','cheese','Silver Lake Gruyere — 8oz','East Hill Creamery, 14-month aged','case','12/8 oz',120.00,true,false,560),
+('DY-CRM-001','fingerlakes_farms','cheese','Jones NY Crème Cheese — Tub','','each','32 oz',10.75,true,false,565),
+('DY-FTA-001','fingerlakes_farms','cheese','Jones Feta — 5 lb Pail','','each','5 lb',64.50,true,false,566)
 on conflict (sku) do nothing;
 
 -- ============ PRODUCE — Organic Vegetables ============

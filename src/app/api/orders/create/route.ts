@@ -52,7 +52,10 @@ export async function POST(request: Request) {
     .select("id, name, pack_size, wholesale_price, retail_price")
     .in("id", productIds);
   if (productsErr) return NextResponse.json({ error: productsErr.message }, { status: 500 });
-  const productById = new Map(((productsData as any[] | null) ?? []).map((p) => [p.id, p]));
+  type ProductRow = { id: string; name: string; pack_size: string | null; wholesale_price: number | null; retail_price: number | null };
+  const productById = new Map(
+    ((productsData as ProductRow[] | null) ?? []).map((p) => [p.id, p]),
+  );
   for (const id of productIds) {
     if (!productById.has(id)) {
       return NextResponse.json({ error: `product ${id} no longer available` }, { status: 400 });

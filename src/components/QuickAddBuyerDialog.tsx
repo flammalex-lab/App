@@ -68,27 +68,37 @@ export function QuickAddBuyerDialog({
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Render-time sync on open-toggle: drives loading=true on open and the
+  // form-reset on close. Avoids the React-19 set-state-in-effect cascade
+  // that the previous twin-useEffect pair triggered. The actual fetch is
+  // still in an effect below — that's a legit external-system call.
+  const [lastOpen, setLastOpen] = useState(open);
+  if (lastOpen !== open) {
+    setLastOpen(open);
+    if (open) {
+      setLoading(true);
+    } else {
+      setMode({ kind: "pick", query: "" });
+      setForm({ name: "", phone: "", email: "", title: "", buyer_type: "gm_restaurant" });
+      setSelectedTemplateIds([]);
+    }
+  }
+
   // Load accounts + templates on open.
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
+    let cancelled = false;
     (async () => {
       const [accRes, tplRes] = await Promise.all([
         fetch("/api/admin/accounts/list?limit=500"),
         fetch("/api/admin/order-guide-templates/list"),
       ]);
+      if (cancelled) return;
       if (accRes.ok) setAccounts((await accRes.json()).accounts ?? []);
       if (tplRes.ok) setTemplates((await tplRes.json()).templates ?? []);
       setLoading(false);
     })();
-  }, [open]);
-
-  // Reset when closed.
-  useEffect(() => {
-    if (open) return;
-    setMode({ kind: "pick", query: "" });
-    setForm({ name: "", phone: "", email: "", title: "", buyer_type: "gm_restaurant" });
-    setSelectedTemplateIds([]);
+    return () => { cancelled = true; };
   }, [open]);
 
   const filteredAccounts = useMemo(() => {
