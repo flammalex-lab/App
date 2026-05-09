@@ -110,7 +110,7 @@ export function VariantPickerSheet({
       <BottomSheet open={open} onClose={onClose} title={product.name}>
         <div className="px-2 pt-1 pb-3">
           {product.producer ? (
-            <div className="text-[11px] uppercase tracking-wider font-medium text-brand-green-dark mb-2 px-3">
+            <div className="display text-[13px] font-medium text-ink-primary mb-2 px-3">
               {product.producer}
             </div>
           ) : null}

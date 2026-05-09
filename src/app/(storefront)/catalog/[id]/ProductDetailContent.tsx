@@ -67,15 +67,15 @@ export function ProductDetailContent({
                 : "/catalog"
             }
             onClick={onClose}
-            className="inline-flex items-center gap-2 text-sm text-ink-secondary hover:text-ink-primary transition-colors duration-150"
+            className="inline-flex items-center gap-2 text-ink-primary hover:opacity-80 transition-opacity duration-150"
           >
             <span
               aria-hidden
-              className="inline-block h-5 w-5 rounded bg-brand-green/15 text-brand-green flex items-center justify-center text-[10px] font-bold"
+              className="inline-block h-6 w-6 rounded bg-brand-green/15 text-brand-green flex items-center justify-center text-[11px] font-bold"
             >
               {producerOrBrand.slice(0, 1).toUpperCase()}
             </span>
-            <span className="underline font-medium">{producerOrBrand}</span>
+            <span className="display text-base font-medium hover:underline">{producerOrBrand}</span>
           </Link>
         ) : null}
 

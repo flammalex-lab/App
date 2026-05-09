@@ -180,7 +180,7 @@ export function ProductCard({
           {product.producer && producerHref ? (
             <Link
               href={producerHref}
-              className="text-[11px] font-medium uppercase tracking-wider text-ink-secondary truncate hover:underline pointer-events-auto"
+              className="display text-[12px] font-medium text-ink-primary truncate hover:underline pointer-events-auto"
             >
               {product.producer}
             </Link>
@@ -240,13 +240,13 @@ export function ProductCard({
           {product.producer && producerHref ? (
             <Link
               href={producerHref}
-              className="text-[11px] font-medium uppercase tracking-wider text-ink-secondary truncate hover:underline pointer-events-auto"
+              className="display text-[13px] font-medium text-ink-primary truncate hover:underline pointer-events-auto"
             >
               {product.producer}
             </Link>
           ) : null}
           <div
-            className="display text-[15px] font-semibold leading-snug text-ink-primary truncate"
+            className="display text-[15px] font-semibold leading-snug text-ink-primary truncate mt-0.5"
             title={product.name}
           >
             {displayName}
@@ -298,7 +298,7 @@ export function ProductCard({
         {product.producer && producerHref ? (
           <Link
             href={producerHref}
-            className="block max-w-full truncate text-[11px] font-medium uppercase tracking-wider text-ink-secondary hover:underline pointer-events-auto"
+            className="display block max-w-full truncate text-[13px] font-medium text-ink-primary hover:underline pointer-events-auto"
           >
             {product.producer}
           </Link>
