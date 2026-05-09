@@ -7,6 +7,7 @@ import { CartClient } from "./CartClient";
 import { BackButton } from "@/components/layout/BackButton";
 import type { Account, DeliveryZoneRow, PickupLocation } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { CartLine } from "@/lib/cart/store";
 
 export const metadata = { title: "Cart — Fingerlakes Farms" };
@@ -32,7 +33,7 @@ export default async function CartPage() {
     const { data } = await db.from("delivery_zones").select("*").eq("zone", account.delivery_zone).maybeSingle();
     zone = data as DeliveryZoneRow | null;
   }
-  const nextDel = zone ? nextDeliveryForZone(zone) : null;
+  const nextDel = zone ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE) : null;
 
   let pickups: PickupLocation[] = [];
   if (!isB2B) {

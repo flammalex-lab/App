@@ -43,26 +43,44 @@ export async function POST(request: Request) {
 
   const subtotal = round2(body.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
 
-  // Delivery fee: pulled from the buyer's account → delivery zone.
-  // B2B only; DTC pickups don't carry a zone fee today.
+  // Delivery fee + minimum: pulled from the buyer's account → delivery zone.
+  // B2B only; DTC pickups don't carry a zone fee today. Account-level
+  // order_minimum overrides the zone minimum when set.
   let deliveryFee = 0;
+  let orderMinimum = 0;
   if (body.orderType === "b2b" && effectiveProfile.account_id) {
     const { data: acct } = await svc
       .from("accounts")
-      .select("delivery_zone")
+      .select("delivery_zone, order_minimum")
       .eq("id", effectiveProfile.account_id)
       .maybeSingle();
-    const zoneKey = (acct as Account | null)?.delivery_zone ?? null;
+    const acctRow = acct as (Account & { order_minimum: number | null }) | null;
+    const zoneKey = acctRow?.delivery_zone ?? null;
     if (zoneKey) {
       const { data: zone } = await svc
         .from("delivery_zones")
-        .select("delivery_fee")
+        .select("delivery_fee, order_minimum")
         .eq("zone", zoneKey)
         .maybeSingle();
-      deliveryFee = Number((zone as DeliveryZoneRow | null)?.delivery_fee ?? 0);
+      const zoneRow = zone as (DeliveryZoneRow & { order_minimum: number | null }) | null;
+      deliveryFee = Number(zoneRow?.delivery_fee ?? 0);
+      orderMinimum = Number(acctRow?.order_minimum ?? zoneRow?.order_minimum ?? 0);
+    } else {
+      orderMinimum = Number(acctRow?.order_minimum ?? 0);
     }
   }
   const total = round2(subtotal + deliveryFee);
+
+  // Re-enforce the cart-side minimum on the server. The cart UI gates the
+  // "Place order" button on this, but a misbehaving client (or a paused
+  // React state) could submit anyway — reject here so we never accept
+  // under-minimum revenue.
+  if (orderMinimum > 0 && total < orderMinimum) {
+    return NextResponse.json(
+      { error: `Order is below the minimum of $${orderMinimum.toFixed(2)} (subtotal + delivery).` },
+      { status: 400 },
+    );
+  }
 
   const { data: orderNumRow, error: numErr } = await svc.rpc("generate_order_number");
   if (numErr) return NextResponse.json({ error: numErr.message }, { status: 500 });

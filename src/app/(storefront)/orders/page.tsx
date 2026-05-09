@@ -8,6 +8,7 @@ import type { DeliveryZoneRow, Order, OrderStatus } from "@/lib/supabase/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, dateLong, money } from "@/lib/utils/format";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 
 export const metadata = { title: "Orders — Fingerlakes Farms" };
 
@@ -62,7 +63,7 @@ export default async function OrdersPage({
       .maybeSingle();
     const zone = zoneRow as DeliveryZoneRow | null;
     if (zone) {
-      const nd = nextDeliveryForZone(zone);
+      const nd = nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE);
       if (nd) {
         nextDel = {
           deliveryDate: nd.deliveryDate.toISOString(),

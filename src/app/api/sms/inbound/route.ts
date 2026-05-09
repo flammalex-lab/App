@@ -32,14 +32,36 @@ export async function POST(request: Request) {
 
   if (!fromPhone) return new NextResponse("", { status: 200 });
   const svc = createServiceClient();
-  const { data: profile } = await svc.from("profiles").select("id, account_id").eq("phone", fromPhone).maybeSingle();
-  if (!profile?.account_id) {
-    console.warn("[sms inbound] no profile/account for", fromPhone);
-    return new NextResponse("", { status: 200 });
+  const { data: profile } = await svc
+    .from("profiles")
+    .select("id, account_id")
+    .eq("phone", fromPhone)
+    .maybeSingle();
+
+  // Resolve a destination account: legacy profile.account_id first, then
+  // any account this profile is linked to via profile_accounts. Fall back
+  // to a profile-scoped null-account thread (migration 0014) so unknown
+  // / multi-account / between-accounts messages still reach the rep.
+  let accountId: string | null = null;
+  let profileId: string | null = null;
+  if (profile) {
+    profileId = (profile as { id: string }).id;
+    accountId = (profile as { account_id: string | null }).account_id;
+    if (!accountId) {
+      const { data: link } = await svc
+        .from("profile_accounts")
+        .select("account_id")
+        .eq("profile_id", profileId)
+        .order("is_default", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      accountId = (link as { account_id: string } | null)?.account_id ?? null;
+    }
   }
+
   await svc.from("messages").insert({
-    account_id: (profile as any).account_id,
-    from_profile_id: (profile as any).id,
+    account_id: accountId,
+    from_profile_id: profileId,
     body,
     channel: "sms",
     direction: "inbound",

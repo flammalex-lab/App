@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { computeNextRun } from "@/lib/utils/standing-order";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { StandingFreq } from "@/lib/supabase/types";
 
 interface ItemInput {
@@ -52,6 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       pause_until: null,
     },
     new Date(),
+    BUSINESS_TIMEZONE,
   );
 
   const payload = {

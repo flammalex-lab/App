@@ -89,3 +89,38 @@ create policy "standing owner write" on standing_orders for all using (
 
 -- Items policy uses the parent — already enforced via existence-of standing_orders
 -- with profile_id = auth.uid(). No change needed for standing_order_items.
+
+-- ---- 4) payment_status_t: extend with stripe lifecycle states ----
+-- The original enum (unpaid/partial/paid) couldn't represent failed cards,
+-- refunds, or disputes — the webhook would silently leave the order in
+-- "paid" after a chargeback. ALTER TYPE … ADD VALUE is non-transactional;
+-- run this migration outside any wrapping transaction.
+do $$ begin
+  if not exists (select 1 from pg_enum where enumtypid = 'payment_status_t'::regtype and enumlabel = 'failed') then
+    alter type payment_status_t add value 'failed';
+  end if;
+  if not exists (select 1 from pg_enum where enumtypid = 'payment_status_t'::regtype and enumlabel = 'refunded') then
+    alter type payment_status_t add value 'refunded';
+  end if;
+  if not exists (select 1 from pg_enum where enumtypid = 'payment_status_t'::regtype and enumlabel = 'partially_refunded') then
+    alter type payment_status_t add value 'partially_refunded';
+  end if;
+  if not exists (select 1 from pg_enum where enumtypid = 'payment_status_t'::regtype and enumlabel = 'disputed') then
+    alter type payment_status_t add value 'disputed';
+  end if;
+end $$;
+
+-- ---- 5) stripe_events: idempotency table for webhook dedupe ----
+-- Stripe retries on any 5xx. Insert event.id on receipt; ON CONFLICT do
+-- nothing tells the handler "already processed this event" so side
+-- effects (status flips, SMS, refunds) only ever happen once.
+create table if not exists stripe_events (
+  id text primary key,                       -- evt_…
+  type text not null,
+  received_at timestamptz not null default now(),
+  order_id uuid references orders(id) on delete set null
+);
+alter table stripe_events enable row level security;
+create policy "stripe_events admin read" on stripe_events for select using (is_admin());
+-- No insert/update policy — only the service-role client (webhook) writes.
+

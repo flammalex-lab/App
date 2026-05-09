@@ -7,6 +7,7 @@ import { StoreNav } from "@/components/layout/StoreNav";
 import { StickyCartBar } from "@/components/layout/StickyCartBar";
 import { CutoffClock } from "@/components/CutoffClock";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { DeliveryZoneRow, Profile } from "@/lib/supabase/types";
 
 export default async function StorefrontLayout({
@@ -45,7 +46,7 @@ export default async function StorefrontLayout({
     zone = (z as DeliveryZoneRow) ?? null;
   }
 
-  const nextDel = zone ? nextDeliveryForZone(zone) : null;
+  const nextDel = zone ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE) : null;
   const serialized = nextDel
     ? {
         deliveryDate: nextDel.deliveryDate.toISOString(),

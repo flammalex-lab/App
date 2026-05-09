@@ -119,6 +119,11 @@ export const TIER_MULTIPLIERS = {
   custom: 1.0, // custom requires account_pricing override; multiplier ignored
 } as const;
 
+// FLF operates out of central NY. All cutoff windows + standing-order
+// run-times are wall-clock in this zone, regardless of where the server
+// runs (Vercel functions are UTC by default).
+export const BUSINESS_TIMEZONE = "America/New_York";
+
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 export type DayName = (typeof DAY_NAMES)[number];
 
