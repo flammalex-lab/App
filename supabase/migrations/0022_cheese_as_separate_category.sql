@@ -7,14 +7,14 @@
 --
 -- For installs that haven't run those folded versions, 0020 + 0021 already
 -- kept cheese intact and this migration is a no-op (the enum already has
--- 'cheese', and 0006's product_group backfill already aligns with the
--- current category).
+-- 'cheese', so the gate below skips the recreate; the recategorize step
+-- is a no-op when category_t already aligns with product_group).
 --
--- Idempotent: each step is gated on whether the work is needed.
+-- Implementation: same two-phase array remap as 0020 / 0021 — loosen
+-- accounts.enabled_categories to text[] before the type change so we
+-- don't trip on "cannot use subquery in transform expression".
 
--- 1. Make sure 'cheese' is in category_t. If 0020 dropped it (folded into
---    dairy), the recreate-the-enum approach is the only safe way to add
---    it back without the same-tx restriction biting us.
+-- 1. Make sure 'cheese' is in category_t.
 do $$ begin
   if not exists (
     select 1 from pg_enum e
@@ -23,11 +23,18 @@ do $$ begin
   ) then
     drop type if exists category_t_new;
 
+    alter table accounts alter column enabled_categories drop default;
+
+    alter table accounts
+      alter column enabled_categories type text[]
+      using enabled_categories::text[];
+
+    -- No remap needed — we're only adding 'cheese' to the enum, not
+    -- changing any existing values.
+
     create type category_t_new as enum (
       'meat', 'dairy', 'cheese', 'produce', 'pantry', 'beverages'
     );
-
-    alter table accounts alter column enabled_categories drop default;
 
     alter table products
       alter column category type category_t_new
@@ -35,7 +42,7 @@ do $$ begin
 
     alter table accounts
       alter column enabled_categories type category_t_new[]
-      using enabled_categories::text[]::category_t_new[];
+      using enabled_categories::category_t_new[];
 
     alter table accounts
       alter column enabled_categories
