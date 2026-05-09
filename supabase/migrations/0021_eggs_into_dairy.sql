@@ -35,9 +35,9 @@ update products
 --     cream / yogurt / cheese variants that share the same adjectives but
 --     aren't milk.
 update products
-   set name = regexp_replace(name, '\s(Whole|Skim|Reduced Fat|Low Fat|2%|1%)\s+—', ' \1 Milk —')
+   set name = regexp_replace(name, '\s(Whole|Skim|Reduced Fat|Low Fat|Fat Free|2%|1%)\s+—', ' \1 Milk —')
  where category::text in ('dairy', 'eggs')
-   and name ~ '\s(Whole|Skim|Reduced Fat|Low Fat|2%|1%)\s+—'
+   and name ~ '\s(Whole|Skim|Reduced Fat|Low Fat|Fat Free|2%|1%)\s+—'
    and name !~* '\ymilk\y'
    and name !~* '(yogurt|cheese|cream|butter|kefir|ricotta|mozzarella|cheddar|brie|gouda|feta|chocolate)';
 
