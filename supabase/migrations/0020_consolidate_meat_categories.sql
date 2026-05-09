@@ -34,21 +34,26 @@ do $$ begin
 
     alter table accounts alter column enabled_categories drop default;
 
-    -- Map beef/pork/lamb -> meat in the USING clause; everything else
-    -- passes through. The text round-trip is what lets the cast cross
-    -- enum types — direct enum-to-enum casts aren't allowed.
+    -- Map beef/pork/lamb -> meat and cheese -> dairy in the USING clause;
+    -- everything else passes through. The text round-trip is what lets the
+    -- cast cross enum types — direct enum-to-enum casts aren't allowed.
+    -- 'cheese' isn't in any migration in this repo but exists in production
+    -- (added ad-hoc to category_t at some point); folding into dairy matches
+    -- how product_group already groups it (see 0006).
     alter table products
       alter column category type category_t_new
       using (
         case
           when category::text in ('beef', 'pork', 'lamb') then 'meat'
+          when category::text = 'cheese' then 'dairy'
           else category::text
         end
       )::category_t_new;
 
     -- Same mapping for accounts.enabled_categories. `array(select distinct …)`
     -- per-row dedups any account that had multiple of beef/pork/lamb enabled
-    -- (which would otherwise collapse to duplicate 'meat' entries).
+    -- (which would otherwise collapse to duplicate 'meat' entries), or that
+    -- had both cheese and dairy.
     alter table accounts
       alter column enabled_categories type category_t_new[]
       using (
@@ -56,6 +61,7 @@ do $$ begin
           select distinct (
             case
               when c::text in ('beef', 'pork', 'lamb') then 'meat'
+              when c::text = 'cheese' then 'dairy'
               else c::text
             end
           )::category_t_new
