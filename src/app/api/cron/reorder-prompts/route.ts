@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
+import { verifyCronAuth } from "@/lib/cron/auth";
 import type { Account, DeliveryZoneRow } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 
@@ -10,9 +11,8 @@ import { nextDeliveryForZone } from "@/lib/utils/cutoff";
  * delivery, send a reorder nudge to the primary buyer.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (secret && auth !== `Bearer ${secret}`) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const denied = verifyCronAuth(request);
+  if (denied) return denied;
 
   const svc = createServiceClient();
   const { data: accounts } = await svc

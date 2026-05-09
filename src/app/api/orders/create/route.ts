@@ -3,13 +3,13 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/session";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { getStripe } from "@/lib/stripe/client";
+import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 
 interface BodyLine {
   productId: string;
   quantity: number;
-  unitPrice: number;
   notes: string | null;
   variantKey?: string | null;
   variantSku?: string | null;
@@ -41,26 +41,58 @@ export async function POST(request: Request) {
 
   if (body.lines.length === 0) return NextResponse.json({ error: "empty order" }, { status: 400 });
 
-  const subtotal = round2(body.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+  const productIds = body.lines.map((l) => l.productId);
+  const isB2B = body.orderType === "b2b";
+
+  // Re-resolve every unit price server-side. Anything the client sent for
+  // unitPrice is ignored — the cart submits user-controllable JSON.
+  const { data: productsData, error: productsErr } = await svc
+    .from("products")
+    .select("id, name, pack_size, wholesale_price, retail_price")
+    .in("id", productIds);
+  if (productsErr) return NextResponse.json({ error: productsErr.message }, { status: 500 });
+  const productById = new Map(((productsData as any[] | null) ?? []).map((p) => [p.id, p]));
+  for (const id of productIds) {
+    if (!productById.has(id)) {
+      return NextResponse.json({ error: `product ${id} no longer available` }, { status: 400 });
+    }
+  }
+
+  let accountRow: Account | null = null;
+  if (effectiveProfile.account_id) {
+    const { data: acct } = await svc.from("accounts").select("*").eq("id", effectiveProfile.account_id).maybeSingle();
+    accountRow = (acct as Account | null) ?? null;
+  }
+
+  // Use the same pricing pipeline as the catalog and standing-order cron:
+  // overrides → assigned price list → tier multiplier.
+  const pricingCtx = await loadPricingContext(svc, accountRow, isB2B);
+
+  const pricedLines = body.lines.map((l) => {
+    const product = productById.get(l.productId)!;
+    const unitPrice = priceForProduct(product, pricingCtx);
+    return { ...l, unitPrice, productName: product.name as string, packSize: product.pack_size as string | null };
+  });
+  const unpriceable = pricedLines.find((l) => l.unitPrice == null);
+  if (unpriceable) {
+    return NextResponse.json(
+      { error: `pricing not configured for ${unpriceable.productName}` },
+      { status: 400 },
+    );
+  }
+
+  const subtotal = round2(pricedLines.reduce((s, l) => s + l.quantity * (l.unitPrice as number), 0));
 
   // Delivery fee: pulled from the buyer's account → delivery zone.
   // B2B only; DTC pickups don't carry a zone fee today.
   let deliveryFee = 0;
-  if (body.orderType === "b2b" && effectiveProfile.account_id) {
-    const { data: acct } = await svc
-      .from("accounts")
-      .select("delivery_zone")
-      .eq("id", effectiveProfile.account_id)
+  if (isB2B && accountRow?.delivery_zone) {
+    const { data: zone } = await svc
+      .from("delivery_zones")
+      .select("delivery_fee")
+      .eq("zone", accountRow.delivery_zone)
       .maybeSingle();
-    const zoneKey = (acct as Account | null)?.delivery_zone ?? null;
-    if (zoneKey) {
-      const { data: zone } = await svc
-        .from("delivery_zones")
-        .select("delivery_fee")
-        .eq("zone", zoneKey)
-        .maybeSingle();
-      deliveryFee = Number((zone as DeliveryZoneRow | null)?.delivery_fee ?? 0);
-    }
+    deliveryFee = Number((zone as DeliveryZoneRow | null)?.delivery_fee ?? 0);
   }
   const total = round2(subtotal + deliveryFee);
 
@@ -90,12 +122,12 @@ export async function POST(request: Request) {
     .single();
   if (orderErr || !order) return NextResponse.json({ error: orderErr?.message ?? "order failed" }, { status: 500 });
 
-  const itemRows = body.lines.map((l) => ({
+  const itemRows = pricedLines.map((l) => ({
     order_id: order.id,
     product_id: l.productId,
     quantity: l.quantity,
-    unit_price: l.unitPrice,
-    line_total: round2(l.quantity * l.unitPrice),
+    unit_price: l.unitPrice as number,
+    line_total: round2(l.quantity * (l.unitPrice as number)),
     notes: l.notes,
     pack_variant_key: l.variantKey ?? null,
     pack_variant_sku: l.variantSku ?? null,
@@ -141,19 +173,14 @@ export async function POST(request: Request) {
   if (body.paymentMethod === "stripe") {
     try {
       const stripe = getStripe();
-      const { data: products } = await svc
-        .from("products")
-        .select("id,name,pack_size")
-        .in("id", body.lines.map((l) => l.productId));
-      const nameById = Object.fromEntries(((products ?? []) as any[]).map((p) => [p.id, p]));
-      const lineItems = body.lines.map((l) => ({
+      const lineItems = pricedLines.map((l) => ({
         quantity: l.quantity,
         price_data: {
           currency: "usd",
-          unit_amount: Math.round(l.unitPrice * 100),
+          unit_amount: Math.round((l.unitPrice as number) * 100),
           product_data: {
-            name: nameById[l.productId]?.name ?? "Item",
-            description: nameById[l.productId]?.pack_size ?? undefined,
+            name: l.productName,
+            description: l.packSize ?? undefined,
           },
         },
       }));
