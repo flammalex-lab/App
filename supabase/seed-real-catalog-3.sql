@@ -45,25 +45,25 @@ on conflict (sku) do nothing;
 
 -- ============ BEEF — additions ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('BF-CUB-001','grasslands','beef','Cube Steaks','','lb',null,7.99,true,true,140),
-('BF-RNP-001','grasslands','beef','Ranch Primals','','lb',null,4.19,true,false,141),
-('BF-TRX-001','grasslands','beef','TRex Major','','lb',null,13.95,true,false,142),
-('BF-ULD-001','grasslands','beef','Uncle Louie''s Beef Dogs','10/2 lb','case','10/2 lb',8.00,true,true,143),
-('BF-SST-001','grasslands','beef','Skirt Steak (singular)','','lb',null,14.95,true,true,144)
+('BF-CUB-001','grasslands','meat','Cube Steaks','','lb',null,7.99,true,true,140),
+('BF-RNP-001','grasslands','meat','Ranch Primals','','lb',null,4.19,true,false,141),
+('BF-TRX-001','grasslands','meat','TRex Major','','lb',null,13.95,true,false,142),
+('BF-ULD-001','grasslands','meat','Uncle Louie''s Beef Dogs','10/2 lb','case','10/2 lb',8.00,true,true,143),
+('BF-SST-001','grasslands','meat','Skirt Steak (singular)','','lb',null,14.95,true,true,144)
 on conflict (sku) do nothing;
 
 -- ============ TURKEY / DUCK / RABBIT ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('PK-TRK-001','fingerlakes_farms','pork','Turkey — Frozen','Oink & Gobble, all natural free range','lb',null,3.99,true,true,250),
-('PK-DCK-001','fingerlakes_farms','pork','Normandy Duck','Pasture raised, frozen, 6 ct','lb',null,0,true,false,251),
-('PK-RAB-001','fingerlakes_farms','pork','Rabbit','Briar Patch at Whiskey Hill, local farm raised','lb',null,8.49,true,false,252)
+('PK-TRK-001','fingerlakes_farms','meat','Turkey — Frozen','Oink & Gobble, all natural free range','lb',null,3.99,true,true,250),
+('PK-DCK-001','fingerlakes_farms','meat','Normandy Duck','Pasture raised, frozen, 6 ct','lb',null,0,true,false,251),
+('PK-RAB-001','fingerlakes_farms','meat','Rabbit','Briar Patch at Whiskey Hill, local farm raised','lb',null,8.49,true,false,252)
 on conflict (sku) do nothing;
 
 -- ============ LAMB — HW variants ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('LB-HW-001','fingerlakes_farms','lamb','Local Grain/Grass Fed Lamb — HW','Hanging Weight','lb',null,9.99,true,false,310),
-('LB-HW-002','fingerlakes_farms','lamb','Local 100% Grass Fed Lamb — HW','Hanging Weight','lb',null,8.49,true,false,311),
-('LB-HW-003','fingerlakes_farms','lamb','Local Sheep — HW','Hanging Weight','lb',null,5.99,true,false,312)
+('LB-HW-001','fingerlakes_farms','meat','Local Grain/Grass Fed Lamb — HW','Hanging Weight','lb',null,9.99,true,false,310),
+('LB-HW-002','fingerlakes_farms','meat','Local 100% Grass Fed Lamb — HW','Hanging Weight','lb',null,8.49,true,false,311),
+('LB-HW-003','fingerlakes_farms','meat','Local Sheep — HW','Hanging Weight','lb',null,5.99,true,false,312)
 on conflict (sku) do nothing;
 
 -- ============ ITHACA MILK YOGURT — remaining flavors ============
@@ -85,13 +85,13 @@ on conflict (sku) do nothing;
 
 -- ============ SENECA HOLSTEIN MILK — all sizes ============
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
-('DY-SHW-002','fingerlakes_farms','dairy','Seneca Holstein Whole — Half Gallon','','each','half gallon',3.75,true,true,525),
-('DY-SHW-003','fingerlakes_farms','dairy','Seneca Holstein Whole — Quart','Special order','each','quart',2.50,true,true,526),
-('DY-SHR-002','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat — Half Gallon','','each','half gallon',3.65,true,true,527),
-('DY-SHR-003','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat — Quart','','each','quart',2.40,true,true,528),
-('DY-SHS-001','fingerlakes_farms','dairy','Seneca Holstein Skim — Gallon','','each','gallon',6.00,true,false,529),
-('DY-SHS-002','fingerlakes_farms','dairy','Seneca Holstein Skim — Half Gallon','','each','half gallon',3.60,true,true,534),
-('DY-SHS-003','fingerlakes_farms','dairy','Seneca Holstein Skim — Quart','','each','quart',2.10,true,true,535),
+('DY-SHW-002','fingerlakes_farms','dairy','Seneca Holstein Whole Milk — Half Gallon','','each','half gallon',3.75,true,true,525),
+('DY-SHW-003','fingerlakes_farms','dairy','Seneca Holstein Whole Milk — Quart','Special order','each','quart',2.50,true,true,526),
+('DY-SHR-002','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat Milk — Half Gallon','','each','half gallon',3.65,true,true,527),
+('DY-SHR-003','fingerlakes_farms','dairy','Seneca Holstein Reduced Fat Milk — Quart','','each','quart',2.40,true,true,528),
+('DY-SHS-001','fingerlakes_farms','dairy','Seneca Holstein Skim Milk — Gallon','','each','gallon',6.00,true,false,529),
+('DY-SHS-002','fingerlakes_farms','dairy','Seneca Holstein Skim Milk — Half Gallon','','each','half gallon',3.60,true,true,534),
+('DY-SHS-003','fingerlakes_farms','dairy','Seneca Holstein Skim Milk — Quart','','each','quart',2.10,true,true,535),
 -- Pittsford extras
 ('DY-PCM-001','fingerlakes_farms','dairy','Pittsford Chocolate Milk — Pint','','each','16 oz',2.15,true,true,536),
 ('DY-PHH-002','fingerlakes_farms','dairy','Pittsford Half & Half — Pint','','each','16 oz',2.55,true,true,537)

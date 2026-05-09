@@ -5,9 +5,9 @@
 insert into products (sku, brand, category, name, description, unit, pack_size, wholesale_price, available_b2b, available_dtc, sort_order) values
 ('DY-FAW-001','fingerlakes_farms','dairy','Five Acre Whole Milk — Gallon','','case','4/gallon',20.75,true,false,570),
 ('DY-FAW-002','fingerlakes_farms','dairy','Five Acre Whole Milk — Half Gallon','','case','9/half gallon',26.75,true,false,571),
-('DY-FAR-001','fingerlakes_farms','dairy','Five Acre 2% Reduced Fat — Gallon','','case','4/gallon',20.75,true,false,572),
-('DY-FAR-002','fingerlakes_farms','dairy','Five Acre 2% Reduced Fat — Half Gallon','','case','9/half gallon',26.75,true,false,573),
-('DY-FAF-001','fingerlakes_farms','dairy','Five Acre Fat Free — Half Gallon','','case','9/half gallon',26.75,true,false,574),
+('DY-FAR-001','fingerlakes_farms','dairy','Five Acre 2% Reduced Fat Milk — Gallon','','case','4/gallon',20.75,true,false,572),
+('DY-FAR-002','fingerlakes_farms','dairy','Five Acre 2% Reduced Fat Milk — Half Gallon','','case','9/half gallon',26.75,true,false,573),
+('DY-FAF-001','fingerlakes_farms','dairy','Five Acre Fat Free Milk — Half Gallon','','case','9/half gallon',26.75,true,false,574),
 ('DY-FAK-001','fingerlakes_farms','dairy','Five Acre Kefir Plain — Quart','','case','6/quart',25.75,true,false,575),
 ('DY-FAHH-001','fingerlakes_farms','dairy','Five Acre Half & Half — Pint','','case','16/pint',13.65,true,false,576),
 ('DY-FAHC-001','fingerlakes_farms','dairy','Five Acre Heavy Cream — Pint','','case','16/pint',24.95,true,false,577),
