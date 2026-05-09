@@ -18,7 +18,11 @@ export async function POST(request: Request) {
 
   const signature = request.headers.get("x-twilio-signature");
   const valid = await validateTwilioSignature(signature, url, params);
-  if (!valid && process.env.NODE_ENV === "production") {
+  // Signatures are *always* required. Local dev can opt out with an
+  // explicit env flag — never fall back to NODE_ENV alone, since
+  // preview/staging builds frequently set NODE_ENV=production.
+  const allowUnsigned = process.env.ALLOW_UNSIGNED_TWILIO === "true";
+  if (!valid && !allowUnsigned) {
     return new NextResponse("bad signature", { status: 403 });
   }
 

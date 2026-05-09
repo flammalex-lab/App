@@ -57,18 +57,19 @@ function renderIIF(invoices: AccountingInvoice[]): string {
 
   for (const inv of invoices) {
     const total = round2(inv.lines.reduce((s, l) => s + l.amount, 0));
+    const customer = iifCell(inv.customerName);
     out.push(
       [
         "TRNS",
         "",
         "INVOICE",
         fmtDate(inv.date),
-        inv.arAccount,
-        inv.customerName,
+        iifCell(inv.arAccount),
+        customer,
         total.toFixed(2),
-        inv.refNumber,
-        inv.memo ?? "",
-        inv.terms,
+        iifCell(inv.refNumber),
+        iifCell(inv.memo ?? ""),
+        iifCell(inv.terms),
       ].join("\t"),
     );
     for (const line of inv.lines) {
@@ -78,10 +79,10 @@ function renderIIF(invoices: AccountingInvoice[]): string {
           "",
           "INVOICE",
           fmtDate(inv.date),
-          line.incomeAccount,
-          inv.customerName,
+          iifCell(line.incomeAccount),
+          customer,
           (-round2(line.amount)).toFixed(2),
-          [line.description, line.memo].filter(Boolean).join(" — "),
+          iifCell([line.description, line.memo].filter(Boolean).join(" — ")),
         ].join("\t"),
       );
     }
@@ -89,6 +90,13 @@ function renderIIF(invoices: AccountingInvoice[]): string {
   }
 
   return out.join("\n") + "\n";
+}
+
+// IIF is tab-delimited with one record per line — collapse tabs / newlines
+// to a single space so a customer name like "Smith\tCo" or a description
+// containing a paste-in newline can't shred the row structure.
+function iifCell(v: string): string {
+  return String(v ?? "").replace(/[\t\r\n]+/g, " ").trim();
 }
 
 export function buildCSVExport(invoices: AccountingInvoice[]): ExportBundle {

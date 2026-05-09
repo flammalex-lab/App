@@ -26,12 +26,19 @@ self.addEventListener("fetch", (event) => {
   // Never cache API / auth / cron
   if (url.pathname.startsWith("/api") || url.pathname.startsWith("/auth")) return;
 
+  // Only cache 2xx responses without Set-Cookie. Caching errors / redirects
+  // / Set-Cookie pins them into the SW cache and serves them indefinitely.
+  const cacheable = (res) =>
+    res && res.ok && res.status >= 200 && res.status < 300 && !res.headers.get("set-cookie");
+
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
+          if (cacheable(res)) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
           return res;
         })
         .catch(() => caches.match(req).then((r) => r || caches.match("/"))),
@@ -45,8 +52,10 @@ self.addEventListener("fetch", (event) => {
       caches.match(req).then((cached) => {
         const net = fetch(req)
           .then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
+            if (cacheable(res)) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy));
+            }
             return res;
           })
           .catch(() => cached);

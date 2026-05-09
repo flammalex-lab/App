@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import type { Account, DeliveryZoneRow } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { constantTimeEquals } from "@/lib/utils/crypto-compare";
 
 /**
  * Hourly cron: for each active account, if the cutoff for their next delivery
@@ -11,8 +12,12 @@ import { nextDeliveryForZone } from "@/lib/utils/cutoff";
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (secret && auth !== `Bearer ${secret}`) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!secret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  const auth = request.headers.get("authorization") ?? "";
+  const expected = `Bearer ${secret}`;
+  if (!constantTimeEquals(auth, expected)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const svc = createServiceClient();
   const { data: accounts } = await svc

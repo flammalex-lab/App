@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { computeNextRun } from "@/lib/utils/standing-order";
 import { runStandingOrder } from "@/lib/standing-orders/run";
+import { constantTimeEquals } from "@/lib/utils/crypto-compare";
 import type { StandingOrder } from "@/lib/supabase/types";
 
 /**
@@ -10,8 +11,12 @@ import type { StandingOrder } from "@/lib/supabase/types";
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (secret && auth !== `Bearer ${secret}`) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!secret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  const auth = request.headers.get("authorization") ?? "";
+  const expected = `Bearer ${secret}`;
+  if (!constantTimeEquals(auth, expected)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const svc = createServiceClient();
   const today = new Date().toISOString().slice(0, 10);

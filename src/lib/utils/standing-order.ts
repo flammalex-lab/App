@@ -22,21 +22,20 @@ export function computeNextRun(
   startFrom.setHours(6, 0, 0, 0); // run-time: 6am
   if (startFrom <= now) startFrom.setDate(startFrom.getDate() + 1);
 
-  const step = so.frequency === "biweekly" ? 14 : 1;
+  // Look ahead 30 days for biweekly to span two cycles, 14 days for weekly.
+  // Biweekly cadence is enforced day-by-day by the daysSince guard below.
   const limit = so.frequency === "biweekly" ? 30 : 14;
-  for (let offset = 0; offset <= limit; offset += step === 14 ? 1 : 1) {
+  for (let offset = 0; offset <= limit; offset++) {
     const candidate = new Date(startFrom);
     candidate.setDate(candidate.getDate() + offset);
-    if (dayIdx.includes(candidate.getDay())) {
-      // enforce biweekly cadence by aligning to last_run_date
-      if (so.frequency === "biweekly" && so.last_run_date) {
-        const daysSince = Math.floor(
-          (candidate.getTime() - new Date(so.last_run_date).getTime()) / 86_400_000,
-        );
-        if (daysSince < 14) continue;
-      }
-      return candidate;
+    if (!dayIdx.includes(candidate.getDay())) continue;
+    if (so.frequency === "biweekly" && so.last_run_date) {
+      const daysSince = Math.floor(
+        (candidate.getTime() - new Date(so.last_run_date).getTime()) / 86_400_000,
+      );
+      if (daysSince < 14) continue;
     }
+    return candidate;
   }
   return null;
 }
