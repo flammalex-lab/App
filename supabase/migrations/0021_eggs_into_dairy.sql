@@ -14,6 +14,10 @@
 -- expect "Whole Milk — Gallon" and "Large Brown Eggs — Carton". Inserts the
 -- missing word right before the em-dash that separates pack info.
 --
+-- Implementation: same two-phase array remap as 0020 — loosen
+-- accounts.enabled_categories to text[], UPDATE, then cast back. Subqueries
+-- aren't allowed inside ALTER COLUMN ... USING transform expressions.
+--
 -- Idempotent: name updates are gated on the missing word, and the enum
 -- recreate is gated on 'eggs' still existing.
 
@@ -44,10 +48,7 @@ update products
    and name !~* '\ymilk\y'
    and name !~* '(yogurt|cheese|cream|butter|kefir|ricotta|mozzarella|cheddar|brie|gouda|feta|chocolate)';
 
--- 2. Recreate the enum without 'eggs'. Same approach as 0020: build the
---    new enum in one go and remap eggs -> dairy in the USING clause, so
---    we never need to use a freshly-added value in the same transaction.
---    Cheese passes through untouched.
+-- 2. Recreate the enum without 'eggs'. Cheese passes through untouched.
 
 do $$ begin
   if exists (
@@ -57,11 +58,26 @@ do $$ begin
   ) then
     drop type if exists category_t_new;
 
+    alter table accounts alter column enabled_categories drop default;
+
+    alter table accounts
+      alter column enabled_categories type text[]
+      using enabled_categories::text[];
+
+    update accounts
+       set enabled_categories = (
+         select array_agg(distinct
+           case when c = 'eggs' then 'dairy' else c end
+         )
+         from unnest(enabled_categories) as c
+       )
+     where exists (
+       select 1 from unnest(enabled_categories) c where c = 'eggs'
+     );
+
     create type category_t_new as enum (
       'meat', 'dairy', 'cheese', 'produce', 'pantry', 'beverages'
     );
-
-    alter table accounts alter column enabled_categories drop default;
 
     alter table products
       alter column category type category_t_new
@@ -73,16 +89,7 @@ do $$ begin
 
     alter table accounts
       alter column enabled_categories type category_t_new[]
-      using (
-        array(
-          select distinct (
-            case when c::text = 'eggs' then 'dairy'
-                 else c::text
-            end
-          )::category_t_new
-          from unnest(enabled_categories) as c
-        )
-      );
+      using enabled_categories::category_t_new[];
 
     alter table accounts
       alter column enabled_categories
