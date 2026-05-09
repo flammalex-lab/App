@@ -100,6 +100,24 @@ export function packSuffixFromName(name: string): string | null {
 }
 
 /**
+ * Title shown on a grouped detail card — strips both the pack-size suffix
+ * and the producer prefix. Mirrors the small-card title pattern so a buyer
+ * sees "Whole" instead of "Ithaca Milk Whole" right under a producer chip
+ * that already says "Find more from Ithaca Milk". Falls back to the original
+ * name if everything would get stripped.
+ */
+export function groupedDetailTitle(name: string, producer: string | null | undefined): string {
+  let n = baseNameForGrouping(name);
+  if (producer) {
+    const p = producer.trim();
+    if (p && n.toLowerCase().startsWith(p.toLowerCase() + " ")) {
+      n = n.slice(p.length).trim();
+    }
+  }
+  return n || name;
+}
+
+/**
  * Build the full pack list shown on the product detail card. Includes:
  *   1. The primary product's default pack + any pack_options.
  *   2. Sibling products that share the same producer + category + base name

@@ -5,7 +5,7 @@ import type { Product } from "@/lib/supabase/types";
 import { productImage } from "@/lib/utils/product-image";
 import { BRAND_LABELS } from "@/lib/constants";
 import { ProductDetailClient, type PackRow } from "./ProductDetailClient";
-import { baseNameForGrouping } from "./packs";
+import { groupedDetailTitle } from "./packs";
 
 /**
  * Shared 2-column product detail body. Used by:
@@ -37,7 +37,15 @@ export function ProductDetailContent({
   const brandLabel = BRAND_LABELS[product.brand];
   const producerOrBrand = product.producer ?? brandLabel;
   const isGrouped = groupedProductCount > 1;
-  const title = isGrouped ? baseNameForGrouping(product.name) : product.name;
+  // Grouped: strip both the pack-suffix and (when it matches the prefix) the
+  // producer, matching the small-card title pattern. Single: full product
+  // name as before.
+  const title = isGrouped ? groupedDetailTitle(product.name, product.producer) : product.name;
+  // Pack/Case caption is meaningful only for a single-variant card. The
+  // separate "Brand: X" line was misleading — `brand` here is the FLF
+  // marketplace brand (e.g. fingerlakes_farms), not the maker; the maker
+  // is `producer`, already shown by the chip above.
+  const showPackCaption = !isGrouped && (product.pack_size || product.case_pack);
 
   return (
     <div className="md:grid md:grid-cols-2 md:gap-0">
@@ -75,13 +83,13 @@ export function ProductDetailContent({
 
         <h1 className="display text-2xl md:text-3xl tracking-tight mt-2">{title}</h1>
 
-        <p className="text-sm text-ink-secondary mt-2">
-          {!isGrouped && product.pack_size ? <>Pack: {product.pack_size}</> : null}
-          {!isGrouped && product.pack_size && product.case_pack ? <> · </> : null}
-          {!isGrouped && product.case_pack ? <>Case: {product.case_pack}</> : null}
-          {!isGrouped && (product.pack_size || product.case_pack) && brandLabel ? <> · </> : null}
-          {brandLabel ? <>Brand: {brandLabel.toUpperCase()}</> : null}
-        </p>
+        {showPackCaption ? (
+          <p className="text-sm text-ink-secondary mt-2">
+            {product.pack_size ? <>Pack: {product.pack_size}</> : null}
+            {product.pack_size && product.case_pack ? <> · </> : null}
+            {product.case_pack ? <>Case: {product.case_pack}</> : null}
+          </p>
+        ) : null}
 
         {packs.length > 0 ? (
           <ProductDetailClient
