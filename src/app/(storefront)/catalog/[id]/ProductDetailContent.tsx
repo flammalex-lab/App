@@ -5,6 +5,7 @@ import type { Product } from "@/lib/supabase/types";
 import { productImage } from "@/lib/utils/product-image";
 import { BRAND_LABELS } from "@/lib/constants";
 import { ProductDetailClient, type PackRow } from "./ProductDetailClient";
+import { baseNameForGrouping } from "./packs";
 
 /**
  * Shared 2-column product detail body. Used by:
@@ -13,23 +14,30 @@ import { ProductDetailClient, type PackRow } from "./ProductDetailClient";
  *
  * Both pass the same product/packs/isB2B/inGuide props; the modal also
  * wires onClose so its inner links can dismiss the modal before
- * navigating.
+ * navigating. `groupedProductCount` is >1 when sibling products (e.g.
+ * Whole Milk — Gallon and Whole Milk — Half Gallon) share this card; the
+ * title and pack/case caption adapt so they don't misrepresent a single
+ * variant.
  */
 export function ProductDetailContent({
   product,
   packs,
+  groupedProductCount,
   isB2B,
   inGuide,
   onClose,
 }: {
   product: Product;
   packs: PackRow[];
+  groupedProductCount: number;
   isB2B: boolean;
   inGuide: boolean;
   onClose?: () => void;
 }) {
   const brandLabel = BRAND_LABELS[product.brand];
   const producerOrBrand = product.producer ?? brandLabel;
+  const isGrouped = groupedProductCount > 1;
+  const title = isGrouped ? baseNameForGrouping(product.name) : product.name;
 
   return (
     <div className="md:grid md:grid-cols-2 md:gap-0">
@@ -65,13 +73,13 @@ export function ProductDetailContent({
           </Link>
         ) : null}
 
-        <h1 className="display text-2xl md:text-3xl tracking-tight mt-2">{product.name}</h1>
+        <h1 className="display text-2xl md:text-3xl tracking-tight mt-2">{title}</h1>
 
         <p className="text-sm text-ink-secondary mt-2">
-          {product.pack_size ? <>Pack: {product.pack_size}</> : null}
-          {product.pack_size && product.case_pack ? <> · </> : null}
-          {product.case_pack ? <>Case: {product.case_pack}</> : null}
-          {(product.pack_size || product.case_pack) && brandLabel ? <> · </> : null}
+          {!isGrouped && product.pack_size ? <>Pack: {product.pack_size}</> : null}
+          {!isGrouped && product.pack_size && product.case_pack ? <> · </> : null}
+          {!isGrouped && product.case_pack ? <>Case: {product.case_pack}</> : null}
+          {!isGrouped && (product.pack_size || product.case_pack) && brandLabel ? <> · </> : null}
           {brandLabel ? <>Brand: {brandLabel.toUpperCase()}</> : null}
         </p>
 
