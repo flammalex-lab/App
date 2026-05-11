@@ -13,6 +13,7 @@ export function ProductForm({ product }: { product: Product | null }) {
   const [form, setForm] = useState({
     sku: product?.sku ?? "",
     brand: (product?.brand ?? "grasslands") as Brand,
+    producer: product?.producer ?? "",
     category: (product?.category ?? "meat") as Category,
     name: product?.name ?? "",
     description: product?.description ?? "",
@@ -39,6 +40,7 @@ export function ProductForm({ product }: { product: Product | null }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        producer: form.producer.trim() || null,
         avg_weight_lbs: form.avg_weight_lbs === "" ? null : Number(form.avg_weight_lbs),
         wholesale_price: form.wholesale_price === "" ? null : Number(form.wholesale_price),
         retail_price: form.retail_price === "" ? null : Number(form.retail_price),
@@ -72,6 +74,16 @@ export function ProductForm({ product }: { product: Product | null }) {
         </Field>
       </div>
       <Field label="Name"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+      <Field
+        label="Producer"
+        hint="Free-text farm/producer byline shown on the buyer-facing card. Defaults to &ldquo;Fingerlakes Farms&rdquo; for own/co-packed items via migration 0029."
+      >
+        <Input
+          value={form.producer}
+          onChange={(e) => setForm({ ...form, producer: e.target.value })}
+          placeholder="e.g. Five Acre Farms"
+        />
+      </Field>
       <Field label="Description"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Category">

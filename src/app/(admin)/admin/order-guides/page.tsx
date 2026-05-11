@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { BUYER_TYPE_LABELS, GROUP_LABELS, type BuyerType, type ProductGroup } from "@/lib/constants";
 
@@ -26,7 +26,9 @@ export default async function AdminOrderGuidesPage({
   searchParams: Promise<{ type?: string; q?: string }>;
 }) {
   await requireAdmin();
-  const db = await createClient();
+  // RLS would hide every other buyer's profile from this admin's session;
+  // use the service client now that we've confirmed the caller is admin.
+  const db = createServiceClient();
   const sp = await searchParams;
   const typeFilter = sp.type ?? "";
   const q = sp.q?.trim() ?? "";

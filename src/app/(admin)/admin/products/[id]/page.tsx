@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Product } from "@/lib/supabase/types";
 import { ProductForm } from "./ProductForm";
 
+export const metadata = { title: "Admin — Product" };
+
 export default async function AdminProductEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (id === "new") {

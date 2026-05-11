@@ -9,6 +9,8 @@ import { dateShort, money } from "@/lib/utils/format";
 import { BUYER_TYPE_LABELS, GROUP_LABELS, type BuyerType, type ProductGroup } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/Badge";
 
+export const metadata = { title: "Admin — Account" };
+
 interface BuyerGuideStats {
   itemCount: number;
   groups: ProductGroup[];
