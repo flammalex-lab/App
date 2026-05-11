@@ -6,7 +6,7 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import { CartClient } from "./CartClient";
 import { BackButton } from "@/components/layout/BackButton";
 import type { Account, DeliveryZoneRow, PickupLocation } from "@/lib/supabase/types";
-import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { nextDeliveryForZone, upcomingDeliveriesForZone } from "@/lib/utils/cutoff";
 import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { CartLine } from "@/lib/cart/store";
@@ -35,6 +35,9 @@ export default async function CartPage() {
     zone = data as DeliveryZoneRow | null;
   }
   const nextDel = zone ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE) : null;
+  const upcomingDeliveries = zone
+    ? upcomingDeliveriesForZone(zone, new Date(), BUSINESS_TIMEZONE, 12)
+    : [];
 
   let pickups: PickupLocation[] = [];
   if (!isB2B) {
@@ -91,6 +94,7 @@ export default async function CartPage() {
               : null
           }
           pickupLocations={pickups}
+          upcomingDeliveries={upcomingDeliveries}
           reorder={reorder}
         />
       </div>
