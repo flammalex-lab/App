@@ -1,4 +1,7 @@
 {
+  "github": {
+    "silent": true
+  },
   "crons": [
     { "path": "/api/cron/standing-orders", "schedule": "0 10 * * *" },
     { "path": "/api/cron/reorder-prompts", "schedule": "0 * * * *" }
