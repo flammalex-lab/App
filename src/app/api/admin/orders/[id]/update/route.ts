@@ -5,7 +5,7 @@ import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import type { Order, OrderStatus } from "@/lib/supabase/types";
 
 type PrevOrder = Pick<Order, "status" | "order_number" | "profile_id" | "account_id"> & {
-  buyer: { phone: string | null } | null;
+  buyer: { phone: string | null; email: string | null } | null;
 };
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const svc = createServiceClient();
   const { data: prevRow } = await svc
     .from("orders")
-    .select("status, order_number, profile_id, account_id, buyer:profiles!orders_profile_id_fkey(phone)")
+    .select("status, order_number, profile_id, account_id, buyer:profiles!orders_profile_id_fkey(phone, email)")
     .eq("id", id)
     .maybeSingle();
   const prev = prevRow as PrevOrder | null;
@@ -67,6 +67,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         channel: "sms",
         toAddress: phone,
         body: smsBodies[status],
+        relatedOrderId: id,
+      });
+    }
+
+    // Email parallel — same rationale as in /api/orders/create. A buyer
+    // who declined SMS still gets the status update in their inbox.
+    const email = prev.buyer?.email;
+    const subjectLabels: Record<OrderStatus, string> = {
+      draft: "",
+      pending: "",
+      confirmed: "confirmed",
+      processing: "being prepped",
+      ready: "ready for pickup",
+      shipped: "out for delivery",
+      delivered: "delivered",
+      cancelled: "cancelled",
+    };
+    if (email && appBody) {
+      await enqueueAndSend({
+        supabase: svc,
+        profileId: prev.profile_id,
+        accountId: prev.account_id,
+        type: "order_status",
+        channel: "email",
+        toAddress: email,
+        subject: `Order ${prev.order_number} ${subjectLabels[status] || status} — Fingerlakes Farms`,
+        body: appBody,
         relatedOrderId: id,
       });
     }

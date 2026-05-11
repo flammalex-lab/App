@@ -246,6 +246,9 @@ export async function POST(request: Request) {
     }
   }
 
+  // Deliver order confirmation on every available channel. The two are
+  // independent — a buyer who opted out of SMS still gets the email
+  // paper trail, and vice versa.
   const phone = effectiveProfile.phone;
   if (phone) {
     await enqueueAndSend({
@@ -256,6 +259,38 @@ export async function POST(request: Request) {
       channel: "sms",
       toAddress: phone,
       body: `FLF: order ${order_number} received · ${formatMoney(total)}. We'll text you when it's ready.`,
+      relatedOrderId: order.id,
+    });
+  }
+  const email = effectiveProfile.email;
+  if (email) {
+    const itemCount = body.lines.reduce((s, l) => s + l.quantity, 0);
+    const emailBody = [
+      `We got your order ${order_number}.`,
+      "",
+      `Items: ${itemCount}`,
+      `Subtotal: ${formatMoney(subtotal)}`,
+      deliveryFee > 0 ? `Delivery: ${formatMoney(deliveryFee)}` : null,
+      `Total: ${formatMoney(total)}`,
+      body.requestedDeliveryDate
+        ? `Delivery: ${formatDateShort(body.requestedDeliveryDate)}`
+        : body.pickupDate
+          ? `Pickup: ${formatDateShort(body.pickupDate)}`
+          : null,
+      "",
+      "We'll let you know when it's confirmed and ready.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    await enqueueAndSend({
+      supabase: svc,
+      profileId: effectiveProfile.id,
+      accountId: effectiveProfile.account_id,
+      type: "order_confirmation",
+      channel: "email",
+      toAddress: email,
+      subject: `Order ${order_number} received — Fingerlakes Farms`,
+      body: emailBody,
       relatedOrderId: order.id,
     });
   }
