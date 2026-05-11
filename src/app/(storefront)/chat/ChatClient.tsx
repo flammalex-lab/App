@@ -114,10 +114,53 @@ export function ChatClient({
   );
 }
 
+const STATUS_PILL: Record<string, { bg: string; text: string; label: string }> = {
+  confirmed: { bg: "bg-brand-blue-tint", text: "text-brand-blue", label: "Confirmed" },
+  processing: { bg: "bg-brand-blue-tint", text: "text-brand-blue", label: "Being prepped" },
+  ready: { bg: "bg-brand-green-tint", text: "text-brand-green-dark", label: "Ready for pickup" },
+  shipped: { bg: "bg-brand-green-tint", text: "text-brand-green-dark", label: "Out for delivery" },
+  delivered: { bg: "bg-brand-green-tint", text: "text-brand-green-dark", label: "Delivered" },
+  cancelled: { bg: "bg-[#fde9e3]", text: "text-[#7a3b1f]", label: "Cancelled" },
+};
+
 function SystemBubble({ message }: { message: Message }) {
   // Structured payload is the source of truth for system messages. If no
   // payload or unknown kind, render a plain dashed bubble.
   const payload = message.payload;
+  if (payload && payload.kind === "order_status" && message.related_order_id) {
+    const status = String((payload as any).status ?? "");
+    const orderNumber = String((payload as any).order_number ?? "");
+    const pill = STATUS_PILL[status] ?? {
+      bg: "bg-bg-secondary",
+      text: "text-ink-secondary",
+      label: status,
+    };
+    return (
+      <div className="flex flex-col items-start w-full">
+        <Link
+          href={`/orders/${message.related_order_id}`}
+          className="block w-[85%] max-w-[320px] rounded-lg bg-white border border-black/10 hover:shadow-card transition px-4 py-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] text-ink-tertiary uppercase tracking-wider mono">
+                {orderNumber}
+              </div>
+              <div className="text-[14px] font-medium leading-snug truncate">
+                {message.body}
+              </div>
+            </div>
+            <span
+              className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider ${pill.bg} ${pill.text}`}
+            >
+              {pill.label}
+            </span>
+          </div>
+        </Link>
+        <div className="text-[10px] mt-1 text-ink-tertiary">{relativeTime(message.created_at)}</div>
+      </div>
+    );
+  }
   if (payload && payload.kind === "order_placed" && message.related_order_id) {
     const items = Number((payload as any).items ?? 0);
     const deliverIso = ((payload as any).delivery_date ?? (payload as any).pickup_date ?? null) as
