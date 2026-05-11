@@ -20,7 +20,7 @@ export function LoginClient() {
           aria-live="polite"
           className="mb-4 rounded-md bg-brand-green-tint text-brand-green-dark text-sm px-3 py-2"
         >
-          You've been signed out.
+          You&apos;ve been signed out.
         </div>
       ) : null}
       {showAdmin ? <AdminPasswordForm onBack={() => setShowAdmin(false)} /> : <PhoneOtpForm />}
