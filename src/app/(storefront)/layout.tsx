@@ -47,7 +47,9 @@ export default async function StorefrontLayout({
     zone = (z as DeliveryZoneRow) ?? null;
   }
 
-  const nextDel = zone ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE) : null;
+  const nextDel = zone
+    ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE, activeAccount?.delivery_days)
+    : null;
   const serialized = nextDel
     ? {
         deliveryDate: nextDel.deliveryDate.toISOString(),

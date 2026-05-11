@@ -6,7 +6,7 @@ import type { Account, AccountType, AccountStatus, Category, Channel, DeliveryZo
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { ZONE_LABELS, BUYER_TYPE_LABELS, type BuyerType } from "@/lib/constants";
+import { ZONE_LABELS, BUYER_TYPE_LABELS, DAY_NAMES, type BuyerType, type DayName } from "@/lib/constants";
 
 // Buyer-facing product groups as a Category-level toggle. After 0020/0021/0022:
 // meat is its own category, dairy is its own category (eggs folded into dairy),
@@ -57,6 +57,7 @@ export function AccountForm({
     state: account?.state ?? "NY",
     zip: account?.zip ?? "",
     delivery_zone: (account?.delivery_zone ?? null) as DeliveryZone | null,
+    delivery_days: (account?.delivery_days ?? []) as string[],
     delivery_day: account?.delivery_day ?? "",
     order_minimum: account?.order_minimum ?? "",
     qb_customer_name: account?.qb_customer_name ?? "",
@@ -74,6 +75,10 @@ export function AccountForm({
       body: JSON.stringify({
         ...form,
         delivery_zone: form.delivery_zone || null,
+        // Empty selection = inherit zone schedule (null), not an empty
+        // array that would later read as "this account delivers on no
+        // days at all".
+        delivery_days: form.delivery_days.length > 0 ? form.delivery_days : null,
         qb_terms: form.qb_terms || null,
         qb_customer_name: form.qb_customer_name || null,
         price_list_id: form.price_list_id || null,
@@ -194,15 +199,49 @@ export function AccountForm({
 
       <div className="divider" />
       <h3 className="font-serif">Delivery</h3>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Zone">
-          <select className="input" value={form.delivery_zone ?? ""} onChange={(e) => setForm({ ...form, delivery_zone: (e.target.value || null) as DeliveryZone | null })}>
-            <option value="">—</option>
-            {ZONE_LIST.map((z) => <option key={z} value={z}>{ZONE_LABELS[z]}</option>)}
-          </select>
-        </Field>
-        <Field label="Delivery days"><Input value={form.delivery_day} onChange={(e) => setForm({ ...form, delivery_day: e.target.value })} /></Field>
-      </div>
+      <Field label="Zone">
+        <select className="input" value={form.delivery_zone ?? ""} onChange={(e) => setForm({ ...form, delivery_zone: (e.target.value || null) as DeliveryZone | null })}>
+          <option value="">—</option>
+          {ZONE_LIST.map((z) => <option key={z} value={z}>{ZONE_LABELS[z]}</option>)}
+        </select>
+      </Field>
+      <Field
+        label="Delivery days"
+        hint="Days of the week the buyer can pick in the cart. Leave all unchecked to inherit the zone's default schedule."
+      >
+        <div className="flex flex-wrap gap-2 pt-1">
+          {DAY_NAMES.map((d) => {
+            const on = form.delivery_days.includes(d);
+            return (
+              <label
+                key={d}
+                className={`px-3 py-1.5 rounded-full border cursor-pointer text-sm ${on ? "bg-brand-green text-white border-brand-green" : "bg-white border-black/10"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={on}
+                  onChange={() =>
+                    setForm((f) => ({
+                      ...f,
+                      delivery_days: on
+                        ? f.delivery_days.filter((x) => x !== d)
+                        : [...f.delivery_days, d],
+                    }))
+                  }
+                />
+                {d.slice(0, 3)}
+              </label>
+            );
+          })}
+        </div>
+      </Field>
+      <Field
+        label="Delivery notes"
+        hint="Free-form notes for ops (back-of-house, dock door, gate code). Doesn't affect the cart picker."
+      >
+        <Input value={form.delivery_day} onChange={(e) => setForm({ ...form, delivery_day: e.target.value })} />
+      </Field>
       <Field label="Order minimum ($)">
         <Input value={form.order_minimum as any} onChange={(e) => setForm({ ...form, order_minimum: e.target.value })} />
       </Field>
