@@ -5,7 +5,7 @@ import type { Account, Activity, Order, PriceList, Profile, StandingOrder } from
 import { AccountForm } from "./AccountForm";
 import { ActivityLogForm } from "./ActivityLogForm";
 import { AddBuyerDialog } from "./AddBuyerDialog";
-import { dateShort, money } from "@/lib/utils/format";
+import { dateShort, money, titleCase } from "@/lib/utils/format";
 import { BUYER_TYPE_LABELS, GROUP_LABELS, type BuyerType, type ProductGroup } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/Badge";
 
@@ -128,12 +128,16 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
             const effectiveType = (b.buyer_type ?? (account as Account).buyer_type) as BuyerType | null;
             const typeLabel = effectiveType ? BUYER_TYPE_LABELS[effectiveType] : null;
             const isOverride = !!b.buyer_type && b.buyer_type !== (account as Account).buyer_type;
+            const buyerDisplay =
+              titleCase(`${b.first_name ?? ""} ${b.last_name ?? ""}`.trim()) ||
+              b.email ||
+              "this buyer";
             return (
               <div key={b.id} className="p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium truncate flex items-center gap-2 flex-wrap">
                     <span>
-                      {b.first_name} {b.last_name}
+                      {buyerDisplay}
                       {b.title ? <span className="text-ink-tertiary font-normal"> · {b.title}</span> : null}
                     </span>
                     {typeLabel ? (
@@ -167,7 +171,9 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
                     Edit buyer
                   </Link>
                   <form action={`/api/admin/impersonate/start?profileId=${b.id}`} method="post">
-                    <button className="btn-secondary text-sm">View as buyer</button>
+                    <button className="btn-secondary text-sm" title={`Impersonate ${buyerDisplay}`}>
+                      View as {b.first_name ? titleCase(b.first_name) : "buyer"}
+                    </button>
                   </form>
                 </div>
               </div>
