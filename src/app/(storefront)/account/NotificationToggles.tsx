@@ -62,10 +62,11 @@ export function NotificationToggles({ initial }: { initial: NotificationPrefs | 
           <ul className="divide-y divide-black/5">
             {ROWS.filter((r) => r.section === section).map((r) => (
               <li key={r.key} className="flex items-center justify-between py-2.5">
-                <span className="text-sm">{r.label}</span>
+                <span id={`notif-${r.key}`} className="text-sm">{r.label}</span>
                 <button
                   role="switch"
                   aria-checked={prefs[r.key]}
+                  aria-labelledby={`notif-${r.key}`}
                   onClick={() => toggle(r.key)}
                   className={`relative h-6 w-11 rounded-full transition ${
                     prefs[r.key] ? "bg-brand-green" : "bg-ink-tertiary/40"

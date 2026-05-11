@@ -13,16 +13,28 @@ export function weight(lbs: number | null | undefined): string {
   return `${lbs.toFixed(lbs < 10 ? 1 : 0)} lb`;
 }
 
+// "YYYY-MM-DD" is parsed by `new Date(...)` as UTC midnight, which renders
+// as the previous day in any negative-offset timezone (EST/EDT for FLF).
+// Treat date-only strings as local calendar dates so a delivery dated
+// 2026-05-15 shows as May 15 in upstate NY, not May 14.
+function parseLocal(d: string | Date): Date {
+  if (typeof d !== "string") return d;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.exec(d);
+  if (dateOnly) {
+    const [y, m, day] = d.split("-").map(Number);
+    return new Date(y, m - 1, day);
+  }
+  return new Date(d);
+}
+
 export function dateShort(d: string | Date | null | undefined): string {
   if (!d) return "";
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return parseLocal(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function dateLong(d: string | Date | null | undefined): string {
   if (!d) return "";
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleDateString("en-US", {
+  return parseLocal(d).toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",

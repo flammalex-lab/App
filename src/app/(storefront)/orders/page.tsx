@@ -44,8 +44,25 @@ export default async function OrdersPage({
     : await base.eq("profile_id", profileId);
 
   const orders = (data as Order[] | null) ?? [];
-  const upcoming = orders.filter((o) => UPCOMING_STATUSES.includes(o.status));
-  const past = orders.filter((o) => !UPCOMING_STATUSES.includes(o.status));
+  // "Upcoming" should also mean the delivery/pickup date is today or later —
+  // otherwise an in-progress order whose delivery date has already passed
+  // sticks around in the upcoming tab and confuses buyers.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  function isFuture(o: Order): boolean {
+    const iso = o.requested_delivery_date ?? o.pickup_date;
+    if (!iso) return true; // no date yet → keep visible in upcoming
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    if (!m) return true;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return d.getTime() >= today.getTime();
+  }
+  const upcoming = orders.filter(
+    (o) => UPCOMING_STATUSES.includes(o.status) && isFuture(o),
+  );
+  const past = orders.filter(
+    (o) => !UPCOMING_STATUSES.includes(o.status) || !isFuture(o),
+  );
 
   const sp = await searchParams;
   const tab: TabKey = sp.tab === "past" ? "past" : "upcoming";

@@ -70,25 +70,25 @@ export default async function OrderDetail({
 
   return (
     <div className="max-w-3xl mx-auto pt-3 pb-24">
-      {/* Receipt-style top bar — back left, order number tabular right */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Receipt-style top bar — back link */}
+      <div className="mb-3">
         <Link
           href="/orders"
           className="inline-flex items-center gap-1 text-[13px] text-ink-secondary hover:text-ink-primary transition-colors duration-150"
         >
           <span aria-hidden>←</span> Orders
         </Link>
-        <span className="text-[12px] text-ink-tertiary tabular uppercase tracking-wider">
-          {o.order_number}
-        </span>
       </div>
 
-      {/* Receipt header: eyebrow + big delivery line + meta row */}
+      {/* Receipt header: order number is the identity, delivery date is the eyebrow.
+          Buyers refer to orders by their number ("FLF-2026-0003"); the date is
+          context, not identity. */}
       <p className="text-[11px] uppercase tracking-[0.18em] text-ink-tertiary mb-1">
-        {o.pickup_date ? "Pickup" : "Delivery"}
-      </p>
-      <h1 className="display text-[28px] md:text-[34px] leading-[1.1] tracking-tight text-ink-primary">
+        {o.pickup_date ? "Pickup" : "Delivery"} ·{" "}
         {deliveryIso ? dateShort(deliveryIso) : "—"}
+      </p>
+      <h1 className="display text-[28px] md:text-[34px] leading-[1.1] tracking-tight text-ink-primary tabular">
+        {o.order_number}
       </h1>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">

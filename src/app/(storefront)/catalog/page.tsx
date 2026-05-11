@@ -387,7 +387,16 @@ export default async function CatalogPage({
   const useRanking = sort === "name" || sort === "best" || isBest;
   if (useRanking) priced.sort(rankProductSort);
 
-  const producerSections = showProducerSections ? groupByProducer(priced) : [];
+  // "Best sellers" should be a curated subset — anything that has actually
+  // been ordered at least once (by anyone). Without this filter, the page
+  // returns the entire catalog sorted by popularity, which is identical
+  // to Explore and the marketing copy ("Most ordered this season") lies.
+  const bestSellers = isBest
+    ? priced.filter((p) => (globalProductRank[p.id] ?? 0) > 0).slice(0, 60)
+    : priced;
+  const visibleProducts = isBest ? bestSellers : priced;
+
+  const producerSections = showProducerSections ? groupByProducer(visibleProducts) : [];
   if (showProducerSections) {
     producerSections.sort((a, b) => {
       if (a.producer === null) return 1;
@@ -432,7 +441,7 @@ export default async function CatalogPage({
               {producerFilter}
             </h1>
             <p className="text-[13px] text-ink-secondary mt-3">
-              {priced.length} {priced.length === 1 ? "item" : "items"}
+              {visibleProducts.length} {visibleProducts.length === 1 ? "item" : "items"}
             </p>
           </div>
         ) : (
@@ -467,8 +476,11 @@ export default async function CatalogPage({
         ) : null}
       </div>
 
-      {priced.length === 0 ? (
-        <EmptyState title="No products match" body="Try a different search or clear filters." />
+      {visibleProducts.length === 0 ? (
+        <EmptyState
+          title={isBest ? "No best sellers yet" : "No products match"}
+          body={isBest ? "Order history is still building — check back in a few weeks." : "Try a different search or clear filters."}
+        />
       ) : showProducerSections ? (
         <div className="md:px-0 space-y-1">
           {producerSections.map(({ producer, items }) => (
@@ -485,7 +497,7 @@ export default async function CatalogPage({
           ))}
         </div>
       ) : (
-        <CatalogGrid products={priced} fromGroup={fromGroupLabel} />
+        <CatalogGrid products={visibleProducts} fromGroup={fromGroupLabel} />
       )}
     </div>
   );

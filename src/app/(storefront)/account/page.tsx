@@ -75,7 +75,7 @@ export default async function ProfileSheetPage() {
         <Section
           title="Employees"
           right={
-            <Link href="/messages" className="text-xs text-brand-blue hover:underline">
+            <Link href="/chat" className="text-xs text-brand-blue hover:underline">
               Invite via rep →
             </Link>
           }

@@ -97,9 +97,14 @@ export function LineItem({
     onRemove?.();
   }
 
+  // When the variant chip already conveys the same string as the pack
+  // size (e.g. both "6/quart"), the inline copy reads as duplicated.
+  const variantMatchesPack =
+    data.variantLabel && data.packSize && data.variantLabel === data.packSize;
+  const showPackInPrice = data.packSize && !variantMatchesPack;
   const priceLine = (
     <>
-      {data.packSize ? `${data.packSize} · ` : ""}
+      {showPackInPrice ? `${data.packSize} · ` : ""}
       <span className="tabular">
         {money(data.unitPrice)} / {data.unit}
       </span>
@@ -136,9 +141,11 @@ export function LineItem({
               <span className="tabular">
                 {data.sku ?? "—"}
               </span>
-              <span className="block uppercase text-[11px] tracking-wide text-ink-tertiary">
-                {data.packSize ?? data.unit}
-              </span>
+              {!variantMatchesPack ? (
+                <span className="block uppercase text-[11px] tracking-wide text-ink-tertiary">
+                  {data.packSize ?? data.unit}
+                </span>
+              ) : null}
               <span className="block">{priceLine}</span>
             </>
           ) : (
