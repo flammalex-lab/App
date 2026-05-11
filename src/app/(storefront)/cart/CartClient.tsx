@@ -124,18 +124,50 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
   }
 
   if (lines.length === 0) {
+    // Empty cart still surfaces the buyer's next-delivery context so
+    // they leave the page knowing when they need to act, not just that
+    // there's nothing in here right now.
+    const nextDeliveryLine =
+      isB2B && nextDelivery
+        ? nextDelivery.pastCutoff
+          ? `Just past today's cutoff — next delivery ${dateLong(nextDelivery.deliveryDate)}.`
+          : `Next delivery ${dateLong(nextDelivery.deliveryDate)}. Cutoff ${new Date(
+              nextDelivery.cutoffAt,
+            ).toLocaleString("en-US", {
+              weekday: "short",
+              hour: "numeric",
+              minute: "2-digit",
+            })}.`
+        : null;
     return (
-      <EmptyState
-        className="card md:mx-0"
-        icon={<div className="text-5xl opacity-30">🛒</div>}
-        title="Nothing in your cart yet"
-        body={isB2B ? "Head back to your guide to start building an order." : "Browse the catalog to pick something fresh."}
-        cta={{
-          href: isB2B ? "/guide" : "/catalog",
-          label: isB2B ? "Back to your guide" : "Browse the catalog",
-          variant: "primary",
-        }}
-      />
+      <div className="space-y-3">
+        {nextDeliveryLine ? (
+          <div className="card px-4 py-3 flex items-center gap-3">
+            <span aria-hidden className="h-10 w-10 rounded-lg bg-brand-blue-tint text-brand-blue flex items-center justify-center text-lg shrink-0">
+              📅
+            </span>
+            <div className="min-w-0">
+              <div className="text-[11px] text-ink-secondary uppercase tracking-wide font-medium">
+                Delivery
+              </div>
+              <div className="text-[14px] font-medium leading-snug">
+                {nextDeliveryLine}
+              </div>
+            </div>
+          </div>
+        ) : null}
+        <EmptyState
+          className="card md:mx-0"
+          icon={<div className="text-5xl opacity-30">🛒</div>}
+          title="Nothing in your cart yet"
+          body={isB2B ? "Head back to your guide to start building an order." : "Browse the catalog to pick something fresh."}
+          cta={{
+            href: isB2B ? "/guide" : "/catalog",
+            label: isB2B ? "Back to your guide" : "Browse the catalog",
+            variant: "primary",
+          }}
+        />
+      </div>
     );
   }
 

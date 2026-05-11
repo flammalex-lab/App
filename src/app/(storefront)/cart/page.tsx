@@ -69,12 +69,18 @@ export default async function CartPage() {
           not a spacious page. The slide-in-right entrance reinforces
           the "flip back and forth" sensation. */}
       <div className="max-w-2xl mx-auto animate-slide-in-right">
-        <div className="flex items-center justify-between pt-3 pb-1">
-          <BackButton fallbackHref={isB2B ? "/guide" : "/catalog"} label="Keep shopping" />
-          <h1 className="text-[15px] font-semibold tracking-tight text-ink-primary">
+        {/* Three-column grid forces the H1 into the geometric center
+            regardless of the BackButton's label width. The previous
+            justify-between layout pushed the heading off-center because
+            "Keep shopping" was wider than the right-side spacer. */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center pt-3 pb-1 gap-2">
+          <div className="justify-self-start">
+            <BackButton fallbackHref={isB2B ? "/guide" : "/catalog"} label="Keep shopping" />
+          </div>
+          <h1 className="text-[15px] font-semibold tracking-tight text-ink-primary text-center">
             Order summary
           </h1>
-          <div className="w-[88px]" aria-hidden />
+          <div aria-hidden />
         </div>
         {account ? (
           <p className="text-[12px] text-ink-tertiary uppercase tracking-wider text-center mb-3">
