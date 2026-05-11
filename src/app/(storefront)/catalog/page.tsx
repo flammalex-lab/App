@@ -170,22 +170,23 @@ export default async function CatalogPage({
 
     return (
       <div className="max-w-screen-xl mx-auto pb-8">
-        {/* Editorial hero — sets the brand tone before the buyer hits the
-            scroll strips. Single full-bleed photo, restrained overlay text. */}
+        {/* Editorial hero — kept compact for now since it isn't
+            interactive. Single full-bleed photo with restrained overlay
+            text; will get its own click-through treatment later. */}
         <section className="relative overflow-hidden md:rounded-2xl mb-4 mx-0 md:mx-0">
-          <div className="relative aspect-[16/7] md:aspect-[21/8]">
+          <div className="relative aspect-[16/4] md:aspect-[24/5]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/IMG_7794-scaled-3.jpg"
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-black/10" />
-            <div className="absolute inset-x-0 bottom-0 p-4 md:p-8 text-white">
-              <p className="display text-2xl md:text-4xl tracking-tight leading-tight max-w-xl drop-shadow">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/30 to-black/10" />
+            <div className="absolute inset-x-0 bottom-0 p-3 md:p-5 text-white">
+              <p className="display text-lg md:text-2xl tracking-tight leading-tight drop-shadow">
                 This week from Fingerlakes Farms
               </p>
-              <p className="text-sm md:text-base text-white/85 mt-1 drop-shadow max-w-xl">
+              <p className="text-[11px] md:text-sm text-white/85 mt-0.5 drop-shadow">
                 Trust our process. Trust your food.
               </p>
             </div>
