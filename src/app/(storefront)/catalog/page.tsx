@@ -19,6 +19,7 @@ import { SortSheet, type SortKey } from "./SortSheet";
 import { CatalogSearchInput } from "./CatalogSearchInput";
 import { CategoryChips } from "./CategoryChips";
 import { BackButton } from "@/components/layout/BackButton";
+import { groupBySubCategory } from "@/lib/products/sub-category";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
@@ -320,11 +321,12 @@ export default async function CatalogPage({
     ? GROUP_LABELS[groupFilter]
     : `Search “${q}”`;
 
-  // When the user narrowed to a single group (and isn't also searching /
-  // filtering by producer), render producers as sections of small cards so
-  // Baldor-style browsing-by-farm is the default. Drilling into a producer
-  // reverts to the big grid via producerFilter.
-  const showProducerSections =
+  // When the user narrowed to a single category (and isn't also searching
+  // or filtering by producer), render sub-category sections (Milk / Eggs /
+  // Yogurt within Dairy, Beef / Pork / Chicken within Meat, etc.) so
+  // browsing-by-item-type leads. Drilling into a producer (?producer=X)
+  // still goes to a flat grid via producerFilter.
+  const showSubCategorySections =
     Boolean(groupFilter) && !producerFilter && !q && !isBest && !isExplore;
 
   // Order frequency ranking — applied to every catalog list view (group
@@ -396,20 +398,31 @@ export default async function CatalogPage({
     : priced;
   const visibleProducts = isBest ? bestSellers : priced;
 
-  const producerSections = showProducerSections ? groupByProducer(visibleProducts) : [];
-  if (showProducerSections) {
-    producerSections.sort((a, b) => {
-      if (a.producer === null) return 1;
-      if (b.producer === null) return -1;
-      const aMine = buyerProducerRank[a.producer] ?? 0;
-      const bMine = buyerProducerRank[b.producer] ?? 0;
-      if (aMine !== bMine) return bMine - aMine;
-      const aGlobal = globalProducerRank[a.producer] ?? 0;
-      const bGlobal = globalProducerRank[b.producer] ?? 0;
-      if (aGlobal !== bGlobal) return bGlobal - aGlobal;
-      return a.producer.localeCompare(b.producer);
+  const subCategorySections = showSubCategorySections
+    ? groupBySubCategory(visibleProducts)
+    : [];
+  if (showSubCategorySections) {
+    // Sort sections by total buyer-frequency of their contents
+    // (most-ordered sub-category first), then global popularity, then
+    // alphabetical. Fallback "Other …" buckets are already pinned to the
+    // tail by groupBySubCategory itself, so they ride that order.
+    function sectionRank(items: { id: string }[]): [number, number] {
+      let mine = 0;
+      let global = 0;
+      for (const it of items) {
+        mine += buyerProductRank[it.id] ?? 0;
+        global += globalProductRank[it.id] ?? 0;
+      }
+      return [mine, global];
+    }
+    subCategorySections.sort((a, b) => {
+      const [am, ag] = sectionRank(a.items);
+      const [bm, bg] = sectionRank(b.items);
+      if (am !== bm) return bm - am;
+      if (ag !== bg) return bg - ag;
+      return a.subCategory.localeCompare(b.subCategory);
     });
-    for (const section of producerSections) {
+    for (const section of subCategorySections) {
       section.items.sort(rankProductSort);
     }
   }
@@ -469,7 +482,7 @@ export default async function CatalogPage({
           <button className="btn-secondary text-sm">Search</button>
         </form>
 
-        {!isBest && !showProducerSections ? (
+        {!isBest && !showSubCategorySections ? (
           <div className="flex items-center gap-2 mb-4">
             <SortSheet current={sort} />
           </div>
@@ -481,17 +494,12 @@ export default async function CatalogPage({
           title={isBest ? "No best sellers yet" : "No products match"}
           body={isBest ? "Order history is still building — check back in a few weeks." : "Try a different search or clear filters."}
         />
-      ) : showProducerSections ? (
+      ) : showSubCategorySections ? (
         <div className="md:px-0 space-y-1">
-          {producerSections.map(({ producer, items }) => (
+          {subCategorySections.map(({ subCategory, items }) => (
             <ScrollStrip
-              key={producer ?? "__nofarm"}
-              title={producer ?? "Other"}
-              href={
-                producer
-                  ? `/catalog?producer=${encodeURIComponent(producer)}`
-                  : undefined
-              }
+              key={subCategory}
+              title={subCategory}
               products={items}
             />
           ))}
@@ -501,34 +509,6 @@ export default async function CatalogPage({
       )}
     </div>
   );
-}
-
-/**
- * Group a priced-products list by producer, preserving the order producers
- * first appear (so sort-order semantics from the parent query still win).
- * Rows without a producer get bucketed into a single "Other" section at
- * the end.
- */
-function groupByProducer<T extends { producer: string | null }>(
-  items: T[],
-): { producer: string | null; items: T[] }[] {
-  const order: (string | null)[] = [];
-  const bucket = new Map<string | null, T[]>();
-  for (const p of items) {
-    const key = p.producer?.trim() || null;
-    if (!bucket.has(key)) {
-      bucket.set(key, []);
-      order.push(key);
-    }
-    bucket.get(key)!.push(p);
-  }
-  // Move nameless bucket to the tail
-  const namedFirst = order.filter((k) => k !== null);
-  const hasNull = order.includes(null);
-  return [
-    ...namedFirst.map((k) => ({ producer: k, items: bucket.get(k)! })),
-    ...(hasNull ? [{ producer: null, items: bucket.get(null)! }] : []),
-  ];
 }
 
 /**
