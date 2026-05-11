@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import type { Product } from "@/lib/supabase/types";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
+import { groupBySubCategory } from "@/lib/products/sub-category";
 import type { GuideRow } from "./page";
 
 // See CatalogSearchInput for rationale — dynamic-import keeps the
@@ -15,52 +16,36 @@ const BarcodeScanner = dynamic(
 
 interface Props {
   items: GuideRow[];
-  /** Sum of quantities this buyer has ordered per producer. */
+  /** Kept for compatibility with the page's existing data fetch; no
+   *  longer used now that strips are sub-category-driven (matches the
+   *  catalog category-browse layout shipped in PR #46). */
   buyerProducerRank?: Record<string, number>;
-  /** Sum of quantities everyone has ordered per producer (tie-break). */
   globalProducerRank?: Record<string, number>;
 }
 
 type PricedProduct = Product & { unitPrice: number | null };
 
-export function GuideClient({
-  items,
-  buyerProducerRank = {},
-  globalProducerRank = {},
-}: Props) {
+export function GuideClient({ items }: Props) {
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
 
   const searchMatch = (r: GuideRow) =>
     !search || r.product.name.toLowerCase().includes(search.toLowerCase());
 
-  const byProducer = useMemo(() => {
-    const out = new Map<string, GuideRow[]>();
-    for (const r of items) {
-      const key = r.product.producer?.trim() || "_other";
-      if (!out.has(key)) out.set(key, []);
-      out.get(key)!.push(r);
-    }
-    for (const rows of out.values()) {
-      rows.sort((a, b) => a.product.name.localeCompare(b.product.name));
-    }
-    // Sort producers by: this buyer's own order frequency (desc) →
-    // global popularity (desc) → name. Producers this buyer has never
-    // ordered from drop to whatever the global rank says, then alpha.
-    // "_other" (no producer) always last.
-    const producers = Array.from(out.keys()).sort((a, b) => {
-      if (a === "_other") return 1;
-      if (b === "_other") return -1;
-      const aMine = buyerProducerRank[a] ?? 0;
-      const bMine = buyerProducerRank[b] ?? 0;
-      if (aMine !== bMine) return bMine - aMine;
-      const aGlobal = globalProducerRank[a] ?? 0;
-      const bGlobal = globalProducerRank[b] ?? 0;
-      if (aGlobal !== bGlobal) return bGlobal - aGlobal;
-      return a.localeCompare(b);
-    });
-    return producers.map((p) => ({ producer: p, rows: out.get(p)! }));
-  }, [items, buyerProducerRank, globalProducerRank]);
+  // Group the buyer's guide by sub-category instead of producer. Same
+  // helper the /catalog category-browse uses, so the visual structure
+  // (Milk / Eggs / Yogurt rows within Dairy; Beef / Pork / Chicken
+  // within Meat) is consistent across the buyer's surfaces.
+  const subCategorySections = useMemo(() => {
+    const lite = items.map((r) => ({ id: r.product.id, row: r, name: r.product.name, category: r.product.category }));
+    const groups = groupBySubCategory(lite);
+    return groups.map((g) => ({
+      subCategory: g.subCategory,
+      rows: g.items.map((it) => it.row).sort((a, b) =>
+        a.product.name.localeCompare(b.product.name),
+      ),
+    }));
+  }, [items]);
 
   const visibleCount = items.filter(searchMatch).length;
 
@@ -91,23 +76,17 @@ export function GuideClient({
           No items match &ldquo;{search}&rdquo;.
         </div>
       ) : (
-        byProducer.map(({ producer, rows }) => {
+        subCategorySections.map(({ subCategory, rows }) => {
           const filtered = rows.filter(searchMatch);
           if (filtered.length === 0) return null;
-          const label = producer === "_other" ? "Other" : producer;
           const products: PricedProduct[] = filtered.map((r) => ({
             ...r.product,
             unitPrice: r.unitPrice,
           }));
           return (
             <ScrollStrip
-              key={producer}
-              title={label}
-              href={
-                producer === "_other"
-                  ? undefined
-                  : `/catalog?producer=${encodeURIComponent(producer)}`
-              }
+              key={subCategory}
+              title={subCategory}
               products={products}
               density="dense"
             />
