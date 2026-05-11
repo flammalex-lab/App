@@ -8,6 +8,20 @@ import { allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib
 import { loadGroupedPacks } from "@/app/(storefront)/catalog/[id]/packs";
 import { ProductModal } from "./ProductModal";
 
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const db = await createClient();
+  const { data } = await db.from("products").select("name").eq("id", id).maybeSingle();
+  const name = (data as { name?: string } | null)?.name;
+  return {
+    title: name
+      ? `${name} — Fingerlakes Farms`
+      : "Product — Fingerlakes Farms",
+  };
+}
+
 export default async function InterceptedProductDetail({
   params,
 }: {
