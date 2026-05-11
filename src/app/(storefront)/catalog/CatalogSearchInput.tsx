@@ -1,7 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { BarcodeScanner } from "@/components/BarcodeScanner";
+import dynamic from "next/dynamic";
+
+// The BarcodeScanner component pulls in @zxing/browser + @zxing/library
+// (~150KB minified) plus a 370-line camera-modal UI that's only relevant
+// when the user taps the scan button. Loading it on every catalog render
+// inflated first-load JS. next/dynamic with ssr:false keeps the camera
+// API client-side only, and the existing `if (!open) return null` inside
+// the component makes the closed-state render a no-op while the chunk
+// downloads on first open.
+const BarcodeScanner = dynamic(
+  () => import("@/components/BarcodeScanner").then((m) => m.BarcodeScanner),
+  { ssr: false },
+);
 
 /**
  * Wraps a standard <form> search input with a barcode scanner button on
