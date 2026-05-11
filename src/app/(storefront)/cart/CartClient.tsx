@@ -21,16 +21,24 @@ interface NextDelivery {
   deliveryDayName: string;
 }
 
+interface UpcomingDelivery {
+  date: string;
+  dayName: string;
+}
+
 interface Props {
   isB2B: boolean;
   accountMinimum: number;
   deliveryFee: number;
   nextDelivery: NextDelivery | null;
+  upcomingDeliveries: UpcomingDelivery[];
   pickupLocations: PickupLocation[];
   reorder: CartLine[] | null;
 }
 
-export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, pickupLocations, reorder }: Props) {
+const ORDER_NOTE_MAX = 500;
+
+export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, upcomingDeliveries, pickupLocations, reorder }: Props) {
   const lines = useCart((s) => s.lines);
   const setQty = useCart((s) => s.setQty);
   const remove = useCart((s) => s.remove);
@@ -161,6 +169,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
           pickupLocationId={pickupLocationId}
           pickupLocations={pickupLocations}
           nextDelivery={nextDelivery}
+          upcomingDeliveries={upcomingDeliveries}
           onSetDelivery={(d) => setDeliveryDate(d)}
           onSetPickup={(d, id) => setPickup(d, id)}
           open={dateOpen}
@@ -304,6 +313,7 @@ function DeliveryRow({
   pickupLocationId,
   pickupLocations,
   nextDelivery,
+  upcomingDeliveries,
   onSetDelivery,
   onSetPickup,
   open,
@@ -315,6 +325,7 @@ function DeliveryRow({
   pickupLocationId: string | null;
   pickupLocations: PickupLocation[];
   nextDelivery: NextDelivery | null;
+  upcomingDeliveries: UpcomingDelivery[];
   onSetDelivery: (d: string) => void;
   onSetPickup: (d: string | null, id: string | null) => void;
   open: boolean;
@@ -352,27 +363,15 @@ function DeliveryRow({
       >
         <div className="px-5 py-5 space-y-4">
           {isB2B ? (
-            <>
-              {nextDelivery ? (
-                <p className="text-[13px] text-ink-secondary">
-                  Earliest available:{" "}
-                  <strong className="text-ink-primary">
-                    {dateLong(nextDelivery.deliveryDate)}
-                  </strong>
-                </p>
-              ) : null}
-              <label className="block">
-                <span className="text-[11px] text-ink-secondary uppercase tracking-wide font-medium block mb-1.5">
-                  Pick a date
-                </span>
-                <input
-                  type="date"
-                  className="input text-base"
-                  value={deliveryDate ?? ""}
-                  onChange={(e) => onSetDelivery(e.target.value)}
-                />
-              </label>
-            </>
+            <DeliveryDayPicker
+              value={deliveryDate}
+              upcoming={upcomingDeliveries}
+              nextDelivery={nextDelivery}
+              onPick={(d) => {
+                onSetDelivery(d);
+                setOpen(false);
+              }}
+            />
           ) : (
             <>
               <label className="block">
@@ -403,16 +402,84 @@ function DeliveryRow({
                   onChange={(e) => onSetPickup(e.target.value || null, pickupLocationId)}
                 />
               </label>
+              <button
+                onClick={() => setOpen(false)}
+                className="btn-primary w-full mt-2"
+              >
+                Done
+              </button>
             </>
           )}
-          <button
-            onClick={() => setOpen(false)}
-            className="btn-primary w-full mt-2"
-          >
-            Done
-          </button>
         </div>
       </BottomSheet>
+    </>
+  );
+}
+
+/**
+ * Grid of selectable delivery-day chips. Only days actually on the zone's
+ * route schedule (and still before cutoff) appear, so the buyer can't
+ * type a random date that maps to a non-delivery weekday or a missed
+ * cutoff — both of which the native date input lets through.
+ */
+function DeliveryDayPicker({
+  value,
+  upcoming,
+  nextDelivery,
+  onPick,
+}: {
+  value: string | null;
+  upcoming: UpcomingDelivery[];
+  nextDelivery: NextDelivery | null;
+  onPick: (d: string) => void;
+}) {
+  if (upcoming.length === 0) {
+    return (
+      <div className="text-sm text-ink-secondary">
+        {nextDelivery
+          ? `Next available: ${dateLong(nextDelivery.deliveryDate)}.`
+          : "No delivery days available right now — your rep will assign a delivery zone."}
+      </div>
+    );
+  }
+  return (
+    <>
+      <p className="text-[13px] text-ink-secondary">
+        Pick from your route&apos;s upcoming delivery days. Cutoff times are
+        already factored in.
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {upcoming.map((u) => {
+          const selected = value === u.date;
+          const [, m, d] = u.date.split("-");
+          return (
+            <button
+              key={u.date}
+              onClick={() => onPick(u.date)}
+              className={`rounded-lg border px-2 py-2.5 text-center transition ${
+                selected
+                  ? "border-brand-blue bg-brand-blue text-white shadow-sm"
+                  : "border-black/10 bg-white hover:border-brand-blue/40 hover:bg-brand-blue-tint"
+              }`}
+            >
+              <div
+                className={`text-[10px] uppercase tracking-wider ${
+                  selected ? "text-white/80" : "text-ink-tertiary"
+                }`}
+              >
+                {u.dayName.slice(0, 3)}
+              </div>
+              <div
+                className={`text-base font-semibold tabular leading-tight ${
+                  selected ? "text-white" : "text-ink-primary"
+                }`}
+              >
+                {Number(m)}/{Number(d)}
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </>
   );
 }
@@ -463,11 +530,26 @@ function NoteRow({
           </p>
           <Textarea
             value={note}
-            onChange={(e) => onChange(e.target.value)}
+            // Notes bridge to SMS where the practical cap is ~500 chars;
+            // anything longer would silently truncate at the SMS layer.
+            maxLength={ORDER_NOTE_MAX}
+            onChange={(e) => onChange(e.target.value.slice(0, ORDER_NOTE_MAX))}
             placeholder="Type a note…"
             rows={5}
             className="text-base"
           />
+          <div
+            className={`text-[11px] tabular text-right ${
+              note.length >= ORDER_NOTE_MAX
+                ? "text-feedback-error"
+                : note.length >= ORDER_NOTE_MAX - 50
+                  ? "text-accent-gold"
+                  : "text-ink-tertiary"
+            }`}
+            aria-live="polite"
+          >
+            {note.length} / {ORDER_NOTE_MAX}
+          </div>
           <button
             onClick={() => setOpen(false)}
             className="btn-primary w-full"

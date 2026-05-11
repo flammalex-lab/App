@@ -76,3 +76,50 @@ export function nextDeliveryForZone(
 
   return null;
 }
+
+/**
+ * List the next N upcoming delivery dates for a zone whose cutoff hasn't
+ * passed. Returned as `YYYY-MM-DD` strings in the business timezone so
+ * the date picker can render them without any further timezone math.
+ */
+export function upcomingDeliveriesForZone(
+  zone: Pick<DeliveryZoneRow, "delivery_days" | "cutoff_hours_before_delivery">,
+  now: Date = new Date(),
+  tz?: string,
+  count: number = 12,
+): { date: string; dayName: string }[] {
+  if (!zone.delivery_days.length) return [];
+
+  const deliveryDayIndices = zone.delivery_days
+    .map((d) => DAY_NAMES.indexOf(d as (typeof DAY_NAMES)[number]))
+    .filter((i) => i >= 0);
+  if (!deliveryDayIndices.length) return [];
+
+  const out: { date: string; dayName: string }[] = [];
+  for (let offset = 0; offset < 60 && out.length < count; offset++) {
+    let candidate: Date;
+    let candidateDow: number;
+    let isoDate: string;
+
+    if (tz) {
+      const today = partsInTz(now, tz);
+      candidate = dateAtZoneTime(today.year, today.month, today.day + offset, 9, 0, tz);
+      const parts = partsInTz(candidate, tz);
+      candidateDow = parts.weekday;
+      isoDate = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+    } else {
+      candidate = new Date(now);
+      candidate.setDate(candidate.getDate() + offset);
+      candidate.setHours(9, 0, 0, 0);
+      candidateDow = candidate.getDay();
+      isoDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
+    }
+
+    if (!deliveryDayIndices.includes(candidateDow)) continue;
+    const cutoffAt = new Date(candidate.getTime() - zone.cutoff_hours_before_delivery * 3600_000);
+    if (cutoffAt.getTime() <= now.getTime()) continue;
+
+    out.push({ date: isoDate, dayName: DAY_NAMES[candidateDow] });
+  }
+  return out;
+}
