@@ -27,33 +27,69 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { error } = await svc.from("orders").update({ status, internal_notes }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Fire status notification if changed
+  // Fire status notification if changed. Two parallel surfaces:
+  // 1. SMS via enqueueAndSend (respects opt-in; skips if off).
+  // 2. In-app `messages` row so /chat shows a status bubble even when
+  //    SMS is opted out — previously the buyer's chat thread silently
+  //    stayed on the original order_placed bubble for the entire
+  //    lifecycle.
   if (prev.status !== status) {
+    const smsBodies: Record<OrderStatus, string> = {
+      draft: "",
+      pending: "",
+      confirmed: `FLF: order ${prev.order_number} confirmed.`,
+      processing: `FLF: order ${prev.order_number} being prepped.`,
+      ready: `FLF: order ${prev.order_number} is ready for pickup.`,
+      shipped: `FLF: order ${prev.order_number} out for delivery.`,
+      delivered: `FLF: order ${prev.order_number} delivered. Thanks!`,
+      cancelled: `FLF: order ${prev.order_number} cancelled.`,
+    };
+    const appBodies: Record<OrderStatus, string> = {
+      draft: "",
+      pending: "",
+      confirmed: `Order ${prev.order_number} confirmed — we're prepping it.`,
+      processing: `Order ${prev.order_number} is being prepped for delivery.`,
+      ready: `Order ${prev.order_number} is ready for pickup.`,
+      shipped: `Order ${prev.order_number} is out for delivery.`,
+      delivered: `Order ${prev.order_number} delivered. Thanks!`,
+      cancelled: `Order ${prev.order_number} was cancelled.`,
+    };
+    const appBody = appBodies[status];
+
+    // SMS (best-effort; missing phone = no SMS, but in-app still posts).
     const phone = prev.buyer?.phone;
-    if (phone) {
-      const messages: Record<OrderStatus, string> = {
-        draft: "",
-        pending: "",
-        confirmed: `FLF: order ${prev.order_number} confirmed.`,
-        processing: `FLF: order ${prev.order_number} being prepped.`,
-        ready: `FLF: order ${prev.order_number} is ready for pickup.`,
-        shipped: `FLF: order ${prev.order_number} out for delivery.`,
-        delivered: `FLF: order ${prev.order_number} delivered. Thanks!`,
-        cancelled: `FLF: order ${prev.order_number} cancelled.`,
-      };
-      const body = messages[status];
-      if (body) {
-        await enqueueAndSend({
-          supabase: svc,
-          profileId: prev.profile_id,
-          accountId: prev.account_id,
-          type: "order_status",
-          channel: "sms",
-          toAddress: phone,
-          body,
-          relatedOrderId: id,
-        });
-      }
+    if (phone && smsBodies[status]) {
+      await enqueueAndSend({
+        supabase: svc,
+        profileId: prev.profile_id,
+        accountId: prev.account_id,
+        type: "order_status",
+        channel: "sms",
+        toAddress: phone,
+        body: smsBodies[status],
+        relatedOrderId: id,
+      });
+    }
+
+    // In-app system message — same surface as the order_placed bubble,
+    // rendered as a status update pill by ChatClient.
+    if (appBody) {
+      await svc.from("messages").insert({
+        account_id: prev.account_id,
+        from_profile_id: null,
+        to_profile_id: prev.profile_id,
+        body: appBody,
+        channel: "app",
+        direction: "outbound",
+        is_system: true,
+        related_order_id: id,
+        payload: {
+          kind: "order_status",
+          order_id: id,
+          order_number: prev.order_number,
+          status,
+        },
+      });
     }
   }
 
