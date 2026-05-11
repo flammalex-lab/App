@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useCart } from "@/lib/cart/store";
 
 export function CartIconWithBadge() {
-  const count = useCart((s) => s.lines.length);
+  // Count is total cases across all lines so the badge matches the
+  // floating "View cart" pill — otherwise the same cart appears to
+  // contain two different counts depending on where you look.
+  const count = useCart((s) => s.lines.reduce((n, l) => n + l.quantity, 0));
   return (
     <Link
       href="/cart"
-      aria-label={`Cart (${count} items)`}
+      aria-label={`Cart (${count} ${count === 1 ? "item" : "items"})`}
       className="relative h-10 w-10 inline-flex items-center justify-center rounded-full hover:bg-bg-secondary transition"
     >
       <CartIcon />

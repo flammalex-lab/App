@@ -10,9 +10,19 @@ import { normalizePhone } from "@/lib/utils/phone";
 
 export function LoginClient() {
   const [showAdmin, setShowAdmin] = useState(false);
+  const signedOut = useSearchParams().get("signedout") === "1";
 
   return (
     <>
+      {signedOut ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 rounded-md bg-brand-green-tint text-brand-green-dark text-sm px-3 py-2"
+        >
+          You've been signed out.
+        </div>
+      ) : null}
       {showAdmin ? <AdminPasswordForm onBack={() => setShowAdmin(false)} /> : <PhoneOtpForm />}
       {!showAdmin ? (
         <div className="text-center mt-5 space-y-2">
@@ -77,7 +87,9 @@ function PhoneOtpForm() {
           <Field label="Phone number">
             <Input
               type="tel"
+              inputMode="tel"
               autoComplete="tel"
+              required
               placeholder="(555) 123-4567"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -113,7 +125,11 @@ function PhoneOtpForm() {
           </button>
         </>
       )}
-      {err ? <p className="text-sm text-feedback-error text-center">{err}</p> : null}
+      {err ? (
+        <p role="alert" aria-live="polite" className="text-sm text-feedback-error text-center">
+          {err}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -157,16 +173,31 @@ function AdminPasswordForm({ onBack }: { onBack: () => void }) {
         </button>
       </div>
       <Field label="Email">
-        <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Input
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </Field>
       <Field label="Password">
-        <Input type="password" autoComplete="current-password" value={password}
+        <Input
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
       </Field>
       <Button onClick={submit} loading={loading} className="w-full" size="lg">Sign in</Button>
-      {err ? <p className="text-sm text-feedback-error text-center">{err}</p> : null}
+      {err ? (
+        <p role="alert" aria-live="polite" className="text-sm text-feedback-error text-center">
+          {err}
+        </p>
+      ) : null}
     </div>
   );
 }

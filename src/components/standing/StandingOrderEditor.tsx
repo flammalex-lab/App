@@ -200,7 +200,9 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
                 {p.name}
                 {p.pack_size ? <span className="text-xs text-ink-secondary"> · {p.pack_size}</span> : null}
               </span>
-              <span className="text-xs text-ink-secondary">{CATEGORY_LABELS[p.category]}</span>
+              <span className="ml-2 inline-flex items-center text-[10px] font-medium uppercase tracking-wider text-brand-blue bg-brand-blue-tint rounded-full px-2 py-0.5 shrink-0">
+                {CATEGORY_LABELS[p.category]}
+              </span>
             </button>
           ))}
           {!candidates.length && search ? <div className="p-2 text-xs text-ink-secondary">No matches.</div> : null}

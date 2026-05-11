@@ -74,6 +74,10 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
   }, []);
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [lines]);
+  // "Cart count" means total cases across the cart (matches the
+  // floating pill + the top-bar badge). `lines.length` is the distinct-
+  // product count, which doesn't line up with what the pill shows.
+  const totalUnits = useMemo(() => lines.reduce((n, l) => n + l.quantity, 0), [lines]);
   const effectiveDeliveryFee = isB2B && subtotal > 0 ? deliveryFee : 0;
   const total = subtotal + effectiveDeliveryFee;
   // Same rule the server enforces in /api/orders/create — keep these in
@@ -174,11 +178,14 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, p
       <div>
         <div className="flex items-center justify-between mb-1.5 px-1">
           <h2 className="text-[13px] uppercase tracking-wider text-ink-tertiary font-medium">
-            {lines.length} {lines.length === 1 ? "item" : "items"} ·{" "}
+            {totalUnits} {totalUnits === 1 ? "item" : "items"} ·{" "}
             <span className="tabular text-ink-secondary">{money(subtotal)}</span>
           </h2>
           <button
-            onClick={clear}
+            onClick={() => {
+              if (lines.length === 0) return;
+              if (confirm("Remove every item from your cart?")) clear();
+            }}
             className="text-[11px] text-feedback-error uppercase tracking-wider font-medium hover:underline"
           >
             Remove all

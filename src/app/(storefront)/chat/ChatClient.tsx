@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Message } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
-import { relativeTime } from "@/lib/utils/format";
+import { relativeTime, dateShort } from "@/lib/utils/format";
 
 export function ChatClient({
   accountId,
@@ -123,7 +123,7 @@ function SystemBubble({ message }: { message: Message }) {
     const deliverIso = ((payload as any).delivery_date ?? (payload as any).pickup_date ?? null) as
       | string
       | null;
-    const deliver = deliverIso ? formatShortDeliverDate(deliverIso) : null;
+    const deliver = deliverIso ? dateShort(deliverIso) : null;
     return (
       <div className="flex flex-col items-start w-full">
         <Link
@@ -198,7 +198,3 @@ function StatusDot({ label }: { label: string }) {
   );
 }
 
-function formatShortDeliverDate(iso: string): string {
-  const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}

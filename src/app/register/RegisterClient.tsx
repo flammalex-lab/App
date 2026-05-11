@@ -52,6 +52,7 @@ export function RegisterClient() {
       <Field label="Name">
         <Input
           autoComplete="name"
+          required
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
@@ -59,7 +60,9 @@ export function RegisterClient() {
       <Field label="Email">
         <Input
           type="email"
+          inputMode="email"
           autoComplete="email"
+          required
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
         />
@@ -67,7 +70,9 @@ export function RegisterClient() {
       <Field label="Phone">
         <Input
           type="tel"
+          inputMode="tel"
           autoComplete="tel"
+          required
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
         />
@@ -75,6 +80,7 @@ export function RegisterClient() {
       <Field label="Account name">
         <Input
           autoComplete="organization"
+          required
           value={form.accountName}
           onChange={(e) => setForm({ ...form, accountName: e.target.value })}
         />
@@ -114,9 +120,13 @@ export function RegisterClient() {
       </label>
 
       <Button onClick={submit} loading={loading} className="w-full">
-        Create account
+        Request account
       </Button>
-      {err ? <p className="text-sm text-feedback-error">{err}</p> : null}
+      {err ? (
+        <p role="alert" aria-live="polite" className="text-sm text-feedback-error">
+          {err}
+        </p>
+      ) : null}
       <p className="text-sm text-ink-secondary text-center">
         A rep will be in touch shortly.
       </p>
