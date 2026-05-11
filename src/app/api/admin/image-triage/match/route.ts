@@ -79,7 +79,12 @@ export async function POST(request: Request) {
 
   // (2) Filename name/producer token match. Tokenize the filename and
   // every candidate's name + producer, then score by how many of the
-  // candidate's meaningful tokens appear in the filename. Brand noise
+  // candidate's meaningful tokens appear in the filename. Confident
+  // when the best candidate matches ≥ 2 tokens AND beats the runner-up
+  // by ≥ 1 — i.e. those 2 tokens are uniquely identifying. Producer
+  // tokens count toward matches but NOT the coverage denominator (a
+  // long producer like "Red Jacket Orchards" inflates the token set
+  // and would mask the actual name match). Brand noise
   // ("fingerlakes", "farms") is stop-listed so it doesn't bias every
   // FLF-own product into a tie.
   const filenameTokens = tokenizeForMatch(body.filename);
@@ -97,10 +102,17 @@ export async function POST(request: Request) {
 
     const best = scored[0];
     const runnerUp = scored[1];
+    // Confident = at least 2 distinct tokens matched AND a clear lead
+    // over the runner-up. The lead-by-≥-1 check is the real
+    // disambiguator: if two products tie on the same 2 tokens we
+    // genuinely can't tell which one the photo is of, and routing to
+    // vision is correct. We deliberately don't require a coverage
+    // ratio — "raspberry 32oz" matching "Red Jacket Raspberry 32oz"
+    // is 2/5 by raw count, which is fine when nothing else in the
+    // catalog has both tokens.
     const confident =
       best &&
       best.matched >= 2 &&
-      best.matched >= Math.ceil(best.total / 2) &&
       (!runnerUp || best.matched - runnerUp.matched >= 1);
     if (confident) {
       return NextResponse.json({
@@ -114,7 +126,7 @@ export async function POST(request: Request) {
         },
         source: "filename_name",
         confidence: "high",
-        reasoning: `Filename token match: ${best.matched}/${best.total} of product tokens, runner-up at ${runnerUp?.matched ?? 0}.`,
+        reasoning: `Filename token match: ${best.matched} of product's tokens, runner-up at ${runnerUp?.matched ?? 0}.`,
       });
     }
   }
@@ -239,9 +251,10 @@ Be strict — if the image shows something not in the list, return product_id as
 }
 
 /**
- * Lower-case, split on non-alphanumerics, drop stopwords + super-short
- * tokens. Returns a Set so duplicate occurrences don't double-count
- * during scoring.
+ * Lower-case, normalize "32 oz" → "32oz" so filename and product-name
+ * formatting variants don't fall out of sync, split on non-alphanumerics,
+ * drop stopwords + super-short tokens. Returns a Set so duplicate
+ * occurrences don't double-count during scoring.
  *
  * Stopwords cover: filename noise ("img", "photo", file extensions),
  * grammar particles ("the", "of"), and brand words that appear on
@@ -256,8 +269,12 @@ function tokenizeForMatch(s: string): Set<string> {
     "jpg","jpeg","png","webp","heic","tif","tiff",
     "fingerlakes","farms","farm",
   ]);
+  const UNIT_WORDS = "oz|lb|lbs|gallon|gallons|quart|quarts|pint|pints|gal|qt|pt|kg|g|ml|l|ct|dz|dozen";
   const tokens = s
     .toLowerCase()
+    // Collapse "32 oz" / "1 lb" / "1/2 gallon" → "32oz" so a filename
+    // and a product name in different formatting still match.
+    .replace(new RegExp(`(\\d+)\\s+(${UNIT_WORDS})\\b`, "g"), "$1$2")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .split(/\s+/)
     .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
