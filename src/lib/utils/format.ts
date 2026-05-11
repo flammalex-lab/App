@@ -13,6 +13,18 @@ export function weight(lbs: number | null | undefined): string {
   return `${lbs.toFixed(lbs < 10 ? 1 : 0)} lb`;
 }
 
+/**
+ * Title-case a buyer/account name typed in any casing so the buyer-facing
+ * UI doesn't render "test Brent" or "test Store" when the underlying row
+ * happens to be lowercased. Only touches the FIRST letter of each
+ * whitespace-separated word — preserves intra-word caps (McDonald's,
+ * 5-Acre, etc.) and leaves empty / null safely as-is.
+ */
+export function titleCase(s: string | null | undefined): string {
+  if (!s) return "";
+  return s.replace(/(^|\s)(\S)/g, (_, lead, ch) => lead + ch.toUpperCase());
+}
+
 // "YYYY-MM-DD" is parsed by `new Date(...)` as UTC midnight, which renders
 // as the previous day in any negative-offset timezone (EST/EDT for FLF).
 // Treat date-only strings as local calendar dates so a delivery dated

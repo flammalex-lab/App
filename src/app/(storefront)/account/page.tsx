@@ -5,6 +5,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { prettyPhone } from "@/lib/utils/phone";
+import { titleCase } from "@/lib/utils/format";
 import type { Profile } from "@/lib/supabase/types";
 import { NotificationToggles } from "./NotificationToggles";
 import { PasswordCard } from "./PasswordCard";
@@ -37,7 +38,8 @@ export default async function ProfileSheetPage() {
     teammates = (mates as Profile[] | null) ?? [];
   }
 
-  const displayName = `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim() || "—";
+  const displayName =
+    titleCase(`${me.first_name ?? ""} ${me.last_name ?? ""}`.trim()) || "—";
   const initials =
     ((me.first_name?.[0] ?? "") + (me.last_name?.[0] ?? "")).toUpperCase() ||
     (me.email ?? me.phone ?? "?").slice(0, 1).toUpperCase();
@@ -51,7 +53,7 @@ export default async function ProfileSheetPage() {
         <h1 className="display text-2xl mt-3">{displayName}</h1>
         {me.title ? <div className="text-sm text-ink-secondary">{me.title}</div> : null}
         {account ? (
-          <div className="mt-1 text-sm text-ink-secondary">{account.name}</div>
+          <div className="mt-1 text-sm text-ink-secondary">{titleCase(account.name)}</div>
         ) : null}
       </div>
 
@@ -89,7 +91,10 @@ export default async function ProfileSheetPage() {
               </div>
             </li>
             {teammates.map((t) => {
-              const name = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() || t.email || "Teammate";
+              const name =
+                titleCase(`${t.first_name ?? ""} ${t.last_name ?? ""}`.trim()) ||
+                t.email ||
+                "Teammate";
               const init = ((t.first_name?.[0] ?? "") + (t.last_name?.[0] ?? "")).toUpperCase() || "?";
               return (
                 <li key={t.id} className="flex items-center gap-3 py-2">

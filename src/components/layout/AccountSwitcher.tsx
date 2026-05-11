@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Account } from "@/lib/supabase/types";
+import { titleCase } from "@/lib/utils/format";
 
 /**
  * Top-bar account selector (Pepper-style). Shows the active account's name
@@ -53,10 +54,11 @@ export function AccountSwitcher({
     }
   }
 
+  const activeName = titleCase(active.name);
   if (!multi) {
     return (
-      <span className="font-semibold text-sm truncate max-w-[60vw]" title={active.name}>
-        {active.name}
+      <span className="font-semibold text-sm truncate max-w-[60vw]" title={activeName}>
+        {activeName}
       </span>
     );
   }
@@ -69,7 +71,7 @@ export function AccountSwitcher({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span className="truncate">{active.name}</span>
+        <span className="truncate">{activeName}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="m6 9 6 6 6-6" />
         </svg>
@@ -98,6 +100,7 @@ export function AccountSwitcher({
             <ul className="max-h-[60vh] overflow-y-auto">
               {memberships.map((a) => {
                 const isActive = a.id === active.id;
+                const display = titleCase(a.name);
                 return (
                   <li key={a.id}>
                     <button
@@ -108,10 +111,10 @@ export function AccountSwitcher({
                       }`}
                     >
                       <span className="h-9 w-9 rounded-full bg-accent-gold/30 text-[#6a4d06] inline-flex items-center justify-center display text-sm shrink-0">
-                        {a.name[0]?.toUpperCase() ?? "?"}
+                        {display[0] ?? "?"}
                       </span>
                       <span className="flex-1 min-w-0">
-                        <span className="block font-medium truncate">{a.name}</span>
+                        <span className="block font-medium truncate">{display}</span>
                         {a.city ? (
                           <span className="block text-xs text-ink-secondary truncate">
                             {a.city}
