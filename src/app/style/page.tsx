@@ -5,7 +5,13 @@ import { Chip, StatusBadge } from "@/components/ui/Badge";
 import { Field, Input, Textarea } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BrandLogo, BrandWordmark } from "@/components/Brand";
-import { StyleDemos } from "./demos";
+import {
+  LoadingButton,
+  QtyDemo,
+  ToastTriggers,
+  SheetTrigger,
+  MotionGrid,
+} from "./demos";
 
 export const metadata: Metadata = {
   title: "Design system · Fingerlakes Farms",
@@ -270,7 +276,7 @@ export default function StylePage() {
               <Button size="md">Medium</Button>
               <Button size="lg">Large</Button>
               <Button disabled>Disabled</Button>
-              <StyleDemos.LoadingButton />
+              <LoadingButton />
             </div>
             <p className="text-xs text-ink-tertiary">
               Primary = brand-blue. Success (Place order) = brand-green — only
@@ -296,7 +302,7 @@ export default function StylePage() {
 
           <SubHeading>Quantity input</SubHeading>
           <div className="card p-5 flex items-center gap-4">
-            <StyleDemos.QtyDemo />
+            <QtyDemo />
             <div className="text-xs text-ink-tertiary">
               Tap commits on blur. Empty value removes the line.
             </div>
@@ -356,8 +362,8 @@ export default function StylePage() {
 
           <SubHeading>Toast &amp; sheet</SubHeading>
           <div className="card p-5 flex flex-wrap gap-3">
-            <StyleDemos.ToastTriggers />
-            <StyleDemos.SheetTrigger />
+            <ToastTriggers />
+            <SheetTrigger />
           </div>
         </Section>
 
@@ -368,7 +374,7 @@ export default function StylePage() {
             <code className="font-mono"> ease-fluent</code>). Hover / press uses
             quick ease-out at 150ms; state changes use the fluent curve at 200–280ms.
           </p>
-          <StyleDemos.MotionGrid />
+          <MotionGrid />
         </Section>
 
         {/* ─── Voice ─── */}
