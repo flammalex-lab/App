@@ -1,10 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import type { Product } from "@/lib/supabase/types";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
-import { BarcodeScanner } from "@/components/BarcodeScanner";
 import type { GuideRow } from "./page";
+
+// See CatalogSearchInput for rationale — dynamic-import keeps the
+// camera-modal + @zxing libs out of the guide's initial JS bundle.
+const BarcodeScanner = dynamic(
+  () => import("@/components/BarcodeScanner").then((m) => m.BarcodeScanner),
+  { ssr: false },
+);
 
 interface Props {
   items: GuideRow[];
