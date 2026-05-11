@@ -8,7 +8,7 @@
         "--project-ref=jpcvsyhiepsvczdtmjfv"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+        "SUPABASE_ACCESS_TOKEN": "sbp_9d14c1de5c0c6807be5ff26236676c945f05b14d"
       }
     },
     "playwright": {
