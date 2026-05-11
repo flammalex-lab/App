@@ -80,7 +80,7 @@ export default async function OrdersPage({
       .maybeSingle();
     const zone = zoneRow as DeliveryZoneRow | null;
     if (zone) {
-      const nd = nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE);
+      const nd = nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE, active?.delivery_days);
       if (nd) {
         nextDel = {
           deliveryDate: nd.deliveryDate.toISOString(),

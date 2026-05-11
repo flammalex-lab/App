@@ -16,6 +16,21 @@ export interface NextDelivery {
 }
 
 /**
+ * Resolve the effective delivery-day list for a buyer. If the account
+ * has set per-account `delivery_days` (migration 0030), those override
+ * the zone's defaults. Otherwise fall back to the zone schedule. This
+ * lets ops give one account a narrower schedule than the rest of the
+ * zone (e.g. Tuesday-only when the zone runs Tue + Fri).
+ */
+function effectiveDeliveryDays(
+  zone: Pick<DeliveryZoneRow, "delivery_days">,
+  accountOverride: string[] | null | undefined,
+): string[] {
+  if (accountOverride && accountOverride.length > 0) return accountOverride;
+  return zone.delivery_days;
+}
+
+/**
  * Compute the next delivery date and cutoff for a given zone.
  * If the soonest delivery's cutoff has passed, roll to the next delivery
  * day and set `pastCutoff: true`.
@@ -28,10 +43,12 @@ export function nextDeliveryForZone(
   zone: Pick<DeliveryZoneRow, "delivery_days" | "cutoff_hours_before_delivery">,
   now: Date = new Date(),
   tz?: string,
+  accountDeliveryDays?: string[] | null,
 ): NextDelivery | null {
-  if (!zone.delivery_days.length) return null;
+  const days = effectiveDeliveryDays(zone, accountDeliveryDays);
+  if (!days.length) return null;
 
-  const deliveryDayIndices = zone.delivery_days
+  const deliveryDayIndices = days
     .map((d) => DAY_NAMES.indexOf(d as (typeof DAY_NAMES)[number]))
     .filter((i) => i >= 0)
     .sort((a, b) => a - b);
@@ -87,10 +104,12 @@ export function upcomingDeliveriesForZone(
   now: Date = new Date(),
   tz?: string,
   count: number = 12,
+  accountDeliveryDays?: string[] | null,
 ): { date: string; dayName: string }[] {
-  if (!zone.delivery_days.length) return [];
+  const days = effectiveDeliveryDays(zone, accountDeliveryDays);
+  if (!days.length) return [];
 
-  const deliveryDayIndices = zone.delivery_days
+  const deliveryDayIndices = days
     .map((d) => DAY_NAMES.indexOf(d as (typeof DAY_NAMES)[number]))
     .filter((i) => i >= 0);
   if (!deliveryDayIndices.length) return [];

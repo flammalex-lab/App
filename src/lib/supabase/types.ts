@@ -75,6 +75,13 @@ export interface Account {
   zip: string | null;
   delivery_zone: DeliveryZone | null;
   delivery_day: string | null;
+  /**
+   * Per-account override of the zone delivery-day schedule. NULL =
+   * inherit delivery_zones.delivery_days for this account's
+   * delivery_zone. Non-empty array overrides; cart picker offers only
+   * these days.
+   */
+  delivery_days: string[] | null;
   delivery_notes: string | null;
   order_minimum: number | null;
   salesperson_id: string | null;

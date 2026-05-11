@@ -34,9 +34,11 @@ export default async function CartPage() {
     const { data } = await db.from("delivery_zones").select("*").eq("zone", account.delivery_zone).maybeSingle();
     zone = data as DeliveryZoneRow | null;
   }
-  const nextDel = zone ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE) : null;
+  const nextDel = zone
+    ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE, account?.delivery_days)
+    : null;
   const upcomingDeliveries = zone
-    ? upcomingDeliveriesForZone(zone, new Date(), BUSINESS_TIMEZONE, 12)
+    ? upcomingDeliveriesForZone(zone, new Date(), BUSINESS_TIMEZONE, 12, account?.delivery_days)
     : [];
 
   let pickups: PickupLocation[] = [];
