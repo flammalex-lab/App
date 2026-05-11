@@ -1,4 +1,5 @@
 import { sendSms } from "@/lib/twilio/client";
+import { sendEmail } from "@/lib/resend/client";
 import type { NotifChannel, NotifType } from "@/lib/supabase/types";
 
 /**
@@ -86,9 +87,12 @@ async function deliver(input: EnqueueInput): Promise<{ ok: boolean; error?: stri
     return { ok: r.ok, error: r.error };
   }
   if (input.channel === "email") {
-    // Stub — wire up Resend/SendGrid here.
-    console.log("[email] (stub) →", input.toAddress, input.subject);
-    return { ok: true };
+    const r = await sendEmail({
+      to: input.toAddress,
+      subject: input.subject ?? "Fingerlakes Farms",
+      text: input.body,
+    });
+    return { ok: r.ok, error: r.error };
   }
   if (input.channel === "push") {
     // Stub — web-push delivery lives in src/lib/push/*.
