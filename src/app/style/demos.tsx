@@ -1,12 +1,17 @@
 "use client";
 
+// Each demo is exported individually rather than bundled into a namespace
+// object. RSC's client-module barrier doesn't preserve member access on
+// namespace exports from "use client" files reliably — Vercel's
+// production prerender threw "Element type is invalid... got: undefined"
+// on the StyleDemos.* pattern. Named exports import + render fine.
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { QtyInput } from "@/components/ui/QtyInput";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useToast } from "@/components/ui/Toast";
 
-function LoadingButton() {
+export function LoadingButton() {
   const [loading, setLoading] = useState(false);
   return (
     <Button
@@ -22,12 +27,12 @@ function LoadingButton() {
   );
 }
 
-function QtyDemo() {
+export function QtyDemo() {
   const [qty, setQty] = useState(4);
   return <QtyInput value={qty} onSet={setQty} />;
 }
 
-function ToastTriggers() {
+export function ToastTriggers() {
   const toast = useToast();
   return (
     <>
@@ -53,7 +58,7 @@ function ToastTriggers() {
   );
 }
 
-function SheetTrigger() {
+export function SheetTrigger() {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -79,7 +84,7 @@ function SheetTrigger() {
   );
 }
 
-function MotionGrid() {
+export function MotionGrid() {
   const [version, setVersion] = useState(0);
   return (
     <div>
@@ -110,10 +115,3 @@ function MotionGrid() {
   );
 }
 
-export const StyleDemos = {
-  LoadingButton,
-  QtyDemo,
-  ToastTriggers,
-  SheetTrigger,
-  MotionGrid,
-};
