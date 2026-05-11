@@ -10,6 +10,10 @@ import type { ReactNode } from "react";
  *   <EmptyState title="Your cart is empty" cta={{ href: "/guide", label: "Browse your guide" }} />
  *   <EmptyState title={`No items match "${q}"`} />
  */
+type Cta =
+  | { href: string; label: string; variant?: "primary" | "secondary" }
+  | { onClick: () => void; label: string; variant?: "primary" | "secondary" };
+
 export function EmptyState({
   title,
   body,
@@ -19,10 +23,14 @@ export function EmptyState({
 }: {
   title: ReactNode;
   body?: ReactNode;
-  cta?: { href: string; label: string } | { onClick: () => void; label: string };
+  cta?: Cta;
   icon?: ReactNode;
   className?: string;
 }) {
+  // Default keeps the existing secondary styling. Surfaces where the
+  // CTA is the primary next-step (empty cart) pass variant: "primary".
+  const ctaClass =
+    cta && cta.variant === "primary" ? "btn-primary" : "btn-secondary";
   return (
     <div
       className={`py-10 px-4 text-center ${className ?? ""}`}
@@ -33,11 +41,11 @@ export function EmptyState({
       {body ? <p className="mt-1 text-xs text-ink-secondary">{body}</p> : null}
       {cta ? (
         "href" in cta ? (
-          <Link href={cta.href} className="mt-3 inline-block btn-secondary text-sm">
+          <Link href={cta.href} className={`mt-3 inline-block ${ctaClass} text-sm`}>
             {cta.label}
           </Link>
         ) : (
-          <button onClick={cta.onClick} className="mt-3 btn-secondary text-sm">
+          <button onClick={cta.onClick} className={`mt-3 ${ctaClass} text-sm`}>
             {cta.label}
           </button>
         )

@@ -22,7 +22,17 @@ export default async function AdminStandingPage() {
         {((data as (StandingOrder & { account: { name: string } })[]) ?? []).map((s) => (
           <Link key={s.id} href={`/admin/standing/${s.id}`} className="p-3 flex items-center justify-between hover:bg-bg-secondary">
             <div>
-              <div className="font-medium">{s.account?.name}</div>
+              {/* Surface both the user-chosen name and the account so
+                  multiple standing orders on one account stay
+                  distinguishable in the list. */}
+              <div className="font-medium">
+                {s.name || s.account?.name || "Untitled"}
+                {s.name && s.account?.name ? (
+                  <span className="text-ink-tertiary font-normal text-xs ml-2">
+                    · {s.account.name}
+                  </span>
+                ) : null}
+              </div>
               <div className="text-xs text-ink-secondary">
                 {s.frequency} · {s.days_of_week.join(", ")}
                 {s.next_run_date ? ` · next ${dateShort(s.next_run_date)}` : ""}
@@ -40,7 +50,19 @@ export default async function AdminStandingPage() {
           </Link>
         ))}
         {!((data as any[]) ?? []).length ? (
-          <div className="p-4 text-sm text-ink-secondary">No standing orders yet.</div>
+          <div className="p-8 text-center">
+            <p className="text-sm font-medium text-ink-primary mb-1">
+              No standing orders yet
+            </p>
+            <p className="text-xs text-ink-secondary mb-4 max-w-sm mx-auto leading-snug">
+              Standing orders auto-create a draft on a recurring schedule.
+              Configure one for any buyer who reorders the same items every
+              week.
+            </p>
+            <Link href="/admin/standing/new" className="btn-primary text-sm">
+              Create a standing order
+            </Link>
+          </div>
         ) : null}
       </div>
     </div>

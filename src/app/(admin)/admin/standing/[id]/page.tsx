@@ -5,6 +5,8 @@ import type { Account, Product, Profile, StandingOrder, StandingOrderItem } from
 import { adminPickerProductsQuery } from "@/lib/products/queries";
 import { StandingOrderEditor } from "@/components/standing/StandingOrderEditor";
 
+export const metadata = { title: "Admin — Standing order" };
+
 export default async function AdminStandingDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
   const { id } = await params;
