@@ -16,7 +16,7 @@ interface Match {
 
 interface MatchResult {
   match: Match | null;
-  source: "filename_sku" | "vision" | "no_candidates" | "no_vision_response" | "parse_error";
+  source: "filename_sku" | "filename_name" | "vision" | "no_candidates" | "no_vision_response" | "parse_error";
   confidence?: "high" | "medium" | "low" | "none";
   reasoning?: string;
   candidates?: { id: string; name: string; producer: string | null; pack_size: string | null }[];
@@ -248,7 +248,7 @@ export function ImageTriageClient() {
       (it) =>
         it.status === "matched" &&
         it.chosenProductId &&
-        (it.result?.source === "filename_sku" || it.result?.confidence === "high"),
+        (it.result?.source === "filename_sku" || it.result?.source === "filename_name" || it.result?.confidence === "high"),
     );
     for (const it of ready) {
       await confirm(it.id);
@@ -299,7 +299,7 @@ export function ImageTriageClient() {
                 items.filter(
                   (x) =>
                     x.status === "matched" &&
-                    (x.result?.source === "filename_sku" || x.result?.confidence === "high"),
+                    (x.result?.source === "filename_sku" || x.result?.source === "filename_name" || x.result?.confidence === "high"),
                 ).length === 0
               }
             >
@@ -371,9 +371,13 @@ function ItemCard({
   const r = item.result;
   const match = r?.match ?? null;
   const confidenceLabel =
-    r?.source === "filename_sku" ? "filename SKU" : r?.confidence ?? null;
-  const confidenceColor =
     r?.source === "filename_sku"
+      ? "filename SKU"
+      : r?.source === "filename_name"
+        ? "filename name"
+        : r?.confidence ?? null;
+  const confidenceColor =
+    r?.source === "filename_sku" || r?.source === "filename_name"
       ? "badge-green"
       : r?.confidence === "high"
       ? "badge-green"
