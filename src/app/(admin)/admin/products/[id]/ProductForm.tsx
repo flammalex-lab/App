@@ -66,44 +66,45 @@ export function ProductForm({ product }: { product: Product | null }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="SKU"><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></Field>
+        <Field label="SKU"><Input name="sku" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></Field>
         <Field label="Brand">
-          <select className="input" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value as Brand })}>
+          <select name="brand" className="input" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value as Brand })}>
             {Object.entries(BRAND_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
       </div>
-      <Field label="Name"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+      <Field label="Name"><Input name="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
       <Field
         label="Producer"
         hint="Free-text farm/producer byline shown on the buyer-facing card. Defaults to &ldquo;Fingerlakes Farms&rdquo; for own/co-packed items via migration 0029."
       >
         <Input
+          name="producer"
           value={form.producer}
           onChange={(e) => setForm({ ...form, producer: e.target.value })}
           placeholder="e.g. Five Acre Farms"
         />
       </Field>
-      <Field label="Description"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+      <Field label="Description"><Textarea name="description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Category">
-          <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as Category })}>
+          <select name="category" className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as Category })}>
             {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
-        <Field label="Unit"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
+        <Field label="Unit"><Input name="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Pack size"><Input value={form.pack_size} onChange={(e) => setForm({ ...form, pack_size: e.target.value })} /></Field>
-        <Field label="Case pack"><Input value={form.case_pack} onChange={(e) => setForm({ ...form, case_pack: e.target.value })} /></Field>
-        <Field label="Avg weight (lb)"><Input value={form.avg_weight_lbs as any} onChange={(e) => setForm({ ...form, avg_weight_lbs: e.target.value })} /></Field>
+        <Field label="Pack size"><Input name="pack_size" value={form.pack_size} onChange={(e) => setForm({ ...form, pack_size: e.target.value })} /></Field>
+        <Field label="Case pack"><Input name="case_pack" value={form.case_pack} onChange={(e) => setForm({ ...form, case_pack: e.target.value })} /></Field>
+        <Field label="Avg weight (lb)"><Input name="avg_weight_lbs" value={form.avg_weight_lbs as any} onChange={(e) => setForm({ ...form, avg_weight_lbs: e.target.value })} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Wholesale price"><Input value={form.wholesale_price as any} onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })} /></Field>
-        <Field label="Retail price"><Input value={form.retail_price as any} onChange={(e) => setForm({ ...form, retail_price: e.target.value })} /></Field>
+        <Field label="Wholesale price"><Input name="wholesale_price" value={form.wholesale_price as any} onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })} /></Field>
+        <Field label="Retail price"><Input name="retail_price" value={form.retail_price as any} onChange={(e) => setForm({ ...form, retail_price: e.target.value })} /></Field>
       </div>
       <Field label="QB income account override" hint="Blank = use category default from QB settings">
-        <Input value={form.qb_income_account} onChange={(e) => setForm({ ...form, qb_income_account: e.target.value })} />
+        <Input name="qb_income_account" value={form.qb_income_account} onChange={(e) => setForm({ ...form, qb_income_account: e.target.value })} />
       </Field>
       <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.available_b2b} onChange={(e) => setForm({ ...form, available_b2b: e.target.checked })} /> Available B2B</label>

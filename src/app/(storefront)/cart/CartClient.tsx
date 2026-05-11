@@ -133,6 +133,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
         cta={{
           href: isB2B ? "/guide" : "/catalog",
           label: isB2B ? "Back to your guide" : "Browse the catalog",
+          variant: "primary",
         }}
       />
     );
