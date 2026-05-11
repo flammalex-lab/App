@@ -18,3 +18,6 @@ tsconfig.tsbuildinfo
 
 supabase/.branches
 supabase/.temp
+
+# MCP config holds a Supabase PAT. Stays local; do not commit.
+.mcp.json
