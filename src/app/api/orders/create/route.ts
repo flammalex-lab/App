@@ -29,7 +29,20 @@ interface Body {
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await request.json()) as Body;
+
+  let body: Body;
+  try {
+    body = (await request.json()) as Body;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  // Minimal shape validation. Anything past these checks gets caught by
+  // resolvePrice/RLS/db-constraint paths and returns a sanitized error.
+  // Goal: stop raw Postgres error strings (e.g. "invalid input syntax for
+  // type uuid") from leaking to clients on malformed input.
+  if (!body || typeof body !== "object" || !Array.isArray(body.lines)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
   const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const actingAsId = impersonating ?? session.userId;

@@ -180,7 +180,11 @@ function SystemBubble({ message }: { message: Message }) {
             </div>
           </div>
           <div className="border-t border-black/10">
-            <Row label="Order status" value={<StatusDot label="Pending" />} />
+            {/* No "Order status" row — the placement bubble represents the
+                moment of placement, not current state. Live status changes
+                fire their own colored bubbles via payload.kind="order_status"
+                (admin-driven transitions). Showing "Pending" here forever
+                read stale after the order was cancelled or fulfilled. */}
             {deliver ? (
               <Row label="Delivery date" value={<span className="font-medium">{deliver}</span>} />
             ) : null}

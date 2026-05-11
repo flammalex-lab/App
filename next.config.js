@@ -50,7 +50,12 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://js.stripe.com https://m.stripe.network",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
+      // Narrowed from the open `https:` allowlist to just the hosts we
+      // actually serve images from: Supabase Storage (product photography
+      // when it lands), data: URIs (the gradient SVGs in catalog/page.tsx),
+      // and blob: (next/image cache). Tighter SSRF / exfil surface; if a
+      // future feature needs another host, add it explicitly here.
+      "img-src 'self' data: blob: https://*.supabase.co",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://q.stripe.com https://r.stripe.com https://api.twilio.com",
       "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
