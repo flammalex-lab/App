@@ -183,6 +183,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
           onClick={() => placeOrder("invoice")}
           size="lg"
           loading={placing}
+          loadingLabel="Placing order…"
           className="w-full"
         >
           Order now
@@ -193,6 +194,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
             onClick={() => placeOrder("stripe")}
             size="lg"
             loading={placing}
+            loadingLabel="Redirecting to checkout…"
             className="w-full"
           >
             Pay with card
@@ -202,6 +204,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
             variant="secondary"
             size="lg"
             loading={placing}
+            loadingLabel="Placing order…"
             className="w-full"
           >
             Pay Venmo on pickup

@@ -9,6 +9,8 @@ import { LineItem } from "@/components/products/LineItem";
 import Link from "next/link";
 import { OrderPlacedHero } from "./OrderPlacedHero";
 
+export const metadata = { title: "Order — Fingerlakes Farms" };
+
 export default async function OrderDetail({
   params,
   searchParams,
