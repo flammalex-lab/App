@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/session";
 import { dateShort, money } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/Badge";
 import type { Order } from "@/lib/supabase/types";
@@ -7,16 +8,25 @@ import type { Order } from "@/lib/supabase/types";
 export const metadata = { title: "Admin — Dashboard" };
 
 export default async function DashboardPage() {
-  const db = await createClient();
+  await requireAdmin();
+  // Admin pages need the service client; the user-scoped client respects RLS,
+  // which silently filters cross-account rows (accounts, all-buyer profiles,
+  // etc.) and produced wildly wrong KPI counts on this dashboard.
+  const db = createServiceClient();
 
-  const [{ data: recentOrders }, { data: pendingCount }, { data: qbPending }, { data: activeAccounts }, { data: followUps }] =
-    await Promise.all([
-      db.from("orders").select("*, account:accounts(name)").order("created_at", { ascending: false }).limit(10),
-      db.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      db.from("orders").select("id", { count: "exact", head: true }).eq("qb_exported", false).neq("status", "cancelled"),
-      db.from("accounts").select("id", { count: "exact", head: true }).eq("status", "active"),
-      db.from("activities").select("id", { count: "exact", head: true }).eq("completed", false).lte("follow_up_date", new Date().toISOString().slice(0, 10)),
-    ]);
+  const [
+    { data: recentOrders },
+    { count: pendingCount },
+    { count: qbPending },
+    { count: activeAccounts },
+    { count: followUps },
+  ] = await Promise.all([
+    db.from("orders").select("*, account:accounts(name)").order("created_at", { ascending: false }).limit(10),
+    db.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    db.from("orders").select("id", { count: "exact", head: true }).eq("qb_exported", false).neq("status", "cancelled"),
+    db.from("accounts").select("id", { count: "exact", head: true }).eq("status", "active"),
+    db.from("activities").select("id", { count: "exact", head: true }).eq("completed", false).lte("follow_up_date", new Date().toISOString().slice(0, 10)),
+  ]);
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -33,10 +43,10 @@ export default async function DashboardPage() {
       <h1 className="display text-3xl mb-6">Dashboard</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Stat label="Pending orders" value={(pendingCount as any)?.count ?? 0} href="/admin/orders?status=pending" tone="gold" />
-        <Stat label="To export (QB)" value={(qbPending as any)?.count ?? 0} href="/admin/qb" tone="blue" />
-        <Stat label="Active accounts" value={(activeAccounts as any)?.count ?? 0} href="/admin/accounts" />
-        <Stat label="Follow-ups due" value={(followUps as any)?.count ?? 0} href="/admin/accounts" tone={((followUps as any)?.count ?? 0) > 0 ? "rust" : undefined} />
+        <Stat label="Pending orders" value={pendingCount ?? 0} href="/admin/orders?status=pending" tone="gold" />
+        <Stat label="To export (QB)" value={qbPending ?? 0} href="/admin/qb" tone="blue" />
+        <Stat label="Active accounts" value={activeAccounts ?? 0} href="/admin/accounts" />
+        <Stat label="Follow-ups due" value={followUps ?? 0} href="/admin/accounts" tone={(followUps ?? 0) > 0 ? "rust" : undefined} />
         <Stat label="Revenue MTD" value={money(mtd)} tone="green" />
       </div>
 

@@ -5,6 +5,8 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, money } from "@/lib/utils/format";
 import { OrderStatusForm } from "./OrderStatusForm";
 
+export const metadata = { title: "Admin — Order" };
+
 export default async function AdminOrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const db = await createClient();
   const { id } = await params;
