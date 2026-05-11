@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { verifyCronAuth } from "@/lib/cron/auth";
+import { recordCronRun } from "@/lib/cron/observability";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { Account, DeliveryZoneRow } from "@/lib/supabase/types";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
@@ -16,48 +17,53 @@ export async function GET(request: Request) {
   if (denied) return denied;
 
   const svc = createServiceClient();
-  const { data: accounts } = await svc
-    .from("accounts")
-    .select("id, name, delivery_zone")
-    .eq("status", "active")
-    .not("delivery_zone", "is", null);
-  const { data: zones } = await svc.from("delivery_zones").select("*");
-  const zoneById: Record<string, DeliveryZoneRow> = Object.fromEntries(((zones as DeliveryZoneRow[] | null) ?? []).map((z) => [z.zone, z]));
+  const sent = await recordCronRun(svc, "reorder-prompts", async ({ setRowsAffected }) => {
+    const { data: accounts } = await svc
+      .from("accounts")
+      .select("id, name, delivery_zone")
+      .eq("status", "active")
+      .not("delivery_zone", "is", null);
+    const { data: zones } = await svc.from("delivery_zones").select("*");
+    const zoneById: Record<string, DeliveryZoneRow> = Object.fromEntries(((zones as DeliveryZoneRow[] | null) ?? []).map((z) => [z.zone, z]));
 
-  let sent = 0;
-  for (const a of ((accounts as (Account & { delivery_zone: string })[] | null) ?? [])) {
-    const zone = zoneById[a.delivery_zone];
-    if (!zone) continue;
-    const next = nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE);
-    if (!next) continue;
-    const hoursToCutoff = next.msUntilCutoff / 3_600_000;
-    if (hoursToCutoff > 6 || hoursToCutoff < 0) continue;
+    let sent = 0;
+    for (const a of ((accounts as (Account & { delivery_zone: string })[] | null) ?? [])) {
+      const zone = zoneById[a.delivery_zone];
+      if (!zone) continue;
+      const next = nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE);
+      if (!next) continue;
+      const hoursToCutoff = next.msUntilCutoff / 3_600_000;
+      if (hoursToCutoff > 6 || hoursToCutoff < 0) continue;
 
-    // Skip if they already have a pending order for this delivery date
-    const { data: existing } = await svc
-      .from("orders")
-      .select("id")
-      .eq("account_id", a.id)
-      .eq("requested_delivery_date", next.deliveryDate.toISOString().slice(0, 10))
-      .neq("status", "cancelled")
-      .limit(1);
-    if ((existing as { id: string }[] | null)?.length) continue;
+      // Skip if they already have a pending order for this delivery date
+      const { data: existing } = await svc
+        .from("orders")
+        .select("id")
+        .eq("account_id", a.id)
+        .eq("requested_delivery_date", next.deliveryDate.toISOString().slice(0, 10))
+        .neq("status", "cancelled")
+        .limit(1);
+      if ((existing as { id: string }[] | null)?.length) continue;
 
-    const { data: buyers } = await svc.from("profiles").select("id, phone").eq("account_id", a.id).limit(1);
-    const buyer = (buyers as { id: string; phone: string | null }[] | null)?.[0];
-    if (!buyer?.phone) continue;
+      const { data: buyers } = await svc.from("profiles").select("id, phone").eq("account_id", a.id).limit(1);
+      const buyer = (buyers as { id: string; phone: string | null }[] | null)?.[0];
+      if (!buyer?.phone) continue;
 
-    await enqueueAndSend({
-      supabase: svc,
-      profileId: buyer.id,
-      accountId: a.id,
-      type: "reorder_prompt",
-      channel: "sms",
-      toAddress: buyer.phone,
-      body: `FLF: cutoff in ${Math.round(hoursToCutoff)}h for ${next.deliveryDayName} delivery. Tap to order → ${process.env.NEXT_PUBLIC_APP_URL}/guide`,
-      metadata: { deliveryDate: next.deliveryDate.toISOString() },
-    });
-    sent++;
-  }
+      await enqueueAndSend({
+        supabase: svc,
+        profileId: buyer.id,
+        accountId: a.id,
+        type: "reorder_prompt",
+        channel: "sms",
+        toAddress: buyer.phone,
+        body: `FLF: cutoff in ${Math.round(hoursToCutoff)}h for ${next.deliveryDayName} delivery. Tap to order → ${process.env.NEXT_PUBLIC_APP_URL}/guide`,
+        metadata: { deliveryDate: next.deliveryDate.toISOString() },
+      });
+      sent++;
+    }
+    setRowsAffected(sent);
+    return sent;
+  });
+
   return NextResponse.json({ sent });
 }

@@ -387,3 +387,16 @@ export interface QBSetting {
   value: string;
   updated_at: string;
 }
+
+export type CronRunStatus = "ok" | "errored";
+
+export interface CronRun {
+  id: string;
+  job: string;
+  status: CronRunStatus;
+  started_at: string;
+  finished_at: string | null;
+  rows_affected: number | null;
+  error: string | null;
+  metadata: Record<string, unknown> | null;
+}
