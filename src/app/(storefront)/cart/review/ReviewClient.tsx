@@ -32,6 +32,7 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
   const [itemsOpen, setItemsOpen] = useState(true);
 
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const totalUnits = lines.reduce((n, l) => n + l.quantity, 0);
   const pickup = pickupLocations.find((p) => p.id === pickupLocationId) ?? null;
 
   if (lines.length === 0) {
@@ -137,7 +138,9 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
           onClick={() => setItemsOpen((o) => !o)}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-secondary transition-colors duration-150"
         >
-          <span className="display text-lg">Your items ({lines.length})</span>
+          <span className="display text-lg">
+            Your items ({totalUnits})
+          </span>
           <span className="text-ink-tertiary text-xl">{itemsOpen ? "▾" : "›"}</span>
         </button>
         {itemsOpen ? (

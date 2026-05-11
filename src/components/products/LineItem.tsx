@@ -97,11 +97,14 @@ export function LineItem({
     onRemove?.();
   }
 
-  // When the variant chip already conveys the same string as the pack
-  // size (e.g. both "6/quart"), the inline copy reads as duplicated.
-  const variantMatchesPack =
-    data.variantLabel && data.packSize && data.variantLabel === data.packSize;
-  const showPackInPrice = data.packSize && !variantMatchesPack;
+  // When a variant chip is shown above (e.g. "6/quart"), repeating the same
+  // string as a separate pack-size line below reads as duplicated. We had a
+  // strict-equality check before — but in the wild the chip is sourced from
+  // `pack_variant_key` and the pack-size from `products.pack_size`, and the
+  // two can drift on whitespace/case while still being the buyer-facing
+  // same thing. Easier and safer to drop pack-size everywhere a variant
+  // chip is rendered.
+  const showPackInPrice = data.packSize && !data.variantLabel;
   const priceLine = (
     <>
       {showPackInPrice ? `${data.packSize} · ` : ""}
@@ -141,7 +144,7 @@ export function LineItem({
               <span className="tabular">
                 {data.sku ?? "—"}
               </span>
-              {!variantMatchesPack ? (
+              {!data.variantLabel ? (
                 <span className="block uppercase text-[11px] tracking-wide text-ink-tertiary">
                   {data.packSize ?? data.unit}
                 </span>

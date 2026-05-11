@@ -35,20 +35,30 @@ export function resolvePrice(
   const now = options.now ?? new Date();
 
   if (customPrice && isWindowOpen(customPrice.effective_date, customPrice.expiry_date, now)) {
-    return Number(customPrice.custom_price);
+    return positiveOrNull(Number(customPrice.custom_price));
   }
 
   if (priceListItem && isWindowOpen(priceListItem.effective_date, priceListItem.expiry_date, now)) {
-    return Number(priceListItem.unit_price);
+    return positiveOrNull(Number(priceListItem.unit_price));
   }
 
   if (isB2B) {
     if (product.wholesale_price == null) return null;
     const tier = account?.pricing_tier ?? "standard";
-    return round2(Number(product.wholesale_price) * TIER_MULTIPLIERS[tier]);
+    return positiveOrNull(round2(Number(product.wholesale_price) * TIER_MULTIPLIERS[tier]));
   }
 
-  return product.retail_price == null ? null : Number(product.retail_price);
+  return product.retail_price == null ? null : positiveOrNull(Number(product.retail_price));
+}
+
+/**
+ * Zero / negative prices in the DB mean "we don't have the price set yet",
+ * not "this is free". Treat them as unpriced so the catalog renders the
+ * usual "Price on request" / "—" fallback instead of showing $0.00 next
+ * to an Add button buyers would expect to actually work.
+ */
+function positiveOrNull(n: number): number | null {
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /**
