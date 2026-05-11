@@ -16,11 +16,17 @@ interface MatchBody {
 }
 
 /**
- * Match a product image against the catalog. Two paths:
+ * Match a product image against the catalog. Three paths in order:
  *   1. Filename SKU match — if the filename contains any product's SKU
  *      substring, return that product directly. Fast + deterministic.
- *   2. Vision match — otherwise ask Claude which product the image shows,
- *      scoped to the producer filter if present. Returns confidence.
+ *   2. Filename name/producer token match — score every candidate by
+ *      how many of its meaningful name + producer tokens appear in the
+ *      filename. If one candidate clearly wins (≥ 2 tokens AND lead of
+ *      ≥ 1 over the runner-up AND ≥ 50% of its own meaningful tokens
+ *      present), return as a high-confidence filename match. Avoids
+ *      Claude API spend on names like "five-acre-whole-milk.jpg".
+ *   3. Vision match — otherwise ask Claude which product the image
+ *      shows, scoped to the producer filter if present.
  */
 export async function POST(request: Request) {
   try {
@@ -71,7 +77,49 @@ export async function POST(request: Request) {
     });
   }
 
-  // (2) Vision match. Scope candidates to the requested producer if given,
+  // (2) Filename name/producer token match. Tokenize the filename and
+  // every candidate's name + producer, then score by how many of the
+  // candidate's meaningful tokens appear in the filename. Brand noise
+  // ("fingerlakes", "farms") is stop-listed so it doesn't bias every
+  // FLF-own product into a tie.
+  const filenameTokens = tokenizeForMatch(body.filename);
+  if (filenameTokens.size >= 2) {
+    const scored = allSkus
+      .map((p) => {
+        const prodTokens = tokenizeForMatch(`${p.name} ${p.producer ?? ""}`);
+        if (prodTokens.size === 0) return null;
+        let matched = 0;
+        for (const t of prodTokens) if (filenameTokens.has(t)) matched++;
+        return { product: p, matched, total: prodTokens.size };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => b.matched - a.matched);
+
+    const best = scored[0];
+    const runnerUp = scored[1];
+    const confident =
+      best &&
+      best.matched >= 2 &&
+      best.matched >= Math.ceil(best.total / 2) &&
+      (!runnerUp || best.matched - runnerUp.matched >= 1);
+    if (confident) {
+      return NextResponse.json({
+        match: {
+          id: best.product.id,
+          sku: best.product.sku,
+          name: best.product.name,
+          producer: best.product.producer,
+          pack_size: best.product.pack_size,
+          unit: best.product.unit,
+        },
+        source: "filename_name",
+        confidence: "high",
+        reasoning: `Filename token match: ${best.matched}/${best.total} of product tokens, runner-up at ${runnerUp?.matched ?? 0}.`,
+      });
+    }
+  }
+
+  // (3) Vision match. Scope candidates to the requested producer if given,
   // else to the full active catalog. Cap at 40 so the prompt stays tight.
   let q = svc
     .from("products")
@@ -188,4 +236,30 @@ Be strict — if the image shows something not in the list, return product_id as
       pack_size: c.pack_size,
     })),
   });
+}
+
+/**
+ * Lower-case, split on non-alphanumerics, drop stopwords + super-short
+ * tokens. Returns a Set so duplicate occurrences don't double-count
+ * during scoring.
+ *
+ * Stopwords cover: filename noise ("img", "photo", file extensions),
+ * grammar particles ("the", "of"), and brand words that appear on
+ * almost every FLF-own product ("fingerlakes", "farms"). Removing them
+ * keeps the score signal proportional to the *distinguishing* parts of
+ * the product name.
+ */
+function tokenizeForMatch(s: string): Set<string> {
+  const STOPWORDS = new Set([
+    "the","and","or","with","for","of","in","on","by","at","from","to",
+    "img","photo","picture","image","pic",
+    "jpg","jpeg","png","webp","heic","tif","tiff",
+    "fingerlakes","farms","farm",
+  ]);
+  const tokens = s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
+  return new Set(tokens);
 }
