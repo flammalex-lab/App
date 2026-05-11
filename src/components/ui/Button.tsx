@@ -10,6 +10,8 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   loading?: boolean;
+  /** Replaces children text while `loading` is true (e.g. "Placing order…"). */
+  loadingLabel?: string;
 }
 
 export function Button({
@@ -17,6 +19,7 @@ export function Button({
   size = "md",
   className,
   loading,
+  loadingLabel,
   disabled,
   children,
   ...rest
@@ -33,9 +36,19 @@ export function Button({
     lg: "px-5 py-3 text-base",
   }[size];
   return (
-    <button {...rest} disabled={disabled || loading} className={cn(variantClass, sizeClass, className)}>
-      {loading ? <Spinner /> : null}
-      {children}
+    <button
+      {...rest}
+      disabled={disabled || loading}
+      className={cn(variantClass, sizeClass, "inline-flex items-center justify-center gap-2", className)}
+    >
+      {loading ? (
+        <>
+          <Spinner />
+          <span>{loadingLabel ?? children}</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

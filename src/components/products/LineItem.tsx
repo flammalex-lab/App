@@ -104,7 +104,15 @@ export function LineItem({
   // two can drift on whitespace/case while still being the buyer-facing
   // same thing. Easier and safer to drop pack-size everywhere a variant
   // chip is rendered.
-  const showPackInPrice = data.packSize && !data.variantLabel;
+  //
+  // History mode is the trickier case: most order_items rows have
+  // pack_variant_key = NULL but a populated products.pack_size, which makes
+  // variantLabel null AND packSize set — that path was rendering packSize
+  // twice (once as the uppercase eyebrow block, once again as the priceLine
+  // prefix). Drop it from priceLine in history mode and let the uppercase
+  // block be the single packSize render.
+  const showPackInPrice =
+    data.packSize && !data.variantLabel && mode !== "history";
   const priceLine = (
     <>
       {showPackInPrice ? `${data.packSize} · ` : ""}
