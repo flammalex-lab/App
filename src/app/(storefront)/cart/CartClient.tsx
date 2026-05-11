@@ -142,7 +142,10 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
     <div className="space-y-3">
       {/* Search-in-cart, always visible (Pepper pattern) — finding a line
           in a 30-item cart is the most common reason a buyer reopens it. */}
-      {lines.length > 1 ? (
+      {/* U17 hide the find-in-cart input below 8 lines. Below that count
+          you can scan the cart visually faster than typing. Reveal at 8+
+          where the list starts to overflow a phone screen. */}
+      {lines.length >= 8 ? (
         <input
           type="search"
           value={search}
