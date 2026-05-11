@@ -46,7 +46,7 @@ export function SmsConsentCard({ initialOptedIn, initialOptedInAt }: Props) {
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <div className="text-sm font-medium">Transactional SMS</div>
+          <div id="sms-consent-label" className="text-sm font-medium">Transactional SMS</div>
           <p className="text-xs text-ink-secondary leading-relaxed mt-0.5">
             Order confirmations, delivery updates, standing-order reminders,
             cutoff nudges. No marketing or promotional texts. Msg frequency
@@ -56,6 +56,7 @@ export function SmsConsentCard({ initialOptedIn, initialOptedInAt }: Props) {
         <button
           role="switch"
           aria-checked={optedIn}
+          aria-labelledby="sms-consent-label"
           onClick={toggle}
           disabled={pending}
           className={`relative h-6 w-11 shrink-0 rounded-full transition ${

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/Brand";
 
+export const metadata = { title: "Not found — Fingerlakes Farms" };
+
 export default function NotFound() {
   return (
     <main className="min-h-screen flex flex-col bg-bg-secondary">

@@ -184,6 +184,7 @@ export function BarcodeScanner({
     const code = manualCode.trim();
     if (!code) return;
     setManualCode("");
+    setBanner({ kind: "looking_up", code });
     lookup(code);
   }
 
