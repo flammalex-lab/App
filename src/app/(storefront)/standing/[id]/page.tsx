@@ -6,6 +6,8 @@ import type { Account, Product, StandingOrder, StandingOrderItem } from "@/lib/s
 import { visibleProductsQuery } from "@/lib/products/queries";
 import { StandingOrderEditor } from "@/components/standing/StandingOrderEditor";
 
+export const metadata = { title: "Standing order — Fingerlakes Farms" };
+
 export default async function StandingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
