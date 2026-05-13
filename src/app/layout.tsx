@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/images/flf-logo.png", type: "image/png", sizes: "500x500" },
+      { url: "/images/flf-logo.png", type: "image/png", sizes: "1024x1024" },
     ],
     apple: { url: "/images/flf-logo.png" },
   },
