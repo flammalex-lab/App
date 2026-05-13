@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Card — Spec v2 · Fingerlakes Farms</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  /* ---------- page ---------- */
+  body { margin: 0; padding: 40px 32px 96px; background: var(--bg-secondary); color: var(--text); }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .crumb { color: var(--ink-tertiary); font-size: 13px; }
+  .crumb a { color: inherit; }
+  h1.page { font-size: 36px; letter-spacing: -0.02em; margin: 12px 0 6px; }
+  .lede { color: var(--ink-secondary); font-size: 16px; line-height: 1.55; margin: 0 0 32px; max-width: 64ch; }
+
+  /* ---------- notes ---------- */
+  .notes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; background: white; border: 1px solid var(--border-hairline); border-radius: 12px; padding: 20px 24px; margin-bottom: 40px; }
+  .notes h4 { margin: 0 0 4px; font-size: 14px; font-family: var(--font-sans); font-weight: 600; }
+  .notes p { margin: 0; font-size: 13px; color: var(--ink-secondary); line-height: 1.5; }
+  .notes code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: var(--bg-secondary); padding: 1px 5px; border-radius: 4px; color: var(--ink-primary); }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+
+  /* ---------- section ---------- */
+  section { margin-bottom: 56px; }
+  section > header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 6px; }
+  section > header h2 { margin: 0; font-size: 22px; }
+  section > header .num { color: var(--ink-tertiary); font-size: 13px; font-variant-numeric: tabular-nums; }
+  section > header .where { color: var(--ink-secondary); font-size: 13px; margin-left: auto; }
+  .sec-note { font-size: 13px; color: var(--ink-secondary); line-height: 1.5; max-width: 70ch; margin: 0 0 22px; }
+  .sec-note strong { color: var(--ink-primary); font-weight: 600; }
+
+  /* ---------- state header per card ---------- */
+  .demo { display: flex; flex-direction: column; gap: 6px; }
+  .demo .label { display: flex; align-items: center; gap: 8px; }
+  .demo .label .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--ink-tertiary); }
+  .demo .label .dot.is-active { background: var(--brand-blue); }
+  .demo .label .dot.is-warn { background: var(--accent-gold); }
+  .demo .label .dot.is-out { background: var(--feedback-error); }
+  .demo .label .dot.is-pause { background: var(--ink-tertiary); }
+  .demo .label .name { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-secondary); font-weight: 600; }
+  .demo .label .name .what { color: var(--ink-tertiary); font-weight: 500; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+
+  .grid-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px 20px; }
+  @media (min-width: 1080px) { .grid-6 { grid-template-columns: repeat(6, 1fr); } }
+
+  /* ============================================================
+     PRODUCT CARD — base
+     ============================================================ */
+  .pc { background: white; border: 1px solid var(--border-hairline); border-radius: 12px; overflow: hidden; transition: border-color 150ms var(--ease-fluent); display: flex; flex-direction: column; font-family: var(--font-sans); position: relative; }
+  .pc:hover { border-color: var(--border-hover); }
+  .pc:focus-within { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-color: var(--brand-blue); }
+  .pc__media { position: relative; aspect-ratio: 1 / 1; background: var(--bg-secondary); overflow: hidden; }
+  .pc__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* ----- no-photo fallback (intentional, not placeholder-y) ----- */
+  .pc__fallback { position: absolute; inset: 0; background: var(--brand-blue-tint); background-image: radial-gradient(circle, rgba(23,99,181,0.14) 1px, transparent 1px); background-size: 10px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px; }
+  .pc__fallback .cat { font-size: 10px; letter-spacing: 0.1em; font-weight: 700; color: var(--brand-blue); text-transform: uppercase; }
+  .pc__fallback .mono { font-family: var(--font-display); font-weight: 800; font-size: 36px; letter-spacing: -0.04em; color: var(--brand-blue); line-height: 1; margin: 8px 0 6px; }
+  .pc__fallback .who { font-size: 11px; color: var(--brand-blue-dark); font-style: italic; line-height: 1.3; max-width: 14ch; }
+
+  /* ----- badges on the media ----- */
+  .pc__badge { position: absolute; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 999px; line-height: 1; }
+  .pc__badge--cart { top: 8px; right: 8px; background: var(--brand-blue); color: white; box-shadow: 0 1px 2px rgba(22,22,22,0.18); font-variant-numeric: tabular-nums; }
+  .pc__badge--guide { top: 8px; left: 8px; background: white; color: #8a690f; border: 1px solid rgba(196,148,49,0.4); box-shadow: 0 1px 2px rgba(22,22,22,0.06); }
+  .pc__badge--guide svg { width: 10px; height: 10px; fill: var(--accent-gold); }
+
+  /* ----- season / stock overlays ----- */
+  .pc__cover { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 12px; background: linear-gradient(180deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.92) 100%); }
+  .pc__media.is-muted img { filter: saturate(0.18) brightness(1.04); }
+  .pc__chip { background: white; border: 1px solid var(--border-hairline); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--ink-primary); display: inline-flex; align-items: center; gap: 6px; }
+  .pc__chip .dot { width: 6px; height: 6px; border-radius: 999px; }
+  .pc__chip.is-season .dot { background: var(--accent-gold); }
+  .pc__chip.is-stock .dot { background: var(--feedback-error); }
+
+  /* ----- body ----- */
+  .pc__body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .pc__producer { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-tertiary); font-weight: 600; line-height: 1.2; }
+  .pc__title { font-size: 14px; font-weight: 600; color: var(--ink-primary); line-height: 1.3; letter-spacing: -0.005em; }
+  .pc__byline { font-size: 12px; font-style: italic; color: var(--ink-secondary); line-height: 1.35; }
+  .pc__meta { font-size: 12px; color: var(--ink-secondary); font-variant-numeric: tabular-nums; }
+  .pc__price-row { display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px; gap: 8px; }
+  .pc__price { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .pc__price .per { font-size: 11px; font-weight: 500; color: var(--ink-tertiary); margin-left: 2px; }
+  .pc__price.is-strike { text-decoration: line-through; text-decoration-color: var(--ink-tertiary); color: var(--ink-tertiary); }
+
+  /* ----- season message line ----- */
+  .pc__voice { font-size: 12px; color: var(--ink-secondary); font-style: italic; line-height: 1.4; margin-top: 2px; }
+
+  /* ----- footer / cta ----- */
+  .pc__foot { padding: 10px 12px 12px; border-top: 1px solid var(--border-hairline); }
+  .pc--compact .pc__foot { padding: 10px 14px 14px; }
+
+  /* ----- buttons (all brand-blue — no green outside commit moments) ----- */
+  .btn-add { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--brand-blue); color: white; border: none; border-radius: 8px; height: 36px; font: 600 13px var(--font-sans); cursor: pointer; transition: background 150ms var(--ease-fluent), transform 100ms var(--ease-fluent); }
+  .btn-add:hover { background: var(--brand-blue-dark); }
+  .btn-add:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+  .btn-add:active { transform: scale(0.98); }
+  .btn-add[disabled] { background: var(--bg-secondary); color: var(--ink-tertiary); cursor: not-allowed; border: 1px solid var(--border-hairline); }
+  .btn-notify { width: 100%; height: 36px; background: white; color: var(--brand-blue); border: 1px solid var(--brand-blue); border-radius: 8px; font: 600 13px var(--font-sans); cursor: pointer; transition: background 150ms var(--ease-fluent); }
+  .btn-notify:hover { background: var(--brand-blue-tint); }
+
+  /* ----- qty stepper (unified blue everywhere) ----- */
+  .qty { display: inline-flex; align-items: center; border: 1px solid var(--brand-blue); border-radius: 8px; overflow: hidden; height: 36px; }
+  .qty button { width: 36px; height: 100%; background: white; color: var(--brand-blue); border: none; cursor: pointer; font-size: 16px; font-weight: 600; transition: background 150ms; }
+  .qty button:hover { background: var(--brand-blue-tint); }
+  .qty button:disabled { color: var(--ink-tertiary); cursor: not-allowed; }
+  .qty .val { min-width: 36px; text-align: center; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--brand-blue); padding: 0 4px; }
+  .qty--solid { background: var(--brand-blue); border-color: var(--brand-blue); }
+  .qty--solid button { background: var(--brand-blue); color: white; }
+  .qty--solid button:hover { background: var(--brand-blue-dark); }
+  .qty--solid .val { color: white; }
+
+  /* ============================================================
+     VARIANT 2 — Guide list row
+     ============================================================ */
+  .pc--row { flex-direction: row; align-items: stretch; padding: 0; }
+  .pc--row .pc__media { flex-shrink: 0; width: 80px; aspect-ratio: 1 / 1; border-radius: 0; border-right: 1px solid var(--border-hairline); }
+  .pc--row .pc__body { padding: 12px 16px; flex: 1; min-width: 0; gap: 2px; justify-content: center; }
+  .pc--row .pc__title { font-size: 15px; }
+  .pc--row .pc__inline-meta { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+  .pc--row .pc__inline-meta > * { font-size: 12px; color: var(--ink-secondary); }
+  .pc--row .pc__inline-meta .pc__price { font-size: 14px; font-weight: 700; color: var(--ink-primary); }
+  .pc--row .pc__inline-meta .sep { color: var(--ink-tertiary); }
+  .pc--row .pc__guide-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #8a690f; font-weight: 600; background: rgba(196,148,49,0.12); border-radius: 4px; padding: 1px 6px; }
+  .pc--row .pc__guide-flag svg { width: 10px; height: 10px; fill: var(--accent-gold); }
+  .pc--row .pc__cta { display: flex; align-items: center; justify-content: center; padding: 12px 14px; border-left: 1px solid var(--border-hairline); flex-shrink: 0; min-width: 144px; }
+  .pc--row.is-out .pc__media { background: var(--bg-secondary); }
+  .pc--row .pc__fallback .cat { font-size: 8px; }
+  .pc--row .pc__fallback .mono { font-size: 22px; margin: 4px 0 2px; }
+  .pc--row .pc__fallback .who { display: none; }
+
+  /* ============================================================
+     VARIANT 3 — Reorder tile
+     ============================================================ */
+  .pc--reorder .pc__last { font-size: 11px; color: var(--ink-secondary); font-variant-numeric: tabular-nums; background: var(--bg-secondary); border-radius: 6px; padding: 6px 8px; margin-top: 8px; display: flex; justify-content: space-between; }
+  .pc--reorder .pc__last .lbl { color: var(--ink-tertiary); text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em; font-weight: 600; }
+  .pc--reorder .pc__last .v { font-weight: 600; color: var(--ink-primary); }
+  .pc--reorder .btn-add { background: white; border: 1px solid var(--brand-blue); color: var(--brand-blue); }
+  .pc--reorder .btn-add:hover { background: var(--brand-blue-tint); }
+  .pc--reorder .btn-add::before { content: "↻"; font-size: 14px; }
+
+  /* ============================================================
+     Interaction state demo
+     ============================================================ */
+  .ix-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 920px; }
+  .ix-row .pc.is-hover { border-color: var(--border-hover); }
+  .ix-row .pc.is-focus { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-color: var(--brand-blue); }
+  .ix-row .pc.is-active .btn-add { background: var(--brand-blue-dark); transform: scale(0.98); }
+
+  /* fallback monogram colors by producer (kept aligned to brand-blue only) */
+  .fb-eggs { color: var(--brand-blue); }
+
+  /* footer */
+  .pagefoot { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border-hairline); font-size: 12px; color: var(--ink-tertiary); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="crumb"><a href="index.html">Component specs</a> · Brief 1</div>
+  <h1 class="page">Product Card</h1>
+  <p class="lede">One card, three containers, six states. The card is the workhorse of the catalog — it appears on <code style="font-size:13px">/catalog</code>, <code style="font-size:13px">/guide</code>, every reorder tile, every category strip. This spec resolves the audit findings: color drift, the FLF-logo fallback, retina sizing, in-cart invisibility, and producer attribution.</p>
+
+  <!-- ---------- notes ---------- -->
+  <div class="notes">
+    <div>
+      <h4><span class="swatch" style="background:var(--brand-blue)"></span>Color rule</h4>
+      <p><strong>Brand-blue everywhere</strong> for routine actions — Add, qty stepper, primary CTAs. Green is for the commit moment only (<code>Place order</code>, <code>Confirm</code>). The stepper renders blue on <code>/cart</code>, <code>/guide</code>, <code>/catalog</code> — same component, no per-screen overrides.</p>
+    </div>
+    <div>
+      <h4>No-photo fallback</h4>
+      <p>Not the FLF logo. Each fallback is a typographic monogram of the producer's initials on <code>--brand-blue-tint</code>, dot-grid background, with the category in an eyebrow caps line and the farm name underneath. Treats the absent photo as <em>editorial space</em>, not a missing asset.</p>
+    </div>
+    <div>
+      <h4>In-cart visibility</h4>
+      <p>A persistent blue pill <code>× N</code> sits at top-right of the media — visible at rest, while scrolling, and on every container. The qty stepper is no longer the only signal. On guide rows where there's no media corner, the count moves into the stepper's <code>val</code>.</p>
+    </div>
+    <div>
+      <h4>Guide indicator</h4>
+      <p>Replaces the unlabeled gold star with a small badge — <strong>gold star + "In guide"</strong> text — on the media. On guide rows the redundant photo badge drops; a tiny gold "In guide" flag sits beside the producer line instead.</p>
+    </div>
+    <div>
+      <h4>Producer byline</h4>
+      <p>Two lines, structured. <code>PRODUCER</code> in eyebrow caps above the product name (machine-readable, for filters). <em>"From Hartke's flock"</em> in italic below — the editorial nod, in brand voice. Falls off in row layout where horizontal space is tight; eyebrow stays.</p>
+    </div>
+    <div>
+      <h4>Retina sizing</h4>
+      <p><strong>Compact grid:</strong> 1× 280, 2× 560, 3× 840. <strong>Guide row:</strong> 1× 80, 2× 160, 3× 240. <strong>Reorder tile:</strong> 1× 220, 2× 440, 3× 660. <strong>PDP hero:</strong> 1× 720, 2× 1440. Ship <code>srcset</code> + <code>sizes</code>; never upscale a single <code>&lt;img&gt;</code>.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- VARIANT 1 — Compact grid                                     -->
+  <!-- ============================================================ -->
+  <section>
+    <header>
+      <span class="num">01</span>
+      <h2>Compact grid</h2>
+      <span class="where">/catalog · 2-col mobile / 4-col desktop</span>
+    </header>
+    <p class="sec-note">The catalog default. Square media on top, body below, single-action footer. Photo is <strong>1:1</strong> so 4-col rhythm holds at every breakpoint. <code>img</code> ships at 1×/2×/3× via <code>srcset</code>; the fallback is the same box.</p>
+
+    <div class="grid-6">
+      <!-- A: With photo -->
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">With photo<span class="what"> · default</span></span></div>
+        <article class="pc pc--compact">
+          <div class="pc__media"><img src="assets/photos/chicken-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Meadow Creek</span>
+            <span class="pc__title">Jumbo Brown Eggs — Carton</span>
+            <span class="pc__byline">From Meadow Creek's hens.</span>
+            <span class="pc__meta tabular">24 dz carton</span>
+            <div class="pc__price-row">
+              <span class="pc__price tabular">$108.00</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Add</button></div>
+        </article>
+      </div>
+
+      <!-- B: No photo -->
+      <div class="demo">
+        <div class="label"><span class="dot"></span><span class="name">No photo<span class="what"> · fallback</span></span></div>
+        <article class="pc pc--compact">
+          <div class="pc__media">
+            <div class="pc__fallback">
+              <span class="cat">Pierogies</span>
+              <span class="mono">P&amp;S</span>
+              <span class="who">Pierogi &amp; Sons</span>
+            </div>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Pierogi &amp; Sons</span>
+            <span class="pc__title">Pierogies — Pulled Pork</span>
+            <span class="pc__byline">Hand-pinched in Hamburg, NY.</span>
+            <span class="pc__meta tabular">10 × 1.25 lb</span>
+            <div class="pc__price-row">
+              <span class="pc__price tabular">$101.75</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Add</button></div>
+        </article>
+      </div>
+
+      <!-- C: In cart × 2 -->
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">In cart<span class="what"> · × 2</span></span></div>
+        <article class="pc pc--compact">
+          <div class="pc__media">
+            <img src="assets/photos/farm-2.jpg" alt="" loading="lazy">
+            <span class="pc__badge pc__badge--cart">× 2 in cart</span>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Silver Lake Cheese</span>
+            <span class="pc__title">Silver Lake Gruyère 8oz</span>
+            <span class="pc__byline">Aged 9 months by Silver Lake.</span>
+            <span class="pc__meta tabular">12 × 8 oz</span>
+            <div class="pc__price-row">
+              <span class="pc__price tabular">$120.00</span>
+            </div>
+          </div>
+          <div class="pc__foot">
+            <div class="qty qty--solid" role="group" aria-label="Quantity">
+              <button aria-label="Decrease">−</button><span class="val">2</span><button aria-label="Increase">+</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- D: In guide -->
+      <div class="demo">
+        <div class="label"><span class="dot is-warn"></span><span class="name">In guide<span class="what"> · saved</span></span></div>
+        <article class="pc pc--compact">
+          <div class="pc__media">
+            <img src="assets/photos/farm-3.jpg" alt="" loading="lazy">
+            <span class="pc__badge pc__badge--guide">
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .5l1.6 3.7 4 .4-3 2.8.9 4-3.5-2.1L2.5 11.4l.9-4-3-2.8 4-.4z"/></svg>
+              In guide
+            </span>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Hartke Family Farm</span>
+            <span class="pc__title">Whole Milk — Jersey</span>
+            <span class="pc__byline">From Hartke's herd, Lodi.</span>
+            <span class="pc__meta tabular">4 × 1 gal</span>
+            <div class="pc__price-row">
+              <span class="pc__price tabular">$42.00</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Add</button></div>
+        </article>
+      </div>
+
+      <!-- E: Out for the season -->
+      <div class="demo">
+        <div class="label"><span class="dot is-pause"></span><span class="name">Out for season<span class="what"> · til 2027</span></span></div>
+        <article class="pc pc--compact">
+          <div class="pc__media is-muted">
+            <img src="assets/photos/produce-1.jpg" alt="" loading="lazy">
+            <div class="pc__cover">
+              <span class="pc__chip is-season"><span class="dot"></span>Out for the season</span>
+            </div>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Shtayburne Farm</span>
+            <span class="pc__title">Heirloom Tomatoes</span>
+            <span class="pc__voice">We'll text you when next year's crop ships.</span>
+            <div class="pc__price-row">
+              <span class="pc__price tabular is-strike">$38.00</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-notify">Notify when back</button></div>
+        </article>
+      </div>
+
+      <!-- F: Out of stock -->
+      <div class="demo">
+        <div class="label"><span class="dot is-out"></span><span class="name">Out of stock<span class="what"> · this week</span></span></div>
+        <article class="pc pc--compact">
+          <div class="pc__media is-muted">
+            <img src="assets/photos/farm-4.jpg" alt="" loading="lazy">
+            <div class="pc__cover">
+              <span class="pc__chip is-stock"><span class="dot"></span>Out of stock</span>
+            </div>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Grasslands</span>
+            <span class="pc__title">Ground Beef 80/20</span>
+            <span class="pc__byline">Dry-aged by Grasslands.</span>
+            <span class="pc__meta tabular">10 lb</span>
+            <div class="pc__price-row">
+              <span class="pc__price tabular">$94.00</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add" disabled>Back Monday</button></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- VARIANT 2 — Guide list row                                   -->
+  <!-- ============================================================ -->
+  <section>
+    <header>
+      <span class="num">02</span>
+      <h2>Guide list row</h2>
+      <span class="where">/guide · horizontal, dense, stepper-first</span>
+    </header>
+    <p class="sec-note">The buyer's saved list. Photo left, identity middle, stepper right — the stepper is the primary control because every row is already a purchase intent. The producer byline drops to a single eyebrow line so the row can stay under <strong>88px</strong>.</p>
+
+    <div style="display:flex; flex-direction:column; gap:14px; max-width: 900px;">
+      <!-- A: With photo -->
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">With photo<span class="what"> · default</span></span></div>
+        <article class="pc pc--row">
+          <div class="pc__media"><img src="assets/photos/chicken-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Meadow Creek · Eggs</span>
+            <span class="pc__title">Jumbo Brown Eggs — Carton</span>
+            <div class="pc__inline-meta">
+              <span class="pc__price tabular">$108.00</span>
+              <span class="sep">·</span><span class="tabular">24 dz carton</span>
+              <span class="sep">·</span><span>From Meadow Creek's hens</span>
+            </div>
+          </div>
+          <div class="pc__cta">
+            <div class="qty" role="group" aria-label="Quantity">
+              <button>−</button><span class="val">0</span><button>+</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- B: No photo -->
+      <div class="demo">
+        <div class="label"><span class="dot"></span><span class="name">No photo<span class="what"> · fallback</span></span></div>
+        <article class="pc pc--row">
+          <div class="pc__media">
+            <div class="pc__fallback">
+              <span class="cat">Pierogies</span>
+              <span class="mono">P&amp;S</span>
+            </div>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Pierogi &amp; Sons · Frozen</span>
+            <span class="pc__title">Pierogies — Pulled Pork</span>
+            <div class="pc__inline-meta">
+              <span class="pc__price tabular">$101.75</span>
+              <span class="sep">·</span><span class="tabular">10 × 1.25 lb</span>
+              <span class="sep">·</span><span>Hand-pinched in Hamburg, NY</span>
+            </div>
+          </div>
+          <div class="pc__cta">
+            <div class="qty"><button>−</button><span class="val">0</span><button>+</button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- C: In cart × 2 -->
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">In cart<span class="what"> · × 2 (count lives in stepper)</span></span></div>
+        <article class="pc pc--row">
+          <div class="pc__media"><img src="assets/photos/farm-2.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Silver Lake · Cheese</span>
+            <span class="pc__title">Silver Lake Gruyère 8oz</span>
+            <div class="pc__inline-meta">
+              <span class="pc__price tabular">$120.00</span>
+              <span class="sep">·</span><span class="tabular">12 × 8 oz</span>
+              <span class="sep">·</span><span>Aged 9 months by Silver Lake</span>
+            </div>
+          </div>
+          <div class="pc__cta">
+            <div class="qty qty--solid"><button>−</button><span class="val">2</span><button>+</button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- D: In guide -->
+      <div class="demo">
+        <div class="label"><span class="dot is-warn"></span><span class="name">In guide<span class="what"> · saved (labeled flag, not just a star)</span></span></div>
+        <article class="pc pc--row">
+          <div class="pc__media"><img src="assets/photos/farm-3.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="pc__producer">Hartke Family Farm · Dairy</span>
+              <span class="pc__guide-flag">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .5l1.6 3.7 4 .4-3 2.8.9 4-3.5-2.1L2.5 11.4l.9-4-3-2.8 4-.4z"/></svg>
+                In guide
+              </span>
+            </div>
+            <span class="pc__title">Whole Milk — Jersey</span>
+            <div class="pc__inline-meta">
+              <span class="pc__price tabular">$42.00</span>
+              <span class="sep">·</span><span class="tabular">4 × 1 gal</span>
+              <span class="sep">·</span><span>From Hartke's herd, Lodi</span>
+            </div>
+          </div>
+          <div class="pc__cta">
+            <div class="qty"><button>−</button><span class="val">0</span><button>+</button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- E: Out for season -->
+      <div class="demo">
+        <div class="label"><span class="dot is-pause"></span><span class="name">Out for season<span class="what"> · stepper replaced with notify CTA</span></span></div>
+        <article class="pc pc--row is-out">
+          <div class="pc__media is-muted"><img src="assets/photos/produce-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer" style="color:#8a690f;">Shtayburne Farm · Out for the season</span>
+            <span class="pc__title">Heirloom Tomatoes</span>
+            <div class="pc__inline-meta">
+              <span class="pc__price tabular is-strike">$38.00</span>
+              <span class="sep">·</span><span style="font-style:italic;">We'll text you when next year's crop ships.</span>
+            </div>
+          </div>
+          <div class="pc__cta">
+            <button class="btn-notify" style="height:36px;padding:0 12px;min-width:120px;">Notify me</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- F: Out of stock -->
+      <div class="demo">
+        <div class="label"><span class="dot is-out"></span><span class="name">Out of stock<span class="what"> · returns Monday</span></span></div>
+        <article class="pc pc--row is-out">
+          <div class="pc__media is-muted"><img src="assets/photos/farm-4.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer" style="color:var(--feedback-error);">Grasslands · Out of stock</span>
+            <span class="pc__title">Ground Beef 80/20</span>
+            <div class="pc__inline-meta">
+              <span class="pc__price tabular">$94.00</span>
+              <span class="sep">·</span><span class="tabular">10 lb</span>
+              <span class="sep">·</span><span>Back Monday after the Friday cut</span>
+            </div>
+          </div>
+          <div class="pc__cta">
+            <div class="qty" style="opacity:0.4;pointer-events:none;"><button>−</button><span class="val">0</span><button>+</button></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- VARIANT 3 — Reorder tile                                     -->
+  <!-- ============================================================ -->
+  <section>
+    <header>
+      <span class="num">03</span>
+      <h2>Reorder tile</h2>
+      <span class="where">/orders/[id]/confirmed · post-order strip</span>
+    </header>
+    <p class="sec-note">Appears on the order-confirmed screen and the "Reorder last" strip. Inherits the compact card's bones but adds a <strong>"Last ordered"</strong> data line — qty × unit price × date — and trades the filled Add button for an outlined reorder CTA so it visually defers to the page's primary action.</p>
+
+    <div class="grid-6">
+      <!-- A: With photo -->
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">With photo<span class="what"> · last ordered</span></span></div>
+        <article class="pc pc--compact pc--reorder">
+          <div class="pc__media"><img src="assets/photos/chicken-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Meadow Creek</span>
+            <span class="pc__title">Jumbo Brown Eggs — Carton</span>
+            <span class="pc__meta tabular">24 dz carton · $108.00</span>
+            <div class="pc__last tabular">
+              <span><span class="lbl">Last</span> <span class="v">4 × $108</span></span>
+              <span class="lbl" style="align-self:center">Tue 5/05</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Reorder 4</button></div>
+        </article>
+      </div>
+
+      <!-- B: No photo -->
+      <div class="demo">
+        <div class="label"><span class="dot"></span><span class="name">No photo<span class="what"> · fallback</span></span></div>
+        <article class="pc pc--compact pc--reorder">
+          <div class="pc__media">
+            <div class="pc__fallback">
+              <span class="cat">Pierogies</span>
+              <span class="mono">P&amp;S</span>
+              <span class="who">Pierogi &amp; Sons</span>
+            </div>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Pierogi &amp; Sons</span>
+            <span class="pc__title">Pierogies — Pulled Pork</span>
+            <span class="pc__meta tabular">10 × 1.25 lb · $101.75</span>
+            <div class="pc__last tabular">
+              <span><span class="lbl">Last</span> <span class="v">2 × $101.75</span></span>
+              <span class="lbl" style="align-self:center">Fri 5/01</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Reorder 2</button></div>
+        </article>
+      </div>
+
+      <!-- C: In cart -->
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">In cart<span class="what"> · already re-added</span></span></div>
+        <article class="pc pc--compact pc--reorder">
+          <div class="pc__media">
+            <img src="assets/photos/farm-2.jpg" alt="" loading="lazy">
+            <span class="pc__badge pc__badge--cart">× 2 in cart</span>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Silver Lake Cheese</span>
+            <span class="pc__title">Silver Lake Gruyère 8oz</span>
+            <span class="pc__meta tabular">12 × 8 oz · $120.00</span>
+            <div class="pc__last tabular">
+              <span><span class="lbl">Last</span> <span class="v">3 × $120</span></span>
+              <span class="lbl" style="align-self:center">Tue 4/28</span>
+            </div>
+          </div>
+          <div class="pc__foot">
+            <div class="qty qty--solid"><button>−</button><span class="val">2</span><button>+</button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- D: In guide -->
+      <div class="demo">
+        <div class="label"><span class="dot is-warn"></span><span class="name">In guide<span class="what"> · saved</span></span></div>
+        <article class="pc pc--compact pc--reorder">
+          <div class="pc__media">
+            <img src="assets/photos/farm-3.jpg" alt="" loading="lazy">
+            <span class="pc__badge pc__badge--guide">
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .5l1.6 3.7 4 .4-3 2.8.9 4-3.5-2.1L2.5 11.4l.9-4-3-2.8 4-.4z"/></svg>
+              In guide
+            </span>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Hartke Family Farm</span>
+            <span class="pc__title">Whole Milk — Jersey</span>
+            <span class="pc__meta tabular">4 × 1 gal · $42.00</span>
+            <div class="pc__last tabular">
+              <span><span class="lbl">Last</span> <span class="v">6 × $42</span></span>
+              <span class="lbl" style="align-self:center">Tue 5/05</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Reorder 6</button></div>
+        </article>
+      </div>
+
+      <!-- E: Out for season -->
+      <div class="demo">
+        <div class="label"><span class="dot is-pause"></span><span class="name">Out for season<span class="what"> · from last year's order</span></span></div>
+        <article class="pc pc--compact pc--reorder">
+          <div class="pc__media is-muted">
+            <img src="assets/photos/produce-1.jpg" alt="" loading="lazy">
+            <div class="pc__cover"><span class="pc__chip is-season"><span class="dot"></span>Out for the season</span></div>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Shtayburne Farm</span>
+            <span class="pc__title">Heirloom Tomatoes</span>
+            <span class="pc__voice">We'll text you when next year's crop ships.</span>
+            <div class="pc__last tabular">
+              <span><span class="lbl">Last yr</span> <span class="v">8 × $38</span></span>
+              <span class="lbl" style="align-self:center">Aug '25</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-notify">Notify when back</button></div>
+        </article>
+      </div>
+
+      <!-- F: Out of stock -->
+      <div class="demo">
+        <div class="label"><span class="dot is-out"></span><span class="name">Out of stock<span class="what"> · this week</span></span></div>
+        <article class="pc pc--compact pc--reorder">
+          <div class="pc__media is-muted">
+            <img src="assets/photos/farm-4.jpg" alt="" loading="lazy">
+            <div class="pc__cover"><span class="pc__chip is-stock"><span class="dot"></span>Out of stock</span></div>
+          </div>
+          <div class="pc__body">
+            <span class="pc__producer">Grasslands</span>
+            <span class="pc__title">Ground Beef 80/20</span>
+            <span class="pc__meta tabular">10 lb · $94.00</span>
+            <div class="pc__last tabular">
+              <span><span class="lbl">Last</span> <span class="v">2 × $94</span></span>
+              <span class="lbl" style="align-self:center">Tue 4/28</span>
+            </div>
+          </div>
+          <div class="pc__foot"><button class="btn-add" disabled>Back Monday</button></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- INTERACTION STATES                                            -->
+  <!-- ============================================================ -->
+  <section>
+    <header>
+      <span class="num">04</span>
+      <h2>Interaction states — compact</h2>
+      <span class="where">demoed on variant 01; rules apply to all</span>
+    </header>
+    <p class="sec-note"><strong>Hover</strong> deepens the hairline (no shadow, no lift). <strong>Focus-visible</strong> draws a 2px brand-blue ring offset 2px — same ring on the card root for keyboard catalog browsing and on the Add button. <strong>Active</strong> presses the Add button to 98% scale and shifts to <code>--brand-blue-dark</code>. All three live on the same easing — <code>cubic-bezier(.2,.8,.2,1)</code>, 150ms.</p>
+
+    <div class="ix-row">
+      <div class="demo">
+        <div class="label"><span class="dot"></span><span class="name">Default</span></div>
+        <article class="pc pc--compact">
+          <div class="pc__media"><img src="assets/photos/chicken-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Meadow Creek</span>
+            <span class="pc__title">Jumbo Brown Eggs</span>
+            <span class="pc__byline">From Meadow Creek's hens.</span>
+            <div class="pc__price-row"><span class="pc__price tabular">$108.00</span></div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Add</button></div>
+        </article>
+      </div>
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">Hover</span></div>
+        <article class="pc pc--compact is-hover">
+          <div class="pc__media"><img src="assets/photos/chicken-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Meadow Creek</span>
+            <span class="pc__title">Jumbo Brown Eggs</span>
+            <span class="pc__byline">From Meadow Creek's hens.</span>
+            <div class="pc__price-row"><span class="pc__price tabular">$108.00</span></div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Add</button></div>
+        </article>
+      </div>
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">Focus-visible</span></div>
+        <article class="pc pc--compact is-focus">
+          <div class="pc__media"><img src="assets/photos/chicken-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Meadow Creek</span>
+            <span class="pc__title">Jumbo Brown Eggs</span>
+            <span class="pc__byline">From Meadow Creek's hens.</span>
+            <div class="pc__price-row"><span class="pc__price tabular">$108.00</span></div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Add</button></div>
+        </article>
+      </div>
+      <div class="demo">
+        <div class="label"><span class="dot is-active"></span><span class="name">Active <span class="what">(button press)</span></span></div>
+        <article class="pc pc--compact is-active">
+          <div class="pc__media"><img src="assets/photos/chicken-1.jpg" alt="" loading="lazy"></div>
+          <div class="pc__body">
+            <span class="pc__producer">Meadow Creek</span>
+            <span class="pc__title">Jumbo Brown Eggs</span>
+            <span class="pc__byline">From Meadow Creek's hens.</span>
+            <div class="pc__price-row"><span class="pc__price tabular">$108.00</span></div>
+          </div>
+          <div class="pc__foot"><button class="btn-add">Add</button></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <div class="pagefoot">
+    Spec v2 · references tokens in <code>colors_and_type.css</code>. No JSX in this file — implementation can map each class 1:1 to a React component (<code>ProductCard</code>, <code>ProductCardRow</code>, <code>ProductCardReorder</code>) sharing one body composition.
+  </div>
+
+</div>
+</body>
+</html>

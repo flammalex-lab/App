@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fingerlakes Farms — Component Specs</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  body { margin: 0; padding: 48px 32px 96px; max-width: 880px; background: var(--bg-secondary); }
+  .mark { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+  .mark img { width: 36px; height: 36px; border-radius: 50%; }
+  .mark .wm { font-family: var(--font-display); font-weight: 800; color: var(--brand-blue); letter-spacing: -0.025em; font-size: 18px; }
+  h1 { font-size: 36px; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .lede { color: var(--ink-secondary); font-size: 16px; line-height: 1.55; margin: 0 0 40px; max-width: 60ch; }
+  .links { display: grid; gap: 12px; }
+  a.card { display: block; background: white; border: 1px solid var(--border-hairline); border-radius: 12px; padding: 20px 22px; color: inherit; text-decoration: none; transition: border-color 150ms var(--ease-fluent); }
+  a.card:hover { border-color: var(--border-hover); text-decoration: none; }
+  a.card .eyebrow { margin-bottom: 6px; color: var(--brand-blue); }
+  a.card h3 { margin: 0 0 4px; font-size: 18px; }
+  a.card p { margin: 0; color: var(--ink-secondary); font-size: 14px; }
+  .arrow { float: right; font-size: 20px; color: var(--ink-tertiary); }
+</style>
+</head>
+<body>
+  <div class="mark">
+    <img src="assets/flf-logo.png" alt="">
+    <span class="wm">Fingerlakes Farms</span>
+  </div>
+  <span class="eyebrow">Component specs · v2</span>
+  <h1 style="margin-top:8px">Three briefs, three files.</h1>
+  <p class="lede">B2B portal redesigns scoped from the May audit. Each file is plain HTML + tokens from <code>colors_and_type.css</code>, ready to hand off.</p>
+
+  <div class="links">
+    <a class="card" href="01-product-card.html">
+      <span class="arrow">→</span>
+      <div class="eyebrow">Brief 1</div>
+      <h3>Product Card — unified spec</h3>
+      <p>3 layouts × 6 states. Resolves color drift, the FLF-logo fallback, retina sizing, the in-cart visibility gap, and producer byline placement.</p>
+    </a>
+    <a class="card" href="02-mobile-chrome.html">
+      <span class="arrow">→</span>
+      <div class="eyebrow">Brief 2</div>
+      <h3>Mobile chrome — header, tab bar, sticky cart</h3>
+      <p>One-bar 52px header. 5-tab nav with Cart first-class. StickyCartBar that respects safe-area and stays clear of toasts.</p>
+    </a>
+    <a class="card" href="03-strips.html">
+      <span class="arrow">→</span>
+      <div class="eyebrow">Brief 3</div>
+      <h3>Horizontal strips — scroll affordance</h3>
+      <p>Four viewports, three cases each. Fade/peek mechanic, keyboard focus, and the single-card category problem solved.</p>
+    </a>
+  </div>
+</body>
+</html>
