@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
@@ -10,8 +9,8 @@ import type {
   Product,
 } from "@/lib/supabase/types";
 import { GuideClient } from "./GuideClient";
+import { ReorderLastCard } from "./ReorderLastCard";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
-import { money } from "@/lib/utils/format";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
@@ -43,6 +42,10 @@ export default async function GuidePage() {
     .limit(1);
   const guide = ((guideRows as OrderGuide[] | null) ?? [])[0] ?? null;
 
+  // Pricing context — used by both the guide-items mapping and the
+  // "New from your producers" strip below. Load once.
+  const pricingCtx = await loadPricingContext(db, account, true);
+
   let items: GuideRow[] = [];
   if (guide) {
     const { data: itemRows } = await db
@@ -50,8 +53,6 @@ export default async function GuidePage() {
       .select("*, product:products(*)")
       .eq("order_guide_id", guide.id)
       .order("sort_order", { ascending: true });
-
-    const pricingCtx = await loadPricingContext(db, account, true);
 
     // Last-ordered lookup — find the most recent order_items row for each product
     // by this buyer. Cheap for now, bounded by the size of the guide.
@@ -133,22 +134,91 @@ export default async function GuidePage() {
   // Latest order to power "reorder last" card
   const { data: lastOrderRow } = await db
     .from("orders")
-    .select("id, order_number, total, created_at")
+    .select("id, order_number, total, created_at, requested_delivery_date, pickup_date")
     .eq("profile_id", profileId)
     .neq("status", "cancelled")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  let lastOrder: { id: string; order_number: string; total: number; item_count: number; created_at: string } | null = null;
+  let lastOrder: {
+    id: string;
+    order_number: string;
+    total: number;
+    item_count: number;
+    deliveryLabel: string | null;
+  } | null = null;
   if (lastOrderRow) {
+    const row = lastOrderRow as {
+      id: string;
+      order_number: string;
+      total: number;
+      created_at: string;
+      requested_delivery_date: string | null;
+      pickup_date: string | null;
+    };
+    // Item count is no longer rendered in the subtitle (per the new
+    // design — order # · delivered date · total), but keep the field
+    // around in case future copy tweaks want it.
     const { count } = await db
       .from("order_items")
       .select("id", { count: "exact", head: true })
-      .eq("order_id", (lastOrderRow as any).id);
+      .eq("order_id", row.id);
     lastOrder = {
-      ...(lastOrderRow as any),
+      id: row.id,
+      order_number: row.order_number,
+      total: Number(row.total),
       item_count: count ?? 0,
+      deliveryLabel: formatDeliveryLabel(
+        row.requested_delivery_date ?? row.pickup_date,
+      ),
     };
+  }
+
+  // ---- "New from your producers" -----------------------------------------
+  // Discovery strip at the bottom of /guide. Surface products from
+  // producers the buyer already orders from, but that they have never
+  // ordered themselves. Bounded to ~12 for the horizontal strip; hidden
+  // entirely when empty (no "no results" meta-state on discovery).
+  let newFromProducers: PricedProductLite[] = [];
+  {
+    // Buyer's full order history — distinct producers and distinct
+    // product_ids. One round-trip via inner joins on the orders table to
+    // scope by profile_id.
+    const { data: historyRows } = await db
+      .from("order_items")
+      .select("product_id, product:products!inner(producer), orders!inner(profile_id)")
+      .eq("orders.profile_id", profileId);
+
+    const orderedProducers = new Set<string>();
+    const orderedProductIds = new Set<string>();
+    for (const r of ((historyRows as any[] | null) ?? [])) {
+      const pid = r.product_id as string | undefined;
+      const producer = r.product?.producer as string | undefined;
+      if (pid) orderedProductIds.add(pid);
+      if (producer) orderedProducers.add(producer.trim());
+    }
+
+    if (orderedProducers.size) {
+      let q = db
+        .from("products")
+        .select("*")
+        .in("producer", Array.from(orderedProducers))
+        .eq("is_active", true)
+        .eq("available_b2b", true)
+        .eq("available_this_week", true)
+        .order("producer", { ascending: true })
+        .order("name", { ascending: true })
+        .limit(24); // small overfetch — we filter ordered-already in JS
+      if (orderedProductIds.size) {
+        // PostgREST "not in" needs a parenthesised list — using .not is
+        // the supported builder path for that.
+        q = q.not("id", "in", `(${Array.from(orderedProductIds).join(",")})`);
+      }
+      const { data: newRows } = await q;
+      newFromProducers = ((newRows as Product[] | null) ?? [])
+        .slice(0, 12)
+        .map((p) => ({ ...p, unitPrice: priceForProduct(p, pricingCtx) }));
+    }
   }
 
   // Time-of-day greeting
@@ -163,28 +233,9 @@ export default async function GuidePage() {
         {greeting}, <span className="font-medium text-ink-primary">{firstName}</span>.
       </div>
 
-      {/* Reorder-last card */}
-      {lastOrder ? (
-        <section className="mb-3">
-          <form action={`/api/orders/reorder?orderId=${lastOrder.id}`} method="post">
-            <button
-              type="submit"
-              className="w-full card p-4 flex items-center gap-4 hover:shadow-lg transition text-left active:scale-[0.99]"
-            >
-              <div className="h-12 w-12 rounded-lg bg-brand-green-tint text-brand-green flex items-center justify-center text-xl shrink-0">
-                ↻
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">Reorder last</div>
-                <div className="text-xs text-ink-secondary mt-0.5">
-                  {lastOrder.order_number} · {lastOrder.item_count} {lastOrder.item_count === 1 ? "item" : "items"} · {money(lastOrder.total)}
-                </div>
-              </div>
-              <span className="text-ink-tertiary">→</span>
-            </button>
-          </form>
-        </section>
-      ) : null}
+      {/* Reorder-last card — brand-blue primary surface, client-side
+          hidden when the cart has items (would conflict with active edit). */}
+      {lastOrder ? <ReorderLastCard lastOrder={lastOrder} /> : null}
 
       {items.length === 0 ? (
         <EmptyState
@@ -199,11 +250,37 @@ export default async function GuidePage() {
           items={items}
           buyerProducerRank={buyerProducerRank}
           globalProducerRank={globalProducerRank}
+          newFromProducers={newFromProducers}
         />
       )}
     </div>
   );
 }
+
+/** Pre-formatted weekday + month + day for the Reorder card subtitle.
+ *  Date-only strings (YYYY-MM-DD) are local-calendar dates — parse them
+ *  the same way `lib/utils/format` does so a 2026-05-01 delivery shows
+ *  as "Fri May 1" in upstate NY, not Thursday in a negative-offset TZ. */
+function formatDeliveryLabel(d: string | null | undefined): string | null {
+  if (!d) return null;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.exec(d);
+  const parsed = dateOnly
+    ? (() => {
+        const [y, m, day] = d.split("-").map(Number);
+        return new Date(y, m - 1, day);
+      })()
+    : new Date(d);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Lite priced-product shape passed from the server fetch to the client
+ *  strip. Matches `PricedProduct` from `components/products/ProductCard`. */
+export type PricedProductLite = Product & { unitPrice: number | null };
 
 export type GuideRow = OrderGuideItem & {
   product: Product;
