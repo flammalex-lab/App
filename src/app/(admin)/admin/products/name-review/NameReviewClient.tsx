@@ -8,6 +8,10 @@ interface Row {
   id: string;
   sku?: string;
   name?: string;
+  producer?: string | null;
+  category?: string | null;
+  sub_category?: string | null;
+  case_pack?: string | null;
   pack_size?: string | null;
   needs_naming_review?: boolean;
 }
@@ -100,6 +104,10 @@ export function NameReviewClient({ pendingCount }: { pendingCount: number }) {
               <tr>
                 <th className="p-2">SKU</th>
                 <th className="p-2">Name</th>
+                <th className="p-2">Producer</th>
+                <th className="p-2">Category</th>
+                <th className="p-2">Sub-category</th>
+                <th className="p-2">Case</th>
                 <th className="p-2">Pack size</th>
                 <th className="p-2">Finalized?</th>
               </tr>
@@ -109,6 +117,10 @@ export function NameReviewClient({ pendingCount }: { pendingCount: number }) {
                 <tr key={r.id} className="border-t border-black/5">
                   <td className="p-2 mono">{r.sku ?? ""}</td>
                   <td className="p-2">{r.name ?? ""}</td>
+                  <td className="p-2">{r.producer ?? ""}</td>
+                  <td className="p-2">{r.category ?? ""}</td>
+                  <td className="p-2">{r.sub_category ?? ""}</td>
+                  <td className="p-2 tabular">{r.case_pack ?? ""}</td>
                   <td className="p-2">{r.pack_size ?? ""}</td>
                   <td className="p-2">
                     {r.needs_naming_review === false ? (
@@ -167,10 +179,23 @@ function parseCSV(text: string): Row[] {
     id: idx("id"),
     sku: idx("sku"),
     name: idx("name"),
+    producer: idx("producer"),
+    category: idx("category"),
+    sub_category: idx("sub_category"),
+    case_pack: idx("case_pack"),
     pack_size: idx("pack_size"),
     needs_naming_review: idx("needs_naming_review"),
   };
   if (i.id < 0) return [];
+
+  // Empty cell on an edit column means "clear the value" (we want
+  // null on the server). Missing column entirely means "leave as-is"
+  // (we omit the key so the server doesn't touch it).
+  const nullable = (colIdx: number, cells: string[]): string | null | undefined => {
+    if (colIdx < 0) return undefined;
+    const v = cells[colIdx]?.trim();
+    return v ? v : null;
+  };
 
   const out: Row[] = [];
   for (let r = 1; r < lines.length; r++) {
@@ -180,10 +205,16 @@ function parseCSV(text: string): Row[] {
     const row: Row = { id };
     if (i.sku >= 0) row.sku = cells[i.sku]?.trim() || undefined;
     if (i.name >= 0) row.name = cells[i.name]?.trim() || undefined;
-    if (i.pack_size >= 0) {
-      const v = cells[i.pack_size]?.trim();
-      row.pack_size = v ? v : null;
-    }
+    const producer = nullable(i.producer, cells);
+    if (producer !== undefined) row.producer = producer;
+    const category = nullable(i.category, cells);
+    if (category !== undefined) row.category = category;
+    const subCategory = nullable(i.sub_category, cells);
+    if (subCategory !== undefined) row.sub_category = subCategory;
+    const casePack = nullable(i.case_pack, cells);
+    if (casePack !== undefined) row.case_pack = casePack;
+    const packSize = nullable(i.pack_size, cells);
+    if (packSize !== undefined) row.pack_size = packSize;
     if (i.needs_naming_review >= 0) {
       const v = cells[i.needs_naming_review]?.trim().toLowerCase();
       // Spreadsheet apps export booleans as "true"/"false" or "TRUE"/"FALSE";
