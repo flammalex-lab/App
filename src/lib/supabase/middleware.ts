@@ -61,6 +61,10 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/_next") ||
     path.startsWith("/icons") ||
     path.startsWith("/images") ||
+    // Capacitor deep-link manifests (Universal Links + App Links) must be
+    // fetchable without a session — iOS/Android fetch these from public
+    // CDN paths to verify ownership of the app's URL handlers.
+    path.startsWith("/.well-known/") ||
     path.endsWith("/manifest.json") ||
     path.endsWith("/sw.js") ||
     path.endsWith("/favicon.ico");

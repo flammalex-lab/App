@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
 import "./globals.css";
+import { CapacitorBoot } from "@/components/CapacitorBoot";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { PWARegister } from "@/components/PWARegister";
 import { ToastProvider } from "@/components/ui/Toast";
 
@@ -28,9 +30,20 @@ export const metadata: Metadata = {
     icon: [
       { url: "/images/flf-logo.png", type: "image/png", sizes: "1024x1024" },
     ],
-    apple: { url: "/images/flf-logo.png" },
+    // Apple touch icons for iOS Home Screen installs. The 180x180 is the
+    // primary modern size; the smaller sizes are for older iOS versions
+    // that ignore the modern size hint.
+    apple: [
+      { url: "/images/flf-logo.png", sizes: "180x180", type: "image/png" },
+      { url: "/images/flf-logo.png", sizes: "152x152", type: "image/png" },
+      { url: "/images/flf-logo.png", sizes: "120x120", type: "image/png" },
+    ],
   },
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "FLF" },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Fingerlakes Farms",
+  },
 };
 
 export const viewport: Viewport = {
@@ -46,6 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen">
         <ToastProvider>{children}</ToastProvider>
         <PWARegister />
+        <CapacitorBoot />
+        <InstallPrompt />
       </body>
     </html>
   );
