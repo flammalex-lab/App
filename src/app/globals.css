@@ -113,6 +113,21 @@
   .badge-sage   { @apply badge bg-brand-green/15 text-brand-green-dark; }
 }
 
+/* Sheet-open header rescue: BottomSheet locks the body via
+   `position: fixed; top: -<scrollY>` to prevent scroll-jump on open.
+   Once body is fixed, `position: sticky` on the header has no
+   scrollable ancestor to anchor to — it falls back to document-flow
+   position, which is now offset upward by the captured scrollY, and
+   slides off-screen. BottomSheet sets data-sheet-open on <html>
+   synchronously inside useLayoutEffect; this rule swaps the wrapper
+   to position: fixed so it stays anchored to the viewport. */
+html[data-sheet-open="true"] .scroll-hide-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0;
+  right: 0;
+}
+
 /* Print: buyers print order confirmations from /orders/[id]. Strip every
    piece of app chrome (top cutoff strip, header, sticky cart bar, footer,
    floating buttons) so the printed page is just the receipt — order

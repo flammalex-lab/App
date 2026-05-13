@@ -87,6 +87,11 @@ export function BottomSheet({
     body.style.width = "100%";
     body.style.overflow = "hidden";
     html.style.overflow = "hidden";
+    // Flag the document synchronously so ScrollHideHeader (and any other
+    // sticky bar that breaks when body is position:fixed) can swap to
+    // a fixed-positioned variant via CSS — no JS race, no MutationObserver
+    // microtask gap, no service-worker-cached old behavior.
+    html.setAttribute("data-sheet-open", "true");
     return () => {
       body.style.position = prev.bodyPos;
       body.style.top = prev.bodyTop;
@@ -95,6 +100,7 @@ export function BottomSheet({
       body.style.width = prev.bodyWidth;
       body.style.overflow = prev.bodyOverflow;
       html.style.overflow = prev.htmlOverflow;
+      html.removeAttribute("data-sheet-open");
       window.scrollTo({ top: scrollY, left: 0, behavior: "auto" });
     };
   }, [open]);
