@@ -23,6 +23,7 @@ import { StockUpButton } from "./StockUpButton";
 import { BackButton } from "@/components/layout/BackButton";
 import { groupBySubCategory } from "@/lib/products/sub-category";
 import { compareProducersByRank, rankProducers } from "@/lib/products/producer-rank";
+import { getBuyerHistory } from "@/lib/products/buyer-history";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
@@ -52,15 +53,19 @@ export default async function CatalogPage({
   const account = active;
 
   // Account-scoped pricing inputs (overrides + price-list rows), the
-  // allow-list for any private products, and the buyer's default
-  // order-guide product IDs (B2B "In guide" badge). All three are
-  // independent — running them in one Promise.all collapses three
-  // round-trips into one.
-  const [pricingCtx, allowedPrivateIds, inGuideIds] = await Promise.all([
-    loadPricingContext(db, account, isB2B),
-    getAllowedPrivateProductIds(db, account?.id ?? null),
-    loadInGuideIds(db, profileId, isB2B),
-  ]);
+  // allow-list for any private products, the buyer's default
+  // order-guide product IDs (B2B "In guide" badge), and the buyer's
+  // aggregated order history. All four are independent — running them
+  // in one Promise.all collapses four round-trips into one. buyerHistory
+  // is cached in Vercel's data cache per-buyer (see lib/products/
+  // buyer-history.ts), so this is usually a cheap memory lookup.
+  const [pricingCtx, allowedPrivateIds, inGuideIds, buyerHistory] =
+    await Promise.all([
+      loadPricingContext(db, account, isB2B),
+      getAllowedPrivateProductIds(db, account?.id ?? null),
+      loadInGuideIds(db, profileId, isB2B),
+      getBuyerHistory(profileId),
+    ]);
 
   // Per-buyer buyer_type overrides the account's (see migration 0009).
   const effectiveBuyerType = me.buyer_type ?? account?.buyer_type ?? null;
@@ -85,14 +90,11 @@ export default async function CatalogPage({
     // is_active / channel / buyer_type / private filter set can never drift.
     const baseOpts = { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds };
 
-    // ---- Tier A: 5 independent queries kicked off in parallel.
-    // Previously these awaited one-after-another (~5 sequential DB
-    // round-trips on a cold cache). They share no dependencies — none
-    // reads another's result — so Promise.all collapses them to a
-    // single tier of latency.
+    // ---- Tier A: 4 independent queries kicked off in parallel.
+    // (Buyer order history is already in hand from the cached fetch
+    // above, so the old 5th query is gone.)
     const [
       { data: weekRows },
-      { data: historyRows },
       { data: producerRows },
       { data: suggestRows },
       { data: counts },
@@ -102,12 +104,6 @@ export default async function CatalogPage({
         .eq("available_this_week", true)
         .order("sort_order", { ascending: true })
         .limit(12),
-      // Strip 2 (first half): order_items for this buyer
-      db
-        .from("order_items")
-        .select("product_id, quantity, orders!inner(profile_id)")
-        .eq("orders.profile_id", profileId)
-        .limit(200),
       // Strip 3 (first half): producer counts for featured-producer pick
       visibleProductsQuery(db, { ...baseOpts, select: "producer" }).not(
         "producer",
@@ -125,10 +121,12 @@ export default async function CatalogPage({
 
     const thisWeek = priceProducts(weekRows as Product[] | null, pricingCtx);
 
-    // Strip 2 derivation: top SKUs from history rows
+    // Strip 2 derivation: top SKUs from buyer's cached, pre-aggregated
+    // history. One row per (product, producer) — just project to a
+    // product-id → qty map.
     const countByProduct = new Map<string, number>();
-    for (const r of (historyRows as any[] | null) ?? []) {
-      countByProduct.set(r.product_id, (countByProduct.get(r.product_id) ?? 0) + Number(r.quantity));
+    for (const r of buyerHistory) {
+      countByProduct.set(r.product_id, (countByProduct.get(r.product_id) ?? 0) + r.qty);
     }
     const topIds = Array.from(countByProduct.entries())
       .sort((a, b) => b[1] - a[1])
@@ -367,20 +365,18 @@ export default async function CatalogPage({
   const globalProducerRank: Record<string, number> = {};
   if (priced.length) {
     const pricedIds = priced.map((p) => p.id);
-    const [{ data: myItems }, { data: allItems }] = await Promise.all([
-      db
-        .from("order_items")
-        .select("product_id, quantity, orders!inner(profile_id)")
-        .eq("orders.profile_id", profileId)
-        .in("product_id", pricedIds),
-      db
-        .from("order_items")
-        .select("product_id, quantity")
-        .in("product_id", pricedIds),
-    ]);
-    for (const r of ((myItems as any[] | null) ?? [])) {
-      const pid = r.product_id as string;
-      buyerProductRank[pid] = (buyerProductRank[pid] ?? 0) + Number(r.quantity ?? 0);
+    const pricedIdSet = new Set(pricedIds);
+    // Buyer rank is read from the cached pre-aggregated buyerHistory
+    // (no per-page order_items round-trip). Global rank still needs its
+    // own query — there's no buyer-scoped cache that helps here.
+    const { data: allItems } = await db
+      .from("order_items")
+      .select("product_id, quantity")
+      .in("product_id", pricedIds);
+    for (const row of buyerHistory) {
+      if (!pricedIdSet.has(row.product_id)) continue;
+      buyerProductRank[row.product_id] =
+        (buyerProductRank[row.product_id] ?? 0) + row.qty;
     }
     for (const r of ((allItems as any[] | null) ?? [])) {
       const pid = r.product_id as string;

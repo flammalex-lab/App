@@ -44,7 +44,7 @@ export default async function GuidePage() {
     // (pre-0010 dedupe) still resolve deterministically.
     .order("created_at", { ascending: true })
     .limit(1);
-  const buyerHistoryPromise = getBuyerHistory(db, profileId);
+  const buyerHistoryPromise = getBuyerHistory(profileId);
   const lastOrderRowPromise = db
     .from("orders")
     .select("id, order_number, total, created_at, requested_delivery_date, pickup_date")
@@ -94,13 +94,14 @@ export default async function GuidePage() {
     ]);
 
   // ---- Derivations from cached buyer history (no more queries needed).
+  // buyerHistory is already aggregated server-side: one row per
+  // (product, producer), with qty summed and lastOrderedAt = max(created_at).
   const lastOrderedByProduct: Record<string, string> = {};
   for (const row of buyerHistory) {
-    const ts = row.orderedAt;
-    if (!ts) continue;
-    const pid = row.product_id;
-    if (!lastOrderedByProduct[pid] || ts > lastOrderedByProduct[pid]) {
-      lastOrderedByProduct[pid] = ts;
+    if (!row.lastOrderedAt) continue;
+    const existing = lastOrderedByProduct[row.product_id];
+    if (!existing || row.lastOrderedAt > existing) {
+      lastOrderedByProduct[row.product_id] = row.lastOrderedAt;
     }
   }
 
@@ -177,7 +178,7 @@ export default async function GuidePage() {
       const prod = row.producer?.trim();
       if (!prod || !guideProducerSet.has(prod)) continue;
       buyerProducerRank[prod] =
-        (buyerProducerRank[prod] ?? 0) + row.quantity;
+        (buyerProducerRank[prod] ?? 0) + row.qty;
     }
     for (const r of ((allItems as any[] | null) ?? [])) {
       const prod = r.product?.producer as string | undefined;

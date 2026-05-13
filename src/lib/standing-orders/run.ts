@@ -1,6 +1,8 @@
+import { revalidateTag } from "next/cache";
 import type { StandingOrder, StandingOrderItem, Product, Account, Profile } from "@/lib/supabase/types";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
+import { buyerHistoryTag } from "@/lib/products/buyer-history";
 
 /**
  * Materialize a standing order into a draft order. If require_confirmation is
@@ -62,6 +64,10 @@ export async function runStandingOrder(svc: any, standingOrderId: string): Promi
     line_total: round2((it.unitPrice as number) * Number(it.quantity)),
     notes: it.notes,
   })));
+
+  // The buyer just gained a new order's worth of items via the cron —
+  // bust their cached buyer-history aggregate.
+  revalidateTag(buyerHistoryTag(s.profile_id));
 
   await svc.from("standing_orders").update({
     last_run_date: new Date().toISOString().slice(0, 10),
