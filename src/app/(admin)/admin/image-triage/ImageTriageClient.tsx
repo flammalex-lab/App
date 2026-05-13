@@ -38,6 +38,14 @@ interface Item {
   file: File; // original
   cutoutFile: File | null; // background-removed
   previewUrl: string;
+  /**
+   * Path relative to the picked folder when the user used the "Pick folder"
+   * input (e.g. "Red Jacket Orchards/raspberry-32oz.jpg"). Empty string for
+   * ad-hoc multi-file picks. Sent to the matcher as the filename so folder
+   * names — typically brand / producer — become tokens that boost matching
+   * confidence (see api/admin/image-triage/match/route.ts).
+   */
+  relativePath: string;
   status: ItemStatus;
   result?: MatchResult;
   chosenProductId?: string | null;
@@ -86,6 +94,7 @@ export function ImageTriageClient() {
         file: f,
         cutoutFile: null,
         previewUrl: URL.createObjectURL(f),
+        relativePath: f.webkitRelativePath || "",
         status: "idle",
       });
     }
@@ -171,7 +180,7 @@ export function ImageTriageClient() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            filename: it.file.name,
+            filename: it.relativePath || it.file.name,
             producer: producer.trim() || null,
             imageBase64,
             imageMediaType: working.type || "image/jpeg",
@@ -280,6 +289,12 @@ export function ImageTriageClient() {
         </label>
         <div>
           <label className="label">Images</label>
+          <p className="text-xs text-ink-tertiary mb-2 leading-snug max-w-md">
+            Pick a folder to use brand/producer folder names as matching
+            signal — files inside <code>Red Jacket Orchards/</code> get
+            those tokens added to the match scorer automatically. Or pick
+            individual files for ad-hoc uploads.
+          </p>
           <div className="flex items-center gap-3 flex-wrap">
             <input
               type="file"
@@ -287,6 +302,17 @@ export function ImageTriageClient() {
               multiple
               onChange={(e) => addFiles(e.target.files)}
               className="text-sm"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              // webkitdirectory is non-standard but works in every modern
+              // browser; cast keeps TS quiet.
+              {...({ webkitdirectory: "" } as any)}
+              onChange={(e) => addFiles(e.target.files)}
+              className="text-sm"
+              aria-label="Pick a folder"
             />
             <Button onClick={processAll} loading={running} disabled={items.length === 0 || running}>
               Process {pendingCount || ""} pending
