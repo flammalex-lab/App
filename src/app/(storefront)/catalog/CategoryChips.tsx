@@ -39,7 +39,7 @@ export function CategoryChips({
               href={href}
               className={
                 isActive
-                  ? "px-3.5 py-1.5 rounded-full bg-ink-primary text-white text-sm font-medium whitespace-nowrap transition"
+                  ? "px-3.5 py-1.5 rounded-full bg-brand-blue text-white text-sm font-medium whitespace-nowrap transition"
                   : "px-3.5 py-1.5 rounded-full bg-white border border-black/10 text-ink-primary text-sm font-medium hover:border-black/20 hover:bg-bg-secondary whitespace-nowrap transition"
               }
             >

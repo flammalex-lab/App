@@ -25,20 +25,6 @@ import { compareProducersByRank, rankProducers } from "@/lib/products/producer-r
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
-const GROUP_COLORS: Record<ProductGroup, { from: string; to: string }> = {
-  meat:    { from: "#9D3123", to: "#5E1A13" },
-  grocery: { from: "#C4962C", to: "#7A5A12" },
-  produce: { from: "#7BB26B", to: "#355E2A" },
-  dairy:   { from: "#B1C1D6", to: "#4A6B8A" },
-  cheese:  { from: "#E9C96B", to: "#A37C17" },
-};
-
-function groupTileImage(group: ProductGroup): string {
-  const { from, to } = GROUP_COLORS[group];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="120" height="90" fill="url(#g)"/></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
 function priceProducts(
   rows: Product[] | null | undefined,
   ctx: PricingContext,
@@ -241,56 +227,6 @@ export default async function CatalogPage({
             inGuideIds={inGuideIds}
           />
         ) : null}
-
-        {/* Explore / Best Sellers + Group tiles — kept as a fallback grid below strips */}
-        {allowed.length > 1 ? (
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <Link
-              href="/catalog?group=explore"
-              className="relative rounded-xl overflow-hidden shadow-card hover:shadow-lg transition aspect-[3/1] flex items-center justify-center text-white bg-gradient-to-br from-brand-blue to-brand-blue-dark"
-            >
-              <div className="text-center">
-                <div className="display text-lg tracking-tight">Explore</div>
-                <div className="text-[11px] opacity-80">Everything available to you</div>
-              </div>
-            </Link>
-            <Link
-              href="/catalog?group=best"
-              className="relative rounded-xl overflow-hidden shadow-card hover:shadow-lg transition aspect-[3/1] flex items-center justify-center text-white bg-gradient-to-br from-accent-rust to-[#6b3820]"
-            >
-              <div className="text-center">
-                <div className="display text-lg tracking-tight">Best sellers</div>
-                <div className="text-[11px] opacity-80">Most ordered this season</div>
-              </div>
-            </Link>
-          </div>
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-3 ">
-          {groupCounts.map(({ group, count }) => (
-            <Link
-              key={group}
-              href={`/catalog?group=${group}`}
-              className="group relative aspect-[3/1] rounded-xl overflow-hidden shadow-card hover:shadow-lg transition"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={groupTileImage(group)}
-                alt={GROUP_LABELS[group]}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                <div className="display text-lg tracking-tight leading-none">
-                  {GROUP_LABELS[group]}
-                </div>
-                <div className="text-[11px] opacity-80 mt-1">
-                  {count} {count === 1 ? "item" : "items"}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
       </div>
     );
   }
