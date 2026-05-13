@@ -70,11 +70,16 @@ export default async function StorefrontLayout({
           </form>
         </div>
       ) : null}
-      {effective.role === "b2b_buyer" ? <CutoffClock next={serialized} /> : null}
+      {effective.role === "b2b_buyer" ? (
+        <div className="hidden md:block">
+          <CutoffClock next={serialized} />
+        </div>
+      ) : null}
       <StoreNav
         profile={effective}
         activeAccount={activeAccount}
         memberships={memberships}
+        next={serialized}
       />
       {/* overflow-x-clip on main so the bleed-out scroll strips
           (-mx-4 inside ScrollStrip / CategoryChips) don't cause the
@@ -83,7 +88,7 @@ export default async function StorefrontLayout({
       <main className="flex-1 px-4 md:px-6 lg:px-8 py-1 pb-32 overflow-x-clip">
         {children}
       </main>
-      <StickyCartBar />
+      <StickyCartBar next={serialized} />
       {modal}
       <footer className="hidden md:block border-t border-black/[0.06] mt-8 bg-white">
         <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
