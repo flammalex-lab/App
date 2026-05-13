@@ -2,12 +2,27 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
-import type { Order, OrderItem, Product, Profile } from "@/lib/supabase/types";
+import type {
+  Account,
+  DeliveryZoneRow,
+  Order,
+  OrderItem,
+  Product,
+  Profile,
+} from "@/lib/supabase/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, dateLong, money } from "@/lib/utils/format";
 import { LineItem } from "@/components/products/LineItem";
 import Link from "next/link";
 import { OrderPlacedHero } from "./OrderPlacedHero";
+import { AmendOrderSheet, type AmendCandidate } from "./AmendOrderSheet";
+import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
+import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
+import {
+  getAllowedPrivateProductIds,
+  visibleProductsQuery,
+} from "@/lib/products/queries";
 
 export const metadata = { title: "Order — Fingerlakes Farms" };
 
@@ -69,6 +84,116 @@ export default async function OrderDetail({
     : rows;
 
   const totalUnits = rows.reduce((s, r) => s + Number(r.quantity), 0);
+
+  // ─── Amendability check ─────────────────────────────────────────────
+  // Append-only edits are allowed only while the order is still pending
+  // AND the cutoff for its delivery/pickup date hasn't fired. Mirrors
+  // the server gate in /api/orders/[id]/amend so the buyer never sees
+  // a CTA that the server would reject.
+  const isPending = o.status === "pending";
+  let amendable = false;
+  let cutoffAtIso: string | null = null;
+  let amendCandidates: AmendCandidate[] = [];
+  if (isPending && deliveryIso) {
+    const { data: buyerRow } = await db
+      .from("profiles")
+      .select("*")
+      .eq("id", o.profile_id)
+      .maybeSingle();
+    const buyer = (buyerRow as Profile | null) ?? null;
+    let account: Account | null = null;
+    if (buyer?.account_id) {
+      const { data: acctRow } = await db
+        .from("accounts")
+        .select("*")
+        .eq("id", buyer.account_id)
+        .maybeSingle();
+      account = (acctRow as Account | null) ?? null;
+    }
+    let zone: DeliveryZoneRow | null = null;
+    if (account?.delivery_zone) {
+      const { data: z } = await db
+        .from("delivery_zones")
+        .select("*")
+        .eq("zone", account.delivery_zone)
+        .maybeSingle();
+      zone = (z as DeliveryZoneRow | null) ?? null;
+    }
+    let withinCutoff = true;
+    if (zone) {
+      const now = new Date();
+      const nextDel = nextDeliveryForZone(
+        zone,
+        now,
+        BUSINESS_TIMEZONE,
+        account?.delivery_days,
+      );
+      if (!nextDel) {
+        withinCutoff = false;
+      } else {
+        const nextDelIso = isoDateInTz(nextDel.deliveryDate, BUSINESS_TIMEZONE);
+        if (nextDelIso > deliveryIso) {
+          withinCutoff = false;
+        } else if (nextDelIso === deliveryIso) {
+          cutoffAtIso = nextDel.cutoffAt.toISOString();
+          if (nextDel.cutoffAt.getTime() <= now.getTime()) {
+            withinCutoff = false;
+          }
+        }
+      }
+    }
+    amendable = withinCutoff;
+
+    // Build the sheet's candidate list: the buyer's recent buys (last
+    // 21 days), de-duped to one row per product, freshly priced. Same
+    // visibility filters as the catalog so a buyer can't try to add a
+    // pulled-from-shelves SKU.
+    if (amendable && buyer) {
+      const isB2B = o.order_type === "b2b";
+      const since = new Date();
+      since.setDate(since.getDate() - 21);
+      const { data: histRows } = await db
+        .from("order_items")
+        .select("product_id, orders!inner(profile_id, created_at)")
+        .eq("orders.profile_id", o.profile_id)
+        .gte("orders.created_at", since.toISOString())
+        .limit(200);
+      const recentIds = Array.from(
+        new Set(((histRows as { product_id: string }[] | null) ?? []).map((r) => r.product_id)),
+      );
+      if (recentIds.length > 0) {
+        const allowedPrivateIds = await getAllowedPrivateProductIds(
+          db,
+          buyer.account_id ?? null,
+        );
+        const buyerType = buyer.buyer_type ?? account?.buyer_type ?? null;
+        const { data: prods } = await visibleProductsQuery(db, {
+          buyerType,
+          isB2B,
+          allowedPrivateIds,
+        })
+          .in("id", recentIds)
+          .eq("available_this_week", true);
+        const pricingCtx = await loadPricingContext(db, account, isB2B);
+        amendCandidates = ((prods as Product[] | null) ?? [])
+          .map((p) => {
+            const unitPrice = priceForProduct(p, pricingCtx);
+            if (unitPrice == null) return null;
+            return {
+              productId: p.id,
+              name: p.name,
+              sku: p.sku ?? null,
+              packSize: p.pack_size,
+              unit: p.unit,
+              unitPrice,
+              priceByWeight: Boolean(p.price_by_weight),
+            } satisfies AmendCandidate;
+          })
+          .filter((x): x is AmendCandidate => x !== null)
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto pt-3 pb-24">
@@ -170,6 +295,20 @@ export default async function OrderDetail({
         ) : null}
       </div>
 
+      {/* Append-only amendment CTA — only visible while the order is still
+          editable (pending + pre-cutoff). The Reorder action below stays
+          available regardless; the two jobs are different. */}
+      {amendable ? (
+        <div className="mt-5">
+          <AmendOrderSheet
+            orderId={o.id}
+            orderNumber={o.order_number}
+            cutoffAtIso={cutoffAtIso}
+            candidates={amendCandidates}
+          />
+        </div>
+      ) : null}
+
       {/* Prominent Reorder CTA — brand-blue per design-system primary token. */}
       <form action={`/api/orders/reorder?orderId=${o.id}`} method="post" className="mt-5">
         <button
@@ -184,6 +323,26 @@ export default async function OrderDetail({
       </p>
     </div>
   );
+}
+
+/**
+ * Render a Date as YYYY-MM-DD in the given IANA timezone. Mirrors the
+ * format `orders.requested_delivery_date` / `pickup_date` are stored in
+ * so string comparison against `deliveryIso` is safe. Duplicated here
+ * (and in /api/orders/[id]/amend) on purpose — the server gate has to
+ * use the same shape as the page-side gate, but the page is an RSC and
+ * pulling a shared util adds an import-graph risk without paying for
+ * itself yet.
+ */
+function isoDateInTz(d: Date, tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
