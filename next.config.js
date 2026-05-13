@@ -75,6 +75,19 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Keep the client-side router cache warm so toggling between Guide /
+  // Catalog / Orders / Chat is instant after the first visit. Next 16
+  // defaults dynamic pages to 0s, which forces a full server roundtrip
+  // on every nav and makes the portal feel sluggish. 30s is short
+  // enough that pricing / inventory edits still appear quickly, and
+  // explicit router.refresh() / revalidatePath() calls still bypass
+  // the cache as before.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
   images: {
     remotePatterns: [
       ...supabaseImagePatterns(),
