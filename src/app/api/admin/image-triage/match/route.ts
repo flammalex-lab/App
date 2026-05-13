@@ -44,9 +44,12 @@ export async function POST(request: Request) {
 
   // (1) Filename SKU match. Pull all active SKUs once and scan the filename
   // for any of them. "IMG_spice4.png" → matches SKU "SPICE4" (case-insensitive).
+  // image_url comes back too so the UI can flag products that already have
+  // an image and skip them from auto-apply by default — re-uploads should
+  // be opt-in, not a silent overwrite.
   const { data: allSkuRows } = await svc
     .from("products")
-    .select("id, sku, name, producer, pack_size, unit")
+    .select("id, sku, name, producer, pack_size, unit, image_url")
     .eq("is_active", true)
     .not("sku", "is", null);
   const allSkus = (allSkuRows as Array<{
@@ -56,6 +59,7 @@ export async function POST(request: Request) {
     producer: string | null;
     pack_size: string | null;
     unit: string;
+    image_url: string | null;
   }> | null) ?? [];
 
   const filenameLower = body.filename.toLowerCase();
@@ -71,6 +75,7 @@ export async function POST(request: Request) {
         producer: skuHit.producer,
         pack_size: skuHit.pack_size,
         unit: skuHit.unit,
+        existing_image_url: skuHit.image_url,
       },
       source: "filename_sku",
       confidence: "high",
@@ -123,6 +128,7 @@ export async function POST(request: Request) {
           producer: best.product.producer,
           pack_size: best.product.pack_size,
           unit: best.product.unit,
+          existing_image_url: best.product.image_url,
         },
         source: "filename_name",
         confidence: "high",
@@ -141,7 +147,7 @@ export async function POST(request: Request) {
   // doesn't get huge for nothing.
   let q = svc
     .from("products")
-    .select("id, sku, name, producer, pack_size, unit, description")
+    .select("id, sku, name, producer, pack_size, unit, description, image_url")
     .eq("is_active", true);
   const hasProducer = Boolean(body.producer?.trim());
   if (hasProducer) {
@@ -156,6 +162,7 @@ export async function POST(request: Request) {
     pack_size: string | null;
     unit: string;
     description: string | null;
+    image_url: string | null;
   }> | null) ?? [];
   if (candidates.length === 0) {
     return NextResponse.json({ match: null, source: "no_candidates" });
@@ -243,6 +250,7 @@ Be strict — if the image shows something not in the list, return product_id as
           producer: picked.producer,
           pack_size: picked.pack_size,
           unit: picked.unit,
+          existing_image_url: picked.image_url,
         }
       : null,
     source: "vision",

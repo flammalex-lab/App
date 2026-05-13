@@ -12,6 +12,10 @@ interface Match {
   producer: string | null;
   pack_size: string | null;
   unit: string;
+  /** URL of the image already attached to this product, if any. We flag
+   *  these in the UI and skip them from auto-apply by default — replacing
+   *  an existing photo should be opt-in, not a silent overwrite. */
+  existing_image_url?: string | null;
 }
 
 interface MatchResult {
@@ -344,10 +348,14 @@ export function ImageTriageClient() {
   }
 
   async function applyAllHighConfidence() {
+    // Skip rows whose matched product already has an image. Replacing an
+    // existing photo is destructive — gate it behind a manual click per
+    // row instead of silently overwriting via the bulk button.
     const ready = items.filter(
       (it) =>
         it.status === "matched" &&
         it.chosenProductId &&
+        !it.result?.match?.existing_image_url &&
         (it.result?.source === "filename_sku" || it.result?.source === "filename_name" || it.result?.confidence === "high"),
     );
     for (const it of ready) {
@@ -439,6 +447,7 @@ export function ImageTriageClient() {
                 items.filter(
                   (x) =>
                     x.status === "matched" &&
+                    !x.result?.match?.existing_image_url &&
                     (x.result?.source === "filename_sku" || x.result?.source === "filename_name" || x.result?.confidence === "high"),
                 ).length === 0
               }
@@ -569,9 +578,19 @@ function ItemCard({
                   {match.producer ?? "—"} · {match.pack_size ?? match.unit} ·{" "}
                   {match.sku ? <span className="tabular">{match.sku}</span> : "no SKU"}
                 </div>
-                {confidenceLabel ? (
-                  <span className={confidenceColor}>{confidenceLabel}</span>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {confidenceLabel ? (
+                    <span className={confidenceColor}>{confidenceLabel}</span>
+                  ) : null}
+                  {match.existing_image_url ? (
+                    <span
+                      className="badge-gold"
+                      title="This product already has a photo. Bulk-apply skips it; click Apply on this row to overwrite."
+                    >
+                      ⚠ already has image
+                    </span>
+                  ) : null}
+                </div>
                 {r.reasoning ? (
                   <div className="text-[11px] text-ink-tertiary italic">{r.reasoning}</div>
                 ) : null}
