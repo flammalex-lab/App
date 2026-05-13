@@ -171,7 +171,7 @@ export function ProductCard({
           <img
             src={productImage(product)}
             alt=""
-            className="w-full h-full object-contain mix-blend-multiply"
+            className="w-full h-full object-cover mix-blend-multiply"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
         </div>
@@ -231,7 +231,7 @@ export function ProductCard({
           <img
             src={productImage(product)}
             alt=""
-            className="w-full h-full object-contain mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
+            className="w-full h-full object-cover mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
         </div>
