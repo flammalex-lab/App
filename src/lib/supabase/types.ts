@@ -138,6 +138,7 @@ export interface Product {
   qb_income_account: string | null;
   sort_order: number;
   needs_naming_review: boolean;
+  sub_category: string | null;
   created_at: string;
   updated_at: string;
 }

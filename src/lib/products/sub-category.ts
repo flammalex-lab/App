@@ -102,7 +102,15 @@ const FALLBACK: Record<Category, string> = {
   beverages: "Other beverages",
 };
 
-export function subCategoryOf(name: string, category: Category): string {
+export function subCategoryOf(
+  name: string,
+  category: Category,
+  manualOverride?: string | null,
+): string {
+  // Admin-set value via the name-review CSV wins. Falls through to the
+  // regex when the column is null/empty so unset products still bucket.
+  const manual = manualOverride?.trim();
+  if (manual) return manual;
   const patterns = PATTERNS[category];
   for (const p of patterns) {
     if (p.match.test(name)) return p.label;
@@ -121,13 +129,13 @@ export function subCategoryOf(name: string, category: Category): string {
  * are pushed to the tail.
  */
 export function groupBySubCategory<
-  T extends Pick<Product, "name" | "category">,
+  T extends Pick<Product, "name" | "category"> & { sub_category?: string | null },
 >(items: T[]): { subCategory: string; items: T[] }[] {
   const order: string[] = [];
   const bucket = new Map<string, T[]>();
   const fallbackKeys = new Set<string>();
   for (const p of items) {
-    const key = subCategoryOf(p.name, p.category);
+    const key = subCategoryOf(p.name, p.category, p.sub_category);
     if (FALLBACK[p.category] === key) fallbackKeys.add(key);
     if (!bucket.has(key)) {
       bucket.set(key, []);
