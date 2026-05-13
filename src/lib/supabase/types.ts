@@ -139,6 +139,9 @@ export interface Product {
   sort_order: number;
   needs_naming_review: boolean;
   sub_category: string | null;
+  pack_amount: number | null;
+  pack_unit: string | null;
+  additional_groups: string[];
   created_at: string;
   updated_at: string;
 }

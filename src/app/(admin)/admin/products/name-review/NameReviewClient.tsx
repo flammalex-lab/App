@@ -10,8 +10,12 @@ interface Row {
   name?: string;
   producer?: string | null;
   category?: string | null;
+  product_group?: string | null;
+  additional_groups?: string[] | null;
   sub_category?: string | null;
   case_pack?: string | null;
+  pack_amount?: string | null;
+  pack_unit?: string | null;
   pack_size?: string | null;
   needs_naming_review?: boolean;
 }
@@ -106,9 +110,11 @@ export function NameReviewClient({ pendingCount }: { pendingCount: number }) {
                 <th className="p-2">Name</th>
                 <th className="p-2">Producer</th>
                 <th className="p-2">Category</th>
+                <th className="p-2">+ Also</th>
                 <th className="p-2">Sub-category</th>
                 <th className="p-2">Case</th>
-                <th className="p-2">Pack size</th>
+                <th className="p-2">Amt</th>
+                <th className="p-2">Unit</th>
                 <th className="p-2">Finalized?</th>
               </tr>
             </thead>
@@ -119,9 +125,11 @@ export function NameReviewClient({ pendingCount }: { pendingCount: number }) {
                   <td className="p-2">{r.name ?? ""}</td>
                   <td className="p-2">{r.producer ?? ""}</td>
                   <td className="p-2">{r.category ?? ""}</td>
+                  <td className="p-2">{(r.additional_groups ?? []).join(", ")}</td>
                   <td className="p-2">{r.sub_category ?? ""}</td>
                   <td className="p-2 tabular">{r.case_pack ?? ""}</td>
-                  <td className="p-2">{r.pack_size ?? ""}</td>
+                  <td className="p-2 tabular">{r.pack_amount ?? ""}</td>
+                  <td className="p-2">{r.pack_unit ?? ""}</td>
                   <td className="p-2">
                     {r.needs_naming_review === false ? (
                       <span className="badge-green">yes</span>
@@ -181,8 +189,12 @@ function parseCSV(text: string): Row[] {
     name: idx("name"),
     producer: idx("producer"),
     category: idx("category"),
+    product_group: idx("product_group"),
+    additional_groups: idx("additional_groups"),
     sub_category: idx("sub_category"),
     case_pack: idx("case_pack"),
+    pack_amount: idx("pack_amount"),
+    pack_unit: idx("pack_unit"),
     pack_size: idx("pack_size"),
     needs_naming_review: idx("needs_naming_review"),
   };
@@ -209,10 +221,23 @@ function parseCSV(text: string): Row[] {
     if (producer !== undefined) row.producer = producer;
     const category = nullable(i.category, cells);
     if (category !== undefined) row.category = category;
+    const productGroup = nullable(i.product_group, cells);
+    if (productGroup !== undefined) row.product_group = productGroup;
+    // additional_groups: "|"-separated list, empty cell = no extras.
+    if (i.additional_groups >= 0) {
+      const raw = cells[i.additional_groups]?.trim() ?? "";
+      row.additional_groups = raw
+        ? raw.split(/\s*\|\s*/).filter(Boolean)
+        : [];
+    }
     const subCategory = nullable(i.sub_category, cells);
     if (subCategory !== undefined) row.sub_category = subCategory;
     const casePack = nullable(i.case_pack, cells);
     if (casePack !== undefined) row.case_pack = casePack;
+    const packAmount = nullable(i.pack_amount, cells);
+    if (packAmount !== undefined) row.pack_amount = packAmount;
+    const packUnit = nullable(i.pack_unit, cells);
+    if (packUnit !== undefined) row.pack_unit = packUnit;
     const packSize = nullable(i.pack_size, cells);
     if (packSize !== undefined) row.pack_size = packSize;
     if (i.needs_naming_review >= 0) {
