@@ -166,12 +166,12 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-square flex items-center justify-center bg-white pointer-events-none p-3 overflow-hidden">
+        <div className="relative aspect-square flex items-center justify-center bg-white pointer-events-none overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
             alt=""
-            className="w-full h-full object-contain mix-blend-multiply"
+            className="w-full h-full object-cover mix-blend-multiply"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
         </div>
@@ -226,12 +226,12 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-square flex items-center justify-center p-3 pointer-events-none bg-white overflow-hidden">
+        <div className="relative aspect-square flex items-center justify-center pointer-events-none bg-white overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
             alt=""
-            className="w-full h-full object-contain mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
+            className="w-full h-full object-cover mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
         </div>
@@ -285,7 +285,7 @@ export function ProductCard({
         <img
           src={productImage(product)}
           alt=""
-          className="max-h-full max-w-full object-contain mix-blend-multiply"
+          className="w-full h-full object-cover mix-blend-multiply"
         />
         {cartQty > 0 ? (
           <span className="absolute top-0 left-0 min-w-[18px] h-[18px] px-1 rounded-br bg-accent-gold text-white text-[11px] font-semibold flex items-center justify-center tabular">
