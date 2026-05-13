@@ -27,34 +27,73 @@ export default async function GuidePage() {
   if (!me || me.role === "admin") redirect("/dashboard");
   if (me.role === "dtc_customer") redirect("/catalog");
 
-  const { data: accountRow } = me.account_id
-    ? await db.from("accounts").select("*").eq("id", me.account_id).maybeSingle()
-    : { data: null as Account | null };
-  const account = accountRow as Account | null;
-
-  // Default order guide. Use limit(1) + order by created_at so legacy rows
-  // with multiple defaults (pre-0010 dedupe) still resolve deterministically.
-  const { data: guideRows } = await db
+  // ---- Tier 1: launch every independent fetch in parallel.
+  // account, default order guide, buyer history (cached) and last-order
+  // header row don't depend on each other — running them serially
+  // stacked ~4 sequential round-trips on the critical path. The shape
+  // change is purely about parallelism; the queries are unchanged.
+  const accountPromise = me.account_id
+    ? db.from("accounts").select("*").eq("id", me.account_id).maybeSingle()
+    : Promise.resolve({ data: null as Account | null });
+  const guideRowsPromise = db
     .from("order_guides")
     .select("*")
     .eq("profile_id", profileId)
     .eq("is_default", true)
+    // limit(1) + order by created_at so legacy rows with multiple defaults
+    // (pre-0010 dedupe) still resolve deterministically.
     .order("created_at", { ascending: true })
     .limit(1);
+  const buyerHistoryPromise = getBuyerHistory(db, profileId);
+  const lastOrderRowPromise = db
+    .from("orders")
+    .select("id, order_number, total, created_at, requested_delivery_date, pickup_date")
+    .eq("profile_id", profileId)
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const [
+    { data: accountRow },
+    { data: guideRows },
+    buyerHistory,
+    { data: lastOrderRow },
+  ] = await Promise.all([
+    accountPromise,
+    guideRowsPromise,
+    buyerHistoryPromise,
+    lastOrderRowPromise,
+  ]);
+  const account = accountRow as Account | null;
   const guide = ((guideRows as OrderGuide[] | null) ?? [])[0] ?? null;
 
-  // Pricing context — used by both the guide-items mapping and the
-  // "New from your producers" strip below. Load once.
-  const pricingCtx = await loadPricingContext(db, account, true);
+  // ---- Tier 2: anything that needed a Tier-1 result.
+  // pricingCtx (needs account), guide items (needs guide.id), and the
+  // last-order item count (needs lastOrderRow.id) are independent of
+  // each other and run in parallel.
+  const itemRowsPromise = guide
+    ? db
+        .from("order_guide_items")
+        .select("*, product:products(*)")
+        .eq("order_guide_id", guide.id)
+        .order("sort_order", { ascending: true })
+    : Promise.resolve({ data: null as any });
+  const lastOrderCountPromise = lastOrderRow
+    ? db
+        .from("order_items")
+        .select("id", { count: "exact", head: true })
+        .eq("order_id", (lastOrderRow as { id: string }).id)
+    : Promise.resolve({ count: 0 });
 
-  // Single buyer-history fetch reused by three downstream features:
-  //   - last-ordered timestamp per guide product
-  //   - per-producer order-frequency rank
-  //   - "new from your producers" discovery filter
-  // Wrapped in React cache(), so future callers in the same request
-  // (and rapid re-renders inside the same dynamic segment) dedupe.
-  const buyerHistory = await getBuyerHistory(db, profileId);
+  const [pricingCtx, { data: itemRows }, { count: lastOrderCount }] =
+    await Promise.all([
+      loadPricingContext(db, account, true),
+      itemRowsPromise,
+      lastOrderCountPromise,
+    ]);
 
+  // ---- Derivations from cached buyer history (no more queries needed).
   const lastOrderedByProduct: Record<string, string> = {};
   for (const row of buyerHistory) {
     const ts = row.orderedAt;
@@ -65,76 +104,89 @@ export default async function GuidePage() {
     }
   }
 
-  let items: GuideRow[] = [];
-  if (guide) {
-    const { data: itemRows } = await db
-      .from("order_guide_items")
-      .select("*, product:products(*)")
-      .eq("order_guide_id", guide.id)
-      .order("sort_order", { ascending: true });
+  const items: GuideRow[] = (itemRows as any[] | null ?? []).map((row) => {
+    const p = row.product as Product;
+    const unitPrice = priceForProduct(p, pricingCtx);
+    return {
+      ...(row as OrderGuideItem),
+      product: p,
+      unitPrice,
+      lastOrderedAt: lastOrderedByProduct[p.id] ?? null,
+    };
+  });
 
-    items = (itemRows as any[] | null ?? []).map((row) => {
-      const p = row.product as Product;
-      const unitPrice = priceForProduct(p, pricingCtx);
-      return {
-        ...(row as OrderGuideItem),
-        product: p,
-        unitPrice,
-        lastOrderedAt: lastOrderedByProduct[p.id] ?? null,
-      };
-    });
+  const guideProducers = Array.from(
+    new Set(
+      items
+        .map((i) => i.product.producer?.trim())
+        .filter((p): p is string => Boolean(p)),
+    ),
+  );
+
+  const orderedProducers = new Set<string>();
+  const orderedProductIds = new Set<string>();
+  for (const r of buyerHistory) {
+    if (r.product_id) orderedProductIds.add(r.product_id);
+    const producer = r.producer?.trim();
+    if (producer) orderedProducers.add(producer);
   }
 
-  // Per-producer order frequency ranking. Sort the guide's producer
-  // sections by:
-  //   1. how often THIS buyer has ordered from each producer (sum of
-  //      quantities across all their order_items for products of that
-  //      producer);
-  //   2. tie-break (and producers never ordered) by overall popularity
-  //      across all customers.
-  // Buyer rank is derived from the cached buyerHistory above; global
-  // rank still needs its own query (no buyer filter).
-  const buyerProducerRank: Record<string, number> = {};
-  const globalProducerRank: Record<string, number> = {};
-  if (items.length) {
-    const guideProducers = Array.from(
-      new Set(
-        items
-          .map((i) => i.product.producer?.trim())
-          .filter((p): p is string => Boolean(p)),
-      ),
-    );
-    if (guideProducers.length) {
-      const guideProducerSet = new Set(guideProducers);
-      for (const row of buyerHistory) {
-        const prod = row.producer?.trim();
-        if (!prod || !guideProducerSet.has(prod)) continue;
-        buyerProducerRank[prod] =
-          (buyerProducerRank[prod] ?? 0) + row.quantity;
-      }
-      // Global popularity per producer (anyone, any time)
-      const { data: allItems } = await db
+  // ---- Tier 3: globalRank scan (needs guideProducers) and the
+  // discovery-strip product fetch (needs orderedProducers) are
+  // independent — run them together.
+  const globalRankPromise = guideProducers.length
+    ? db
         .from("order_items")
         .select("quantity, product:products!inner(producer)")
-        .in("product.producer", guideProducers);
-      for (const r of ((allItems as any[] | null) ?? [])) {
-        const prod = r.product?.producer as string | undefined;
-        if (!prod) continue;
-        globalProducerRank[prod] =
-          (globalProducerRank[prod] ?? 0) + Number(r.quantity ?? 0);
-      }
+        .in("product.producer", guideProducers)
+    : Promise.resolve({ data: null as any });
+
+  let newProductsPromise: Promise<{ data: any }>;
+  if (orderedProducers.size) {
+    let q = db
+      .from("products")
+      .select("*")
+      .in("producer", Array.from(orderedProducers))
+      .eq("is_active", true)
+      .eq("available_b2b", true)
+      .eq("available_this_week", true)
+      .order("producer", { ascending: true })
+      .order("name", { ascending: true })
+      .limit(24); // small overfetch — we filter ordered-already in JS
+    if (orderedProductIds.size) {
+      // PostgREST "not in" needs a parenthesised list — using .not is
+      // the supported builder path for that.
+      q = q.not("id", "in", `(${Array.from(orderedProductIds).join(",")})`);
+    }
+    newProductsPromise = q as unknown as Promise<{ data: any }>;
+  } else {
+    newProductsPromise = Promise.resolve({ data: null });
+  }
+
+  const [{ data: allItems }, { data: newRows }] = await Promise.all([
+    globalRankPromise,
+    newProductsPromise,
+  ]);
+
+  // ---- Final assembly.
+  const buyerProducerRank: Record<string, number> = {};
+  const globalProducerRank: Record<string, number> = {};
+  if (guideProducers.length) {
+    const guideProducerSet = new Set(guideProducers);
+    for (const row of buyerHistory) {
+      const prod = row.producer?.trim();
+      if (!prod || !guideProducerSet.has(prod)) continue;
+      buyerProducerRank[prod] =
+        (buyerProducerRank[prod] ?? 0) + row.quantity;
+    }
+    for (const r of ((allItems as any[] | null) ?? [])) {
+      const prod = r.product?.producer as string | undefined;
+      if (!prod) continue;
+      globalProducerRank[prod] =
+        (globalProducerRank[prod] ?? 0) + Number(r.quantity ?? 0);
     }
   }
 
-  // Latest order to power "reorder last" card
-  const { data: lastOrderRow } = await db
-    .from("orders")
-    .select("id, order_number, total, created_at, requested_delivery_date, pickup_date")
-    .eq("profile_id", profileId)
-    .neq("status", "cancelled")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
   let lastOrder: {
     id: string;
     order_number: string;
@@ -151,18 +203,14 @@ export default async function GuidePage() {
       requested_delivery_date: string | null;
       pickup_date: string | null;
     };
-    // Item count is no longer rendered in the subtitle (per the new
-    // design — order # · delivered date · total), but keep the field
-    // around in case future copy tweaks want it.
-    const { count } = await db
-      .from("order_items")
-      .select("id", { count: "exact", head: true })
-      .eq("order_id", row.id);
     lastOrder = {
       id: row.id,
       order_number: row.order_number,
       total: Number(row.total),
-      item_count: count ?? 0,
+      // Item count is no longer rendered in the subtitle (per the new
+      // design — order # · delivered date · total), but keep the field
+      // around in case future copy tweaks want it.
+      item_count: lastOrderCount ?? 0,
       deliveryLabel: formatDeliveryLabel(
         row.requested_delivery_date ?? row.pickup_date,
       ),
@@ -174,40 +222,9 @@ export default async function GuidePage() {
   // producers the buyer already orders from, but that they have never
   // ordered themselves. Bounded to ~12 for the horizontal strip; hidden
   // entirely when empty (no "no results" meta-state on discovery).
-  let newFromProducers: PricedProductLite[] = [];
-  {
-    // Distinct producers + product_ids derived from the cached buyer
-    // history (saves a third round-trip on this page).
-    const orderedProducers = new Set<string>();
-    const orderedProductIds = new Set<string>();
-    for (const r of buyerHistory) {
-      if (r.product_id) orderedProductIds.add(r.product_id);
-      const producer = r.producer?.trim();
-      if (producer) orderedProducers.add(producer);
-    }
-
-    if (orderedProducers.size) {
-      let q = db
-        .from("products")
-        .select("*")
-        .in("producer", Array.from(orderedProducers))
-        .eq("is_active", true)
-        .eq("available_b2b", true)
-        .eq("available_this_week", true)
-        .order("producer", { ascending: true })
-        .order("name", { ascending: true })
-        .limit(24); // small overfetch — we filter ordered-already in JS
-      if (orderedProductIds.size) {
-        // PostgREST "not in" needs a parenthesised list — using .not is
-        // the supported builder path for that.
-        q = q.not("id", "in", `(${Array.from(orderedProductIds).join(",")})`);
-      }
-      const { data: newRows } = await q;
-      newFromProducers = ((newRows as Product[] | null) ?? [])
-        .slice(0, 12)
-        .map((p) => ({ ...p, unitPrice: priceForProduct(p, pricingCtx) }));
-    }
-  }
+  const newFromProducers: PricedProductLite[] = ((newRows as Product[] | null) ?? [])
+    .slice(0, 12)
+    .map((p) => ({ ...p, unitPrice: priceForProduct(p, pricingCtx) }));
 
   // Time-of-day greeting
   const hour = new Date().getHours();
