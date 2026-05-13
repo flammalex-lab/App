@@ -5,6 +5,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { StandingOrder, StandingOrderItem, Product } from "@/lib/supabase/types";
 import { dateShort } from "@/lib/utils/format";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Standing orders — Fingerlakes Farms" };
 
@@ -32,14 +33,15 @@ export default async function StandingPage() {
   return (
     <div className="max-w-screen-xl mx-auto">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl">Standing orders</h1>
+        <h1 className="display text-3xl">Standing orders</h1>
         <Link href="/standing/new" className="btn-primary text-sm">New</Link>
       </div>
       {orders.length === 0 ? (
-        <p className="text-ink-secondary">
-          No recurring orders yet. Set one up to auto-send your usual on specific days — we&apos;ll text
-          you to confirm before it submits.
-        </p>
+        <EmptyState
+          title="No recurring orders yet."
+          body="Set one up to auto-send your usual on specific days — we'll text you to confirm before it submits."
+          cta={{ href: "/standing/new", label: "Set up a standing order", variant: "primary" }}
+        />
       ) : (
         <div className="space-y-3">
           {orders.map((o) => (

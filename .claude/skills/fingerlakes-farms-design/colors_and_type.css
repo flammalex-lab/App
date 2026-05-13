@@ -1,0 +1,144 @@
+/* Fingerlakes Farms — Design tokens
+ *
+ * Authoritative tokens lifted from tailwind.config.ts + globals.css in
+ * the Fingerlakes Farms portal (flammalex-lab/App). Use these directly
+ * in HTML mocks. If a token here disagrees with the live /style page,
+ * the page wins.
+ *
+ * Naming: low-level swatches at the top (--brand-blue, --ink-1, ...),
+ * semantic aliases below (--text, --link, --surface, --border, ...).
+ */
+
+@font-face { font-family: "Bricolage Grotesque"; src: local("Bricolage Grotesque"); }
+@font-face { font-family: "Inter"; src: local("Inter"); }
+
+:root {
+  /* ── Brand ─────────────────────────────────────────────────────── */
+  --brand-blue:        #1763B5;  /* primary action, links, wordmark */
+  --brand-blue-dark:   #0F4A8A;  /* hover / pressed */
+  --brand-blue-tint:   #E5EFF8;  /* selected wash, highlight bg */
+
+  --brand-green:       #2A9B46;  /* success, freshness, commit step */
+  --brand-green-dark:  #1F7A35;  /* success hover */
+  --brand-green-tint:  #E6F4EA;  /* success wash */
+
+  /* ── Accent (editorial only) ───────────────────────────────────── */
+  --accent-gold:       #C49431;  /* pending, warning */
+  --accent-rust:       #A0522D;  /* editorial accent — never a button */
+
+  /* ── Ink (text) ────────────────────────────────────────────────── */
+  --ink-primary:       #161616;  /* body, headings */
+  --ink-secondary:     #5E5E5E;  /* helper, supporting copy */
+  --ink-tertiary:      #9A9A9A;  /* captions, placeholders, meta */
+
+  /* ── Surface ───────────────────────────────────────────────────── */
+  --bg-primary:        #FFFFFF;  /* page surface — stays white */
+  --bg-secondary:      #F4F4F1;  /* hover, thumb placeholder */
+  --bg-tinted:         #EAF1F6;  /* faint blue tint, highlight wash */
+
+  /* ── Feedback ──────────────────────────────────────────────────── */
+  --feedback-success:  #2A9B46;
+  --feedback-warning:  #C49431;
+  --feedback-error:    #C13A28;
+  --feedback-error-h:  #A22A1F;  /* danger button hover */
+
+  /* ── Hairlines ─────────────────────────────────────────────────── */
+  --border-hairline:   rgba(0,0,0,0.08);
+  --border-hover:      rgba(0,0,0,0.16);
+  --border-soft:       rgba(0,0,0,0.05);
+
+  /* ── Semantic aliases ──────────────────────────────────────────── */
+  --text:              var(--ink-primary);
+  --text-muted:        var(--ink-secondary);
+  --text-meta:         var(--ink-tertiary);
+  --surface:           var(--bg-primary);
+  --surface-alt:       var(--bg-secondary);
+  --surface-tint:      var(--bg-tinted);
+  --link:              var(--brand-blue);
+  --link-hover:        var(--brand-blue-dark);
+
+  /* ── Type families ─────────────────────────────────────────────── */
+  --font-display: "Bricolage Grotesque", Georgia, ui-serif, serif;
+  --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* ── Type scale (semantic) ─────────────────────────────────────── */
+  --fs-hero:    3rem;     /* 48px — marketing display only */
+  --fs-h1:      1.875rem; /* 30px */
+  --fs-h2:      1.5rem;   /* 24px */
+  --fs-h3:      1.25rem;  /* 20px */
+  --fs-h4:      1.125rem; /* 18px */
+  --fs-body:    1rem;     /* 16px */
+  --fs-sm:      0.875rem; /* 14px supporting */
+  --fs-xs:      0.75rem;  /* 12px caption / eyebrow */
+
+  --tracking-tight:   -0.015em;  /* headings */
+  --tracking-tighter: -0.025em;  /* hero display, wordmark */
+  --tracking-wide:    0.05em;    /* eyebrow caps */
+
+  /* ── Radius ────────────────────────────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:   8px;     /* inputs, buttons */
+  --radius-xl:   12px;    /* cards */
+  --radius-2xl:  16px;    /* sheets, modals */
+  --radius-full: 9999px;  /* badges, brand mark */
+
+  /* ── Shadow ────────────────────────────────────────────────────── */
+  --shadow-card:     0 1px 2px rgba(22,22,22,0.04), 0 4px 12px rgba(22,22,22,0.06);
+  --shadow-sticky:   0 -8px 24px rgba(22,22,22,0.06);
+  --shadow-floating: 0 1px 2px rgba(22,22,22,0.06), 0 8px 24px rgba(22,22,22,0.10), 0 16px 40px rgba(22,22,22,0.06);
+
+  /* ── Motion ────────────────────────────────────────────────────── */
+  --ease-fluent: cubic-bezier(.2,.8,.2,1);
+  --dur-hover:   150ms;     /* hover / press */
+  --dur-state:   250ms;     /* modal, slide-up, scale-in */
+  --dur-sheet:   280ms;     /* bottom-sheet */
+}
+
+/* ── Base element styles ──────────────────────────────────────────── */
+html, body {
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+  font-weight: 700;
+  color: var(--text);
+}
+h1 { font-size: var(--fs-h1); }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-h3); }
+h4 { font-size: var(--fs-h4); }
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-tighter);
+}
+
+p { font-size: var(--fs-body); line-height: 1.55; color: var(--text); }
+small, .text-sm { font-size: var(--fs-sm); color: var(--text-muted); }
+.text-meta { font-size: var(--fs-xs); color: var(--text-meta); }
+
+/* Eyebrow / caption — uppercase tracked label above a heading. */
+.eyebrow {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-meta);
+  font-weight: 600;
+}
+
+/* Tabular: ALWAYS use for prices, qty, SKUs, dates — column alignment
+   is part of the B2B-ordering ergonomic. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); text-decoration: underline; }

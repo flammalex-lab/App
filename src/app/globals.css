@@ -112,3 +112,47 @@
   /* sage = legacy alias, points to brand-green */
   .badge-sage   { @apply badge bg-brand-green/15 text-brand-green-dark; }
 }
+
+/* Print: buyers print order confirmations from /orders/[id]. Strip every
+   piece of app chrome (top cutoff strip, header, sticky cart bar, footer,
+   floating buttons) so the printed page is just the receipt — order
+   number, dates, lines, totals, notes. Anything tagged .print-hide is
+   also dropped. Forces black-on-white for ink economy. */
+@media print {
+  /* Hide app chrome */
+  header,
+  nav,
+  footer,
+  .print-hide,
+  [data-print-hide],
+  [class*="StickyCartBar"],
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+  /* Black ink, white paper, no shadows */
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+  .card,
+  [class*="rounded-"] {
+    box-shadow: none !important;
+    border-color: #999 !important;
+  }
+  /* Reset main padding so receipts use the page edge */
+  main {
+    padding: 0 !important;
+  }
+  /* Avoid splitting line items across pages */
+  li,
+  tr,
+  [class*="LineItem"] {
+    break-inside: avoid;
+  }
+}

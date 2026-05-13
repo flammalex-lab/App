@@ -12,11 +12,15 @@ interface Match {
   producer: string | null;
   pack_size: string | null;
   unit: string;
+  /** URL of the image already attached to this product, if any. We flag
+   *  these in the UI and skip them from auto-apply by default — replacing
+   *  an existing photo should be opt-in, not a silent overwrite. */
+  existing_image_url?: string | null;
 }
 
 interface MatchResult {
   match: Match | null;
-  source: "filename_sku" | "vision" | "no_candidates" | "no_vision_response" | "parse_error";
+  source: "filename_sku" | "filename_name" | "vision" | "no_candidates" | "no_vision_response" | "parse_error";
   confidence?: "high" | "medium" | "low" | "none";
   reasoning?: string;
   candidates?: { id: string; name: string; producer: string | null; pack_size: string | null }[];
@@ -38,6 +42,14 @@ interface Item {
   file: File; // original
   cutoutFile: File | null; // background-removed
   previewUrl: string;
+  /**
+   * Path relative to the picked folder when the user used the "Pick folder"
+   * input (e.g. "Red Jacket Orchards/raspberry-32oz.jpg"). Empty string for
+   * ad-hoc multi-file picks. Sent to the matcher as the filename so folder
+   * names — typically brand / producer — become tokens that boost matching
+   * confidence (see api/admin/image-triage/match/route.ts).
+   */
+  relativePath: string;
   status: ItemStatus;
   result?: MatchResult;
   chosenProductId?: string | null;
@@ -86,11 +98,91 @@ export function ImageTriageClient() {
         file: f,
         cutoutFile: null,
         previewUrl: URL.createObjectURL(f),
+        relativePath: f.webkitRelativePath || "",
         status: "idle",
       });
     }
     setItems((xs) => [...xs, ...next]);
   }
+
+  function addFilesWithPath(files: { file: File; relativePath: string }[]) {
+    const next: Item[] = [];
+    for (const { file, relativePath } of files) {
+      if (!file.type.startsWith("image/")) continue;
+      next.push({
+        id: crypto.randomUUID(),
+        file,
+        cutoutFile: null,
+        previewUrl: URL.createObjectURL(file),
+        relativePath,
+        status: "idle",
+      });
+    }
+    if (next.length) setItems((xs) => [...xs, ...next]);
+  }
+
+  /**
+   * Walk a DataTransferItemList recursively and collect files with their
+   * folder-relative paths. Lets the drop-zone preserve `Brand/file.jpg`
+   * even when the multi-file picker would strip the folder name.
+   *
+   * Uses webkitGetAsEntry / FileSystemEntry — Chrome / Safari / Edge all
+   * support it. Firefox supports the relevant call path via the same
+   * API. Anything that returns null on getAsEntry() falls back to the
+   * flat list (which we still capture so drag-and-drop of bare files
+   * keeps working).
+   */
+  async function harvestDataTransfer(dt: DataTransfer): Promise<{ file: File; relativePath: string }[]> {
+    const out: { file: File; relativePath: string }[] = [];
+    const entries: FileSystemEntry[] = [];
+    for (let i = 0; i < dt.items.length; i++) {
+      const item = dt.items[i];
+      if (item.kind !== "file") continue;
+      const entry = item.webkitGetAsEntry?.();
+      if (entry) entries.push(entry);
+      else {
+        const f = item.getAsFile();
+        if (f) out.push({ file: f, relativePath: "" });
+      }
+    }
+
+    async function walk(entry: FileSystemEntry, prefix: string): Promise<void> {
+      if (entry.isFile) {
+        const fileEntry = entry as FileSystemFileEntry;
+        await new Promise<void>((resolve) => {
+          fileEntry.file((f) => {
+            out.push({ file: f, relativePath: prefix ? `${prefix}/${f.name}` : f.name });
+            resolve();
+          });
+        });
+      } else if (entry.isDirectory) {
+        const dirEntry = entry as FileSystemDirectoryEntry;
+        const reader = dirEntry.createReader();
+        // readEntries() returns up to 100 at a time — keep calling until
+        // an empty array comes back.
+        let batch: FileSystemEntry[] = [];
+        do {
+          batch = await new Promise<FileSystemEntry[]>((resolve) =>
+            reader.readEntries((es) => resolve(es)),
+          );
+          for (const sub of batch) {
+            await walk(sub, prefix ? `${prefix}/${entry.name}` : entry.name);
+          }
+        } while (batch.length > 0);
+      }
+    }
+
+    for (const e of entries) await walk(e, "");
+    return out;
+  }
+
+  function onDropZone(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDropActive(false);
+    harvestDataTransfer(e.dataTransfer).then(addFilesWithPath);
+  }
+
+  const [dropActive, setDropActive] = useState(false);
 
   /**
    * Server-side background removal via Replicate. Broken into
@@ -167,12 +259,24 @@ export function ImageTriageClient() {
       setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, status: "matching" } : x)));
       try {
         const imageBase64 = await readAsBase64(working);
+        // Build the filename we send to the matcher. Precedence:
+        //   1. webkitRelativePath from a folder pick ("Red Jacket Orchards/raspberry.jpg")
+        //   2. Producer hint as a virtual prefix when no folder was picked.
+        //      Webkit-directory uploads don't work everywhere (iOS Safari,
+        //      some sandboxed contexts), so this gives ops the same brand-
+        //      as-token effect by typing the producer once and picking
+        //      individual files.
+        //   3. Bare file.name.
+        const trimmedProducer = producer.trim();
+        const matchFilename =
+          it.relativePath ||
+          (trimmedProducer ? `${trimmedProducer}/${it.file.name}` : it.file.name);
         const res = await fetch("/api/admin/image-triage/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            filename: it.file.name,
-            producer: producer.trim() || null,
+            filename: matchFilename,
+            producer: trimmedProducer || null,
             imageBase64,
             imageMediaType: working.type || "image/jpeg",
           }),
@@ -244,11 +348,15 @@ export function ImageTriageClient() {
   }
 
   async function applyAllHighConfidence() {
+    // Skip rows whose matched product already has an image. Replacing an
+    // existing photo is destructive — gate it behind a manual click per
+    // row instead of silently overwriting via the bulk button.
     const ready = items.filter(
       (it) =>
         it.status === "matched" &&
         it.chosenProductId &&
-        (it.result?.source === "filename_sku" || it.result?.confidence === "high"),
+        !it.result?.match?.existing_image_url &&
+        (it.result?.source === "filename_sku" || it.result?.source === "filename_name" || it.result?.confidence === "high"),
     );
     for (const it of ready) {
       await confirm(it.id);
@@ -280,6 +388,35 @@ export function ImageTriageClient() {
         </label>
         <div>
           <label className="label">Images</label>
+          <p className="text-xs text-ink-tertiary mb-2 leading-snug max-w-md">
+            Drag a brand folder onto the drop-zone (best — preserves the
+            <code className="mx-1">Brand/file.jpg</code> path automatically).
+            Or use the picker buttons. Or just type the producer in the
+            hint above and pick individual files — we&rsquo;ll prepend
+            the producer name to each filename, same effect as a folder
+            drop.
+          </p>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDropActive(true);
+            }}
+            onDragLeave={() => setDropActive(false)}
+            onDrop={onDropZone}
+            className={`rounded-lg border-2 border-dashed px-4 py-6 text-center mb-3 transition-colors ${
+              dropActive
+                ? "border-brand-blue bg-brand-blue-tint/50"
+                : "border-black/15 bg-bg-secondary/50"
+            }`}
+          >
+            <p className="text-sm font-medium text-ink-primary">
+              Drop a brand folder here
+            </p>
+            <p className="text-[11px] text-ink-tertiary mt-1">
+              Files inside a folder named like the producer get that name
+              as a matching token automatically.
+            </p>
+          </div>
           <div className="flex items-center gap-3 flex-wrap">
             <input
               type="file"
@@ -287,6 +424,17 @@ export function ImageTriageClient() {
               multiple
               onChange={(e) => addFiles(e.target.files)}
               className="text-sm"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              // webkitdirectory is non-standard but works in every modern
+              // browser; cast keeps TS quiet.
+              {...({ webkitdirectory: "" } as any)}
+              onChange={(e) => addFiles(e.target.files)}
+              className="text-sm"
+              aria-label="Pick a folder"
             />
             <Button onClick={processAll} loading={running} disabled={items.length === 0 || running}>
               Process {pendingCount || ""} pending
@@ -299,7 +447,8 @@ export function ImageTriageClient() {
                 items.filter(
                   (x) =>
                     x.status === "matched" &&
-                    (x.result?.source === "filename_sku" || x.result?.confidence === "high"),
+                    !x.result?.match?.existing_image_url &&
+                    (x.result?.source === "filename_sku" || x.result?.source === "filename_name" || x.result?.confidence === "high"),
                 ).length === 0
               }
             >
@@ -371,9 +520,13 @@ function ItemCard({
   const r = item.result;
   const match = r?.match ?? null;
   const confidenceLabel =
-    r?.source === "filename_sku" ? "filename SKU" : r?.confidence ?? null;
-  const confidenceColor =
     r?.source === "filename_sku"
+      ? "filename SKU"
+      : r?.source === "filename_name"
+        ? "filename name"
+        : r?.confidence ?? null;
+  const confidenceColor =
+    r?.source === "filename_sku" || r?.source === "filename_name"
       ? "badge-green"
       : r?.confidence === "high"
       ? "badge-green"
@@ -425,9 +578,19 @@ function ItemCard({
                   {match.producer ?? "—"} · {match.pack_size ?? match.unit} ·{" "}
                   {match.sku ? <span className="tabular">{match.sku}</span> : "no SKU"}
                 </div>
-                {confidenceLabel ? (
-                  <span className={confidenceColor}>{confidenceLabel}</span>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {confidenceLabel ? (
+                    <span className={confidenceColor}>{confidenceLabel}</span>
+                  ) : null}
+                  {match.existing_image_url ? (
+                    <span
+                      className="badge-gold"
+                      title="This product already has a photo. Bulk-apply skips it; click Apply on this row to overwrite."
+                    >
+                      ⚠ already has image
+                    </span>
+                  ) : null}
+                </div>
                 {r.reasoning ? (
                   <div className="text-[11px] text-ink-tertiary italic">{r.reasoning}</div>
                 ) : null}

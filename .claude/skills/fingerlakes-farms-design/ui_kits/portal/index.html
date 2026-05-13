@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fingerlakes Farms — Portal UI Kit</title>
+  <link rel="stylesheet" href="../../colors_and_type.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; padding: 24px; }
+    #stage { width: 1180px; height: 760px; background: white; border-radius: 14px; box-shadow: var(--shadow-floating); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    #main { flex: 1; overflow: auto; padding: 24px 32px 120px; }
+  </style>
+</head>
+<body>
+  <div id="stage" data-screen-label="Portal UI Kit">
+    <div id="root" style="display:contents"></div>
+  </div>
+
+  <script type="text/babel" src="Primitives.jsx"></script>
+  <script type="text/babel" src="Layout.jsx"></script>
+  <script type="text/babel" src="Screens.jsx"></script>
+  <script type="text/babel">
+    function App() {
+      const [authed, setAuthed] = React.useState(true);
+      const [route, setRoute] = React.useState("guide");
+      const [qty, setQty] = React.useState({ 1: 4, 2: 2, 3: 12 });
+      const count = Object.values(qty).reduce((s, n) => s + (n > 0 ? 1 : 0), 0);
+      const total = GUIDE_ITEMS.reduce((s, i) => s + (qty[i.id] || 0) * i.price, 0);
+
+      if (!authed) {
+        return <LoginScreen onLogin={() => setAuthed(true)} />;
+      }
+
+      return (
+        <>
+          <CutoffClock />
+          <StoreNav active={route} cartCount={count} onNav={setRoute} onCart={() => setRoute("cart")} />
+          <div id="main">
+            {route === "guide" && <GuideScreen qty={qty} setQty={setQty}/>}
+            {route === "cart" && <CartScreen qty={qty} setQty={setQty}
+                                              onPlace={() => setRoute("confirmed")}
+                                              onBack={() => setRoute("guide")}/>}
+            {route === "confirmed" && <ConfirmedScreen onBack={() => { setQty({}); setRoute("guide"); }}/>}
+            {route === "messages" && <MessagesScreen/>}
+            {route === "catalog" && <Placeholder title="Catalog" body="Filtered by your enabled categories."/>}
+            {route === "standing" && <Placeholder title="Standing orders" body="Recurring orders with SMS confirmation before auto-submit."/>}
+            {route === "orders" && <Placeholder title="Order history" body="Past orders with status and invoice links."/>}
+          </div>
+          {route !== "cart" && route !== "confirmed" ? (
+            <StickyCartBar count={count} total={total} onView={() => setRoute("cart")}/>
+          ) : null}
+        </>
+      );
+    }
+
+    function Placeholder({ title, body }) {
+      return (
+        <div style={{ padding: "40px 0" }}>
+          <h1 style={{ margin: "0 0 6px" }}>{title}</h1>
+          <p style={{ color: "var(--ink-secondary)", fontSize: 14, margin: 0 }}>{body}</p>
+          <div style={{ marginTop: 24, padding: 40, background: "var(--bg-secondary)", borderRadius: 12,
+                        textAlign: "center", color: "var(--ink-tertiary)", fontSize: 13 }}>
+            (Demo stub — see <code>/src/app/(storefront)/{title.toLowerCase().split(' ')[0]}/</code> in the portal)
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>

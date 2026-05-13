@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 28px; background: var(--surface); font-family: var(--font-sans); }
+  .badge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 3px 10px; font-size: 12px; font-weight: 500; }
+  .b-blue { background: rgba(23,99,181,0.10); color: var(--brand-blue); }
+  .b-green { background: rgba(42,155,70,0.15); color: var(--brand-green-dark); }
+  .b-gold { background: rgba(196,148,49,0.15); color: #8a690f; }
+  .b-rust { background: rgba(160,82,45,0.15); color: #7a3b1f; }
+  .b-red { background: rgba(193,58,40,0.10); color: var(--feedback-error); }
+  .b-gray { background: rgba(0,0,0,0.05); color: var(--ink-secondary); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .lab { font-size: 11px; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; font-weight: 600; }
+</style></head>
+<body>
+  <div class="lab">Tones</div>
+  <div class="row">
+    <span class="badge b-blue">In guide</span>
+    <span class="badge b-green">Fresh today</span>
+    <span class="badge b-gold">Pending</span>
+    <span class="badge b-rust">Editorial</span>
+    <span class="badge b-red">Cancelled</span>
+    <span class="badge b-gray">Draft</span>
+  </div>
+  <div class="lab">Order statuses</div>
+  <div class="row">
+    <span class="badge b-gray">draft</span>
+    <span class="badge b-gold">pending</span>
+    <span class="badge b-green">confirmed</span>
+    <span class="badge b-green">processing</span>
+    <span class="badge b-green">ready</span>
+    <span class="badge b-green">shipped</span>
+    <span class="badge b-green">delivered</span>
+    <span class="badge b-red">cancelled</span>
+  </div>
+</body></html>

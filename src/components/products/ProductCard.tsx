@@ -180,7 +180,7 @@ export function ProductCard({
           {product.producer && producerHref ? (
             <Link
               href={producerHref}
-              className="display text-[12px] font-medium text-ink-primary truncate hover:underline pointer-events-auto"
+              className="display text-[12px] font-medium text-ink-primary truncate hover:underline pointer-events-auto focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm"
             >
               {product.producer}
             </Link>
@@ -240,7 +240,7 @@ export function ProductCard({
           {product.producer && producerHref ? (
             <Link
               href={producerHref}
-              className="display text-[13px] font-medium text-ink-primary truncate hover:underline pointer-events-auto"
+              className="display text-[13px] font-medium text-ink-primary truncate hover:underline pointer-events-auto focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm"
             >
               {product.producer}
             </Link>
@@ -298,7 +298,7 @@ export function ProductCard({
         {product.producer && producerHref ? (
           <Link
             href={producerHref}
-            className="display block max-w-full truncate text-[13px] font-medium text-ink-primary hover:underline pointer-events-auto"
+            className="display block max-w-full truncate text-[13px] font-medium text-ink-primary hover:underline pointer-events-auto focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm"
           >
             {product.producer}
           </Link>
@@ -390,12 +390,15 @@ function Stepper({
 
   const wrap = fullWidth ? "w-full justify-between" : "shrink-0";
 
+  // Stepper colors: primary brand-blue everywhere. Green is reserved for the
+  // commit step (Place order, Confirm standing order) per the design system
+  // — using it on the routine Add/+/- buttons diluted the moment.
   if (cartQty > 0) {
     return (
       <div className={`${wrap} flex items-center gap-2`}>
         <button
           onClick={onSub}
-          className="h-11 w-11 flex items-center justify-center rounded-full border-2 border-brand-green-dark text-brand-green-dark hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97] shrink-0"
+          className="h-11 w-11 flex items-center justify-center rounded-full border-2 border-brand-blue text-brand-blue hover:bg-brand-blue-tint focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97] shrink-0"
           aria-label={cartQty === 1 ? "Remove from cart" : "Remove one"}
         >
           {cartQty === 1 ? <TrashIcon /> : <span className="text-xl leading-none">−</span>}
@@ -404,7 +407,7 @@ function Stepper({
           <QtyInput
             value={cartQty}
             onSet={onSet}
-            className="h-11 flex-1 min-w-0 max-w-[64px] text-center tabular text-[15px] font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/30 transition-colors duration-150"
+            className="h-11 flex-1 min-w-0 max-w-[64px] text-center tabular text-[15px] font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 transition-colors duration-150"
           />
         ) : (
           <div className="h-11 flex-1 min-w-0 max-w-[64px] flex items-center justify-center tabular text-[15px] font-semibold rounded-md border border-black/15 bg-white text-ink-primary">
@@ -413,7 +416,7 @@ function Stepper({
         )}
         <button
           onClick={onAdd}
-          className="h-11 w-11 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97] shrink-0"
+          className="h-11 w-11 flex items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97] shrink-0"
           aria-label="Add one"
         >
           <span className="text-xl leading-none">+</span>
@@ -424,7 +427,7 @@ function Stepper({
   return (
     <button
       onClick={onAdd}
-      className={`${fullWidth ? "w-full" : "w-11 shrink-0"} h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-green-dark text-white text-[14px] font-semibold hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97]`}
+      className={`${fullWidth ? "w-full" : "w-11 shrink-0"} h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-blue text-white text-[14px] font-semibold hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97]`}
       aria-label="Add to cart"
     >
       <span className="text-lg leading-none">+</span>
