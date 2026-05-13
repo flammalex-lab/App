@@ -141,6 +141,6 @@ export async function POST(request: Request) {
     }
   }
 
-  if (created > 0 || updated > 0) revalidateTag(CATALOG_SUGGESTIONS_TAG);
+  if (created > 0 || updated > 0) revalidateTag(CATALOG_SUGGESTIONS_TAG, "max");
   return NextResponse.json({ created, updated, skipped, errors });
 }

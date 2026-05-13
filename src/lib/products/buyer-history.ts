@@ -15,7 +15,7 @@ export interface BuyerHistoryRow {
 }
 
 /** Tag used to invalidate a single buyer's cached history. Order-placement
- *  code paths call `revalidateTag(buyerHistoryTag(profileId))` so the
+ *  code paths call `revalidateTag(buyerHistoryTag(profileId), "max")` so the
  *  next read after a fresh order returns up-to-date numbers. */
 export function buyerHistoryTag(profileId: string): string {
   return `buyer-history:${profileId}`;

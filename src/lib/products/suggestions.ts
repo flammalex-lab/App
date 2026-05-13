@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { visibleProductsQuery } from "./queries";
 
 /** Global cache tag. Admin product writes (create / update / delete) and
- *  account-allowlist edits call `revalidateTag(CATALOG_SUGGESTIONS_TAG)`
+ *  account-allowlist edits call `revalidateTag(CATALOG_SUGGESTIONS_TAG, "max")`
  *  so the next page render rebuilds the suggestion list. */
 export const CATALOG_SUGGESTIONS_TAG = "catalog-suggestions";
 
