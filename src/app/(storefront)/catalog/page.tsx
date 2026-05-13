@@ -24,6 +24,7 @@ import { BackButton } from "@/components/layout/BackButton";
 import { groupBySubCategory } from "@/lib/products/sub-category";
 import { compareProducersByRank, rankProducers } from "@/lib/products/producer-rank";
 import { getBuyerHistory } from "@/lib/products/buyer-history";
+import { getCatalogSuggestions } from "@/lib/products/suggestions";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
@@ -91,13 +92,14 @@ export default async function CatalogPage({
     const baseOpts = { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds };
 
     // ---- Tier A: 4 independent queries kicked off in parallel.
-    // (Buyer order history is already in hand from the cached fetch
-    // above, so the old 5th query is gone.)
+    // Suggestions are pulled from a cached helper (separate from this
+    // tier) so the datalist content survives across navigations until
+    // an admin product/allowlist write invalidates it.
     const [
       { data: weekRows },
       { data: producerRows },
-      { data: suggestRows },
       { data: counts },
+      suggestions,
     ] = await Promise.all([
       // Strip 1: This week
       visibleProductsQuery(db, baseOpts)
@@ -110,13 +112,14 @@ export default async function CatalogPage({
         "is",
         null,
       ),
-      // Search autocomplete suggestions
-      visibleProductsQuery(db, { ...baseOpts, select: "name, producer" }).order(
-        "name",
-        { ascending: true },
-      ),
       // Group counts for the fallback tile grid
       visibleProductsQuery(db, { ...baseOpts, select: "product_group" }),
+      // Search autocomplete suggestions — Vercel data cache
+      getCatalogSuggestions({
+        buyerType: effectiveBuyerType,
+        isB2B,
+        allowedPrivateIds,
+      }),
     ]);
 
     const thisWeek = priceProducts(weekRows as Product[] | null, pricingCtx);
@@ -174,8 +177,6 @@ export default async function CatalogPage({
     const featured: (Product & { unitPrice: number | null })[] = featRows
       ? priceProducts(featRows as Product[] | null, pricingCtx)
       : [];
-
-    const suggestions = buildSuggestions(suggestRows);
 
     const groupCounts = allowed
       .map((g) => ({
@@ -280,22 +281,21 @@ export default async function CatalogPage({
   // surfaces focused.
   const showProducerChips = Boolean(groupFilter) && !q && !isBest && !isExplore;
 
-  // Main query, search-suggestion list, and producer-chip rows are all
-  // independent — run them in parallel so they share one round-trip
-  // tier instead of three. The producer-chip query is conditional, so
-  // it stubs to a null payload when not needed.
+  // Main query, search-suggestions (cached), and producer-chip rows
+  // are all independent — run them in parallel so they share one
+  // round-trip tier. The producer-chip query is conditional and stubs
+  // to a null payload when not needed.
   const [
     { data: products },
-    { data: suggestRowsList },
+    suggestionsList,
     { data: producerRows },
   ] = await Promise.all([
     query,
-    visibleProductsQuery(db, {
+    getCatalogSuggestions({
       buyerType: effectiveBuyerType,
       isB2B,
       allowedPrivateIds,
-      select: "name, producer",
-    }).order("name", { ascending: true }),
+    }),
     showProducerChips
       ? visibleProductsQuery(db, {
           buyerType: effectiveBuyerType,
@@ -307,7 +307,6 @@ export default async function CatalogPage({
           .not("producer", "is", null)
       : Promise.resolve({ data: null }),
   ]);
-  const suggestionsList = buildSuggestions(suggestRowsList);
 
   const priced = priceProducts(products as Product[] | null, pricingCtx);
 
@@ -581,17 +580,3 @@ async function loadInGuideIds(
   );
 }
 
-/**
- * Dedupe product names + producer names for datalist autocomplete.
- * Keeps the list under ~500 entries so the rendered datalist stays snappy.
- */
-function buildSuggestions(
-  rows: { name: string | null; producer: string | null }[] | null,
-): string[] {
-  const set = new Set<string>();
-  for (const r of rows ?? []) {
-    if (r.name) set.add(r.name);
-    if (r.producer) set.add(r.producer);
-  }
-  return Array.from(set).slice(0, 500);
-}
