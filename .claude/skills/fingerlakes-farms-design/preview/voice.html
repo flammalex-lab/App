@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 22px 26px; background: var(--surface); font-family: var(--font-sans); color: var(--ink-primary); }
+  .intro {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-secondary);
+    max-width: 640px;
+    margin: 0 0 18px;
+  }
+  .intro strong { color: var(--ink-primary); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 30px; }
+  .scenario .label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    margin-bottom: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-hairline);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .room { color: var(--ink-tertiary); font-weight: 500; letter-spacing: .04em; text-transform: none; font-size: 10.5px; }
+  .row { display: grid; grid-template-columns: 14px 1fr; gap: 10px; align-items: start; padding: 8px 0; }
+  .row + .row { border-top: 1px dashed var(--border-hairline); }
+  .mark {
+    font-size: 11px;
+    line-height: 18px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--ink-tertiary);
+  }
+  .row.yes .mark { color: var(--brand-green-dark); }
+  .copy {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-primary);
+    text-wrap: pretty;
+  }
+  .row.no .copy { color: var(--ink-secondary); }
+  .tm { font-size: .72em; vertical-align: super; line-height: 0; }
+  a.tel { color: var(--brand-blue); text-decoration: none; border-bottom: 1px dotted var(--brand-blue); }
+
+  .scale {
+    margin-top: 26px;
+    padding: 16px 18px;
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+  }
+  .scale h4 { margin: 0 0 4px; font-family: var(--font-sans); font-size: 13px; font-weight: 600; letter-spacing: 0; }
+  .scale p { margin: 0 0 12px; font-size: 12px; color: var(--ink-secondary); line-height: 1.5; }
+  .scale-rows { display: grid; grid-template-columns: 110px 1fr; row-gap: 8px; column-gap: 14px; font-size: 12.5px; align-items: baseline; }
+  .scale-rows .k { color: var(--ink-tertiary); font-weight: 600; letter-spacing: .03em; }
+  .scale-rows .v { color: var(--ink-primary); }
+</style></head>
+<body>
+
+  <p class="intro">
+    <strong>Same voice, different room.</strong> The FLF voice scales down to terse
+    for chrome (chips, toasts, badges) and up to editorial for content (cards,
+    empty states, errors). The pairs below show the editorial register; the
+    note at the bottom shows how each line compresses for tighter UI.
+  </p>
+
+  <div class="grid">
+
+    <div class="scenario">
+      <div class="label"><span>Order timing</span><span class="room">product card · onboarding</span></div>
+      <div class="row yes"><div class="mark">✓</div><div class="copy">Tuesday 2pm cutoff for Friday's run. Anything you add after that rolls to next week.</div></div>
+      <div class="row no"><div class="mark">✗</div><div class="copy">Order by Tuesday at 2pm for Friday delivery.</div></div>
+    </div>
+
+    <div class="scenario">
+      <div class="label"><span>Confirmation</span><span class="room">post-checkout</span></div>
+      <div class="row yes"><div class="mark">✓</div><div class="copy">Standing order in. Every Friday, with the same items in your guide — we'll text the morning of, so you can swap or skip if you need.</div></div>
+      <div class="row no"><div class="mark">✗</div><div class="copy">Standing order saved. We'll deliver Fridays.</div></div>
+    </div>
+
+    <div class="scenario">
+      <div class="label"><span>Stockout</span><span class="room">catalog tile · sold-out state</span></div>
+      <div class="row yes"><div class="mark">✓</div><div class="copy">Out for the season. Heirloom tomatoes are a July–September crop up here — we'll text you when the next harvest ships.</div></div>
+      <div class="row no"><div class="mark">✗</div><div class="copy">Out of stock. Check back next season.</div></div>
+    </div>
+
+    <div class="scenario">
+      <div class="label"><span>Sourcing note</span><span class="room">product card · meta line</span></div>
+      <div class="row yes"><div class="mark">✓</div><div class="copy">From one of our ThumbsUp<span class="tm">™</span> vetted growers in the Finger Lakes. We've worked with them for years; you can ask your rep for the farm name.</div></div>
+      <div class="row no"><div class="mark">✗</div><div class="copy">Sourced from local Finger Lakes farms. Quality you can trust.</div></div>
+    </div>
+
+    <div class="scenario">
+      <div class="label"><span>Error</span><span class="room">retry state</span></div>
+      <div class="row yes"><div class="mark">✓</div><div class="copy">Couldn't reach the server. Try again — or <a class="tel" href="#">text your rep</a> if it sticks.</div></div>
+      <div class="row no"><div class="mark">✗</div><div class="copy">Something went wrong. Please try again later.</div></div>
+    </div>
+
+    <div class="scenario">
+      <div class="label"><span>Empty state</span><span class="room">search · no matches</span></div>
+      <div class="row yes"><div class="mark">✓</div><div class="copy">Nothing in this week's guide matches "heirloom". Browse the full catalog — or tell us what you want and we'll see who's growing it.</div></div>
+      <div class="row no"><div class="mark">✗</div><div class="copy">No results found for "heirloom". Try a different search.</div></div>
+    </div>
+
+  </div>
+
+  <div class="scale">
+    <h4>Voice scales by room</h4>
+    <p>The same idea written for three sizes. Cut detail, never cut warmth — and never invent specifics (real farm names, real numbers) that the product can't back up.</p>
+    <div class="scale-rows">
+      <div class="k">Chip / badge</div>
+      <div class="v tabular">Tue 2pm · Zone 3</div>
+      <div class="k">Toast</div>
+      <div class="v">Cutoff in 4 hours. Anything later ships next Friday.</div>
+      <div class="k">Card / content</div>
+      <div class="v">Tuesday 2pm cutoff for Friday's run. Anything you add after that rolls to next week.</div>
+    </div>
+  </div>
+
+</body></html>

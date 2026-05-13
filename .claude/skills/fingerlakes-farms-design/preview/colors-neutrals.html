@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface); }
+  .row { display: flex; gap: 12px; align-items: stretch; }
+  .swatch { flex: 1; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 92px; font-family: var(--font-sans); border: 1px solid var(--border-hairline); }
+  .swatch .name { font-weight: 600; font-size: 13px; }
+  .swatch .hex { font-family: ui-monospace, monospace; font-size: 11px; opacity: .85; }
+  .swatch.dark { color: white; }
+  .swatch.light { color: var(--ink-primary); }
+</style></head>
+<body>
+<div class="row">
+  <div class="swatch dark" style="background:#161616"><div class="name">ink-primary</div><div class="hex">#161616 · body, headings</div></div>
+  <div class="swatch dark" style="background:#5E5E5E"><div class="name">ink-secondary</div><div class="hex">#5E5E5E · helper copy</div></div>
+  <div class="swatch dark" style="background:#9A9A9A"><div class="name">ink-tertiary</div><div class="hex">#9A9A9A · meta, placeholder</div></div>
+  <div class="swatch light" style="background:#FFFFFF"><div class="name">bg-primary</div><div class="hex">#FFFFFF · page surface</div></div>
+  <div class="swatch light" style="background:#F4F4F1"><div class="name">bg-secondary</div><div class="hex">#F4F4F1 · hover, thumb bg</div></div>
+  <div class="swatch light" style="background:#EAF1F6"><div class="name">bg-tinted</div><div class="hex">#EAF1F6 · highlight wash</div></div>
+</div>
+</body></html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface); font-family: var(--font-sans); }
+  .row { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+  .icon { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .icon i { display: flex; }
+  .icon i svg { width: 26px; height: 26px; color: var(--ink-primary); stroke-width: 1.75; }
+  .label { font-size: 11px; color: var(--ink-secondary); }
+  .lab { font-size: 11px; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; font-weight: 600; }
+</style></head>
+<body>
+  <div class="lab">Lucide (MIT) · utility icons</div>
+  <div class="row">
+    <div class="icon"><i data-lucide="shopping-cart"></i><span class="label">cart</span></div>
+    <div class="icon"><i data-lucide="search"></i><span class="label">search</span></div>
+    <div class="icon"><i data-lucide="list"></i><span class="label">guide</span></div>
+    <div class="icon"><i data-lucide="repeat"></i><span class="label">standing</span></div>
+    <div class="icon"><i data-lucide="message-square"></i><span class="label">messages</span></div>
+    <div class="icon"><i data-lucide="user"></i><span class="label">account</span></div>
+    <div class="icon"><i data-lucide="clock"></i><span class="label">cutoff</span></div>
+    <div class="icon"><i data-lucide="check"></i><span class="label">check</span></div>
+    <div class="icon"><i data-lucide="x"></i><span class="label">close</span></div>
+    <div class="icon"><i data-lucide="plus"></i><span class="label">add</span></div>
+    <div class="icon"><i data-lucide="minus"></i><span class="label">remove</span></div>
+    <div class="icon"><i data-lucide="chevron-right"></i><span class="label">chevron</span></div>
+  </div>
+  <script>lucide.createIcons();</script>
+</body></html>
