@@ -6,7 +6,7 @@ import type { Product } from "@/lib/supabase/types";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
 import { groupBySubCategory } from "@/lib/products/sub-category";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { GuideRow } from "./page";
+import type { GuideRow, PricedProductLite } from "./page";
 
 // See CatalogSearchInput for rationale — dynamic-import keeps the
 // camera-modal + @zxing libs out of the guide's initial JS bundle.
@@ -22,11 +22,15 @@ interface Props {
    *  catalog category-browse layout shipped in PR #46). */
   buyerProducerRank?: Record<string, number>;
   globalProducerRank?: Record<string, number>;
+  /** Products from producers this buyer already orders from, that the
+   *  buyer has never personally ordered. Renders as a discovery strip
+   *  at the bottom of /guide. Empty array hides the strip entirely. */
+  newFromProducers?: PricedProductLite[];
 }
 
 type PricedProduct = Product & { unitPrice: number | null };
 
-export function GuideClient({ items }: Props) {
+export function GuideClient({ items, newFromProducers = [] }: Props) {
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
 
@@ -79,22 +83,35 @@ export function GuideClient({ items }: Props) {
           cta={{ href: "/catalog", label: "Browse catalog" }}
         />
       ) : (
-        subCategorySections.map(({ subCategory, rows }) => {
-          const filtered = rows.filter(searchMatch);
-          if (filtered.length === 0) return null;
-          const products: PricedProduct[] = filtered.map((r) => ({
-            ...r.product,
-            unitPrice: r.unitPrice,
-          }));
-          return (
+        <>
+          {subCategorySections.map(({ subCategory, rows }) => {
+            const filtered = rows.filter(searchMatch);
+            if (filtered.length === 0) return null;
+            const products: PricedProduct[] = filtered.map((r) => ({
+              ...r.product,
+              unitPrice: r.unitPrice,
+            }));
+            return (
+              <ScrollStrip
+                key={subCategory}
+                title={subCategory}
+                products={products}
+                density="dense"
+              />
+            );
+          })}
+
+          {/* Discovery: products from producers this buyer already orders
+              from, but they've never tried this specific product. Hidden
+              while searching — search is a focused intent state. */}
+          {!search && newFromProducers.length > 0 ? (
             <ScrollStrip
-              key={subCategory}
-              title={subCategory}
-              products={products}
+              title="New from your producers"
+              products={newFromProducers}
               density="dense"
             />
-          );
-        })
+          ) : null}
+        </>
       )}
 
       <BarcodeScanner
