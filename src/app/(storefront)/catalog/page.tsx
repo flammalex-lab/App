@@ -50,19 +50,16 @@ export default async function CatalogPage({
   const { active } = await resolveActiveAccount(profileId, me.account_id);
   const account = active;
 
-  // Account-scoped pricing inputs (overrides + price-list rows) and the
-  // allow-list for any private products. Loaded once and reused across every
-  // strip/list query so each render is bounded to a small number of round-trips.
-  const [pricingCtx, allowedPrivateIds] = await Promise.all([
+  // Account-scoped pricing inputs (overrides + price-list rows), the
+  // allow-list for any private products, and the buyer's default
+  // order-guide product IDs (B2B "In guide" badge). All three are
+  // independent — running them in one Promise.all collapses three
+  // round-trips into one.
+  const [pricingCtx, allowedPrivateIds, inGuideIds] = await Promise.all([
     loadPricingContext(db, account, isB2B),
     getAllowedPrivateProductIds(db, account?.id ?? null),
+    loadInGuideIds(db, profileId, isB2B),
   ]);
-
-  // Buyer's default order-guide product IDs. Used to flag matching cards
-  // with the gold "In guide" badge. B2B only — DTC customers don't have
-  // a guide. Two cheap round-trips; the second skips entirely when the
-  // buyer has no guide row yet.
-  const inGuideIds = await loadInGuideIds(db, profileId, isB2B);
 
   // Per-buyer buyer_type overrides the account's (see migration 0009).
   const effectiveBuyerType = me.buyer_type ?? account?.buyer_type ?? null;
@@ -87,19 +84,47 @@ export default async function CatalogPage({
     // is_active / channel / buyer_type / private filter set can never drift.
     const baseOpts = { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds };
 
-    // Strip 1: This week — available_this_week = true
-    const { data: weekRows } = await visibleProductsQuery(db, baseOpts)
-      .eq("available_this_week", true)
-      .order("sort_order", { ascending: true })
-      .limit(12);
+    // ---- Tier A: 5 independent queries kicked off in parallel.
+    // Previously these awaited one-after-another (~5 sequential DB
+    // round-trips on a cold cache). They share no dependencies — none
+    // reads another's result — so Promise.all collapses them to a
+    // single tier of latency.
+    const [
+      { data: weekRows },
+      { data: historyRows },
+      { data: producerRows },
+      { data: suggestRows },
+      { data: counts },
+    ] = await Promise.all([
+      // Strip 1: This week
+      visibleProductsQuery(db, baseOpts)
+        .eq("available_this_week", true)
+        .order("sort_order", { ascending: true })
+        .limit(12),
+      // Strip 2 (first half): order_items for this buyer
+      db
+        .from("order_items")
+        .select("product_id, quantity, orders!inner(profile_id)")
+        .eq("orders.profile_id", profileId)
+        .limit(200),
+      // Strip 3 (first half): producer counts for featured-producer pick
+      visibleProductsQuery(db, { ...baseOpts, select: "producer" }).not(
+        "producer",
+        "is",
+        null,
+      ),
+      // Search autocomplete suggestions
+      visibleProductsQuery(db, { ...baseOpts, select: "name, producer" }).order(
+        "name",
+        { ascending: true },
+      ),
+      // Group counts for the fallback tile grid
+      visibleProductsQuery(db, { ...baseOpts, select: "product_group" }),
+    ]);
+
     const thisWeek = priceProducts(weekRows as Product[] | null, pricingCtx);
 
-    // Strip 2: Based on your order history — top 8 SKUs ordered by this profile
-    const { data: historyRows } = await db
-      .from("order_items")
-      .select("product_id, quantity, orders!inner(profile_id)")
-      .eq("orders.profile_id", profileId)
-      .limit(200);
+    // Strip 2 derivation: top SKUs from history rows
     const countByProduct = new Map<string, number>();
     for (const r of (historyRows as any[] | null) ?? []) {
       countByProduct.set(r.product_id, (countByProduct.get(r.product_id) ?? 0) + Number(r.quantity));
@@ -108,22 +133,8 @@ export default async function CatalogPage({
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([id]) => id);
-    let history: (Product & { unitPrice: number | null })[] = [];
-    if (topIds.length > 0) {
-      // Use visibleProductsQuery so previously-ordered products that have
-      // since been hidden, moved out of buyer scope, or disabled don't
-      // appear as ghosts in the "your history" strip.
-      const { data: histProducts } = await visibleProductsQuery(db, baseOpts).in("id", topIds);
-      history = priceProducts(histProducts as Product[] | null, pricingCtx);
-      // preserve most-ordered order
-      history.sort((a, b) => (countByProduct.get(b.id) ?? 0) - (countByProduct.get(a.id) ?? 0));
-    }
 
-    // Strip 3: Featured producer — pick the producer with the most products
-    const { data: producerRows } = await visibleProductsQuery(db, {
-      ...baseOpts,
-      select: "producer",
-    }).not("producer", "is", null);
+    // Strip 3 derivation: pick the producer with the most products
     const producerCounts = new Map<string, number>();
     for (const r of (producerRows as { producer: string | null }[] | null) ?? []) {
       if (r.producer) producerCounts.set(r.producer, (producerCounts.get(r.producer) ?? 0) + 1);
@@ -133,27 +144,39 @@ export default async function CatalogPage({
       .sort((a, b) => b[1] - a[1])
       .map(([p]) => p);
     const featuredProducer = topProducers[0] ?? null;
-    let featured: (Product & { unitPrice: number | null })[] = [];
-    if (featuredProducer) {
-      const { data: featRows } = await visibleProductsQuery(db, baseOpts)
-        .eq("producer", featuredProducer)
-        .order("sort_order", { ascending: true })
-        .limit(10);
-      featured = priceProducts(featRows as Product[] | null, pricingCtx);
+
+    // ---- Tier B: 2 dependent fetches — also independent of each other.
+    // history strip needs topIds; featured strip needs featuredProducer.
+    const [
+      { data: histProducts },
+      { data: featRows },
+    ] = await Promise.all([
+      topIds.length > 0
+        ? visibleProductsQuery(db, baseOpts).in("id", topIds)
+        : Promise.resolve({ data: null }),
+      featuredProducer
+        ? visibleProductsQuery(db, baseOpts)
+            .eq("producer", featuredProducer)
+            .order("sort_order", { ascending: true })
+            .limit(10)
+        : Promise.resolve({ data: null }),
+    ]);
+
+    // Use visibleProductsQuery so previously-ordered products that have
+    // since been hidden, moved out of buyer scope, or disabled don't
+    // appear as ghosts in the "your history" strip.
+    let history: (Product & { unitPrice: number | null })[] = [];
+    if (histProducts) {
+      history = priceProducts(histProducts as Product[] | null, pricingCtx);
+      // preserve most-ordered order
+      history.sort((a, b) => (countByProduct.get(b.id) ?? 0) - (countByProduct.get(a.id) ?? 0));
     }
 
-    // Product-name + producer suggestions for the search autocomplete
-    const { data: suggestRows } = await visibleProductsQuery(db, {
-      ...baseOpts,
-      select: "name, producer",
-    }).order("name", { ascending: true });
-    const suggestions = buildSuggestions(suggestRows);
+    const featured: (Product & { unitPrice: number | null })[] = featRows
+      ? priceProducts(featRows as Product[] | null, pricingCtx)
+      : [];
 
-    // Group counts for the fallback tile grid
-    const { data: counts } = await visibleProductsQuery(db, {
-      ...baseOpts,
-      select: "product_group",
-    });
+    const suggestions = buildSuggestions(suggestRows);
 
     const groupCounts = allowed
       .map((g) => ({
@@ -251,35 +274,46 @@ export default async function CatalogPage({
   else if (sort === "name_desc") query = query.order("name", { ascending: false });
   else query = query.order("name", { ascending: true });
 
-  const { data: products } = await query;
-
-  // Suggestions for the list-view search (same pool the user sees below)
-  const { data: suggestRowsList } = await visibleProductsQuery(db, {
-    buyerType: effectiveBuyerType,
-    isB2B,
-    allowedPrivateIds,
-    select: "name, producer",
-  }).order("name", { ascending: true });
-  const suggestionsList = buildSuggestions(suggestRowsList);
-
-  const priced = priceProducts(products as Product[] | null, pricingCtx);
-
   // Producer chips row — shown on category pages (?group=X) so loyalists
   // can one-tap narrow to a single producer. Stays visible when a producer
   // is already selected so the buyer can toggle it back off via the
   // selected chip. Skipped on search / explore / best to keep those
   // surfaces focused.
   const showProducerChips = Boolean(groupFilter) && !q && !isBest && !isExplore;
-  let categoryProducers: string[] = [];
-  if (showProducerChips) {
-    const { data: producerRows } = await visibleProductsQuery(db, {
+
+  // Main query, search-suggestion list, and producer-chip rows are all
+  // independent — run them in parallel so they share one round-trip
+  // tier instead of three. The producer-chip query is conditional, so
+  // it stubs to a null payload when not needed.
+  const [
+    { data: products },
+    { data: suggestRowsList },
+    { data: producerRows },
+  ] = await Promise.all([
+    query,
+    visibleProductsQuery(db, {
       buyerType: effectiveBuyerType,
       isB2B,
       allowedPrivateIds,
-      select: "producer",
-    })
-      .eq("product_group", groupFilter as ProductGroup)
-      .not("producer", "is", null);
+      select: "name, producer",
+    }).order("name", { ascending: true }),
+    showProducerChips
+      ? visibleProductsQuery(db, {
+          buyerType: effectiveBuyerType,
+          isB2B,
+          allowedPrivateIds,
+          select: "producer",
+        })
+          .eq("product_group", groupFilter as ProductGroup)
+          .not("producer", "is", null)
+      : Promise.resolve({ data: null }),
+  ]);
+  const suggestionsList = buildSuggestions(suggestRowsList);
+
+  const priced = priceProducts(products as Product[] | null, pricingCtx);
+
+  let categoryProducers: string[] = [];
+  if (showProducerChips && producerRows) {
     const seen = new Set<string>();
     for (const r of (producerRows as { producer: string | null }[] | null) ?? []) {
       const name = r.producer?.trim();
