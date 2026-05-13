@@ -176,12 +176,24 @@ export function ImageTriageClient() {
       setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, status: "matching" } : x)));
       try {
         const imageBase64 = await readAsBase64(working);
+        // Build the filename we send to the matcher. Precedence:
+        //   1. webkitRelativePath from a folder pick ("Red Jacket Orchards/raspberry.jpg")
+        //   2. Producer hint as a virtual prefix when no folder was picked.
+        //      Webkit-directory uploads don't work everywhere (iOS Safari,
+        //      some sandboxed contexts), so this gives ops the same brand-
+        //      as-token effect by typing the producer once and picking
+        //      individual files.
+        //   3. Bare file.name.
+        const trimmedProducer = producer.trim();
+        const matchFilename =
+          it.relativePath ||
+          (trimmedProducer ? `${trimmedProducer}/${it.file.name}` : it.file.name);
         const res = await fetch("/api/admin/image-triage/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            filename: it.relativePath || it.file.name,
-            producer: producer.trim() || null,
+            filename: matchFilename,
+            producer: trimmedProducer || null,
             imageBase64,
             imageMediaType: working.type || "image/jpeg",
           }),
@@ -290,10 +302,14 @@ export function ImageTriageClient() {
         <div>
           <label className="label">Images</label>
           <p className="text-xs text-ink-tertiary mb-2 leading-snug max-w-md">
-            Pick a folder to use brand/producer folder names as matching
-            signal — files inside <code>Red Jacket Orchards/</code> get
-            those tokens added to the match scorer automatically. Or pick
-            individual files for ad-hoc uploads.
+            Two ways to surface brand context to the matcher:
+            (a) pick a folder named after the producer — files inside
+            <code className="mx-1">Red Jacket Orchards/</code> get those
+            tokens added to the matcher automatically; (b) type the
+            producer in the hint field above and pick individual files —
+            we&rsquo;ll prepend the producer to each filename before
+            matching, same effect. Folder picker doesn&rsquo;t work on
+            iOS Safari — use Chrome on desktop or fall back to (b).
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <input
