@@ -21,3 +21,7 @@ supabase/.temp
 
 # MCP config holds a Supabase PAT. Stays local; do not commit.
 .mcp.json
+
+# Subagent worktrees (created by Claude Code's isolation: "worktree" option).
+# These are ephemeral local copies of the repo — never committed.
+.claude/worktrees/
