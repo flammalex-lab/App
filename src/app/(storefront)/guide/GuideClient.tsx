@@ -26,11 +26,24 @@ interface Props {
    *  buyer has never personally ordered. Renders as a discovery strip
    *  at the bottom of /guide. Empty array hides the strip entirely. */
   newFromProducers?: PricedProductLite[];
+  /** SmartShop: distinct products the buyer (or anyone on their active
+   *  account) committed to in the last 21 days, ranked by how many
+   *  distinct orders they appeared in. Capped at 12. Empty array hides
+   *  the strip entirely — no empty-state copy. */
+  recentBuys?: PricedProductLite[];
+  /** IDs of products in the buyer's default order guide. Powers the
+   *  gold "In guide" badge on discovery + SmartShop strip cards. */
+  inGuideIds?: string[];
 }
 
 type PricedProduct = Product & { unitPrice: number | null };
 
-export function GuideClient({ items, newFromProducers = [] }: Props) {
+export function GuideClient({
+  items,
+  newFromProducers = [],
+  recentBuys = [],
+  inGuideIds = [],
+}: Props) {
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
 
@@ -53,6 +66,10 @@ export function GuideClient({ items, newFromProducers = [] }: Props) {
   }, [items]);
 
   const visibleCount = items.filter(searchMatch).length;
+
+  // ReadonlySet for fast badge lookups inside ScrollStrip. Memoised so the
+  // prop reference is stable across renders.
+  const inGuideSet = useMemo(() => new Set(inGuideIds), [inGuideIds]);
 
   return (
     <>
@@ -84,6 +101,19 @@ export function GuideClient({ items, newFromProducers = [] }: Props) {
         />
       ) : (
         <>
+          {/* SmartShop: products the buyer (or their account) committed to
+              in the last 21 days, ranked by order frequency. The strip
+              itself IS the surface — no See-all. Hidden during search
+              (focused intent) and when empty. */}
+          {!search && recentBuys.length > 0 ? (
+            <ScrollStrip
+              title="Recent buys"
+              products={recentBuys}
+              density="dense"
+              inGuideIds={inGuideSet}
+            />
+          ) : null}
+
           {subCategorySections.map(({ subCategory, rows }) => {
             const filtered = rows.filter(searchMatch);
             if (filtered.length === 0) return null;
@@ -118,6 +148,7 @@ export function GuideClient({ items, newFromProducers = [] }: Props) {
               title="New from your producers"
               products={newFromProducers}
               density="dense"
+              inGuideIds={inGuideSet}
             />
           ) : null}
         </>
