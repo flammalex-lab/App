@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
+import { resolveActiveAccount } from "@/lib/auth/active-account";
 import type {
   Account,
   OrderGuide,
@@ -12,6 +13,10 @@ import { GuideClient } from "./GuideClient";
 import { ReorderLastCard } from "./ReorderLastCard";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { getBuyerHistory } from "@/lib/products/buyer-history";
+import {
+  getAllowedPrivateProductIds,
+  visibleProductsQuery,
+} from "@/lib/products/queries";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
@@ -28,10 +33,11 @@ export default async function GuidePage() {
   if (me.role === "dtc_customer") redirect("/catalog");
 
   // ---- Tier 1: launch every independent fetch in parallel.
-  // account, default order guide, buyer history (cached) and last-order
-  // header row don't depend on each other — running them serially
-  // stacked ~4 sequential round-trips on the critical path. The shape
-  // change is purely about parallelism; the queries are unchanged.
+  // account, default order guide, buyer history (cached), last-order
+  // header row, and active-account resolution don't depend on each
+  // other — running them serially stacked ~5 sequential round-trips on
+  // the critical path. The shape change is purely about parallelism;
+  // the queries are unchanged.
   const accountPromise = me.account_id
     ? db.from("accounts").select("*").eq("id", me.account_id).maybeSingle()
     : Promise.resolve({ data: null as Account | null });
@@ -53,17 +59,24 @@ export default async function GuidePage() {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Active account membership — used to scope SmartShop's "Recent buys"
+  // strip so a multi-buyer account sees a joint feed (a sous chef sees
+  // what the head chef ordered last week, and vice versa). Same helper
+  // as /orders/page.tsx.
+  const activeAccountPromise = resolveActiveAccount(profileId, me.account_id);
 
   const [
     { data: accountRow },
     { data: guideRows },
     buyerHistory,
     { data: lastOrderRow },
+    { active },
   ] = await Promise.all([
     accountPromise,
     guideRowsPromise,
     buyerHistoryPromise,
     lastOrderRowPromise,
+    activeAccountPromise,
   ]);
   const account = accountRow as Account | null;
   const guide = ((guideRows as OrderGuide[] | null) ?? [])[0] ?? null;
@@ -132,9 +145,12 @@ export default async function GuidePage() {
     if (producer) orderedProducers.add(producer);
   }
 
-  // ---- Tier 3: globalRank scan (needs guideProducers) and the
-  // discovery-strip product fetch (needs orderedProducers) are
-  // independent — run them together.
+  // ---- Tier 3: globalRank scan (needs guideProducers), the
+  // discovery-strip product fetch (needs orderedProducers), and the
+  // SmartShop 21-day order-items scan (needs active.id / profileId)
+  // are independent of each other — run them together. Plus the
+  // private-product allow-list, which we'll need to hydrate the
+  // SmartShop strip through visibleProductsQuery.
   const globalRankPromise = guideProducers.length
     ? db
         .from("order_items")
@@ -164,10 +180,100 @@ export default async function GuidePage() {
     newProductsPromise = Promise.resolve({ data: null });
   }
 
-  const [{ data: allItems }, { data: newRows }] = await Promise.all([
+  // SmartShop "Recent buys": distinct products the buyer's active
+  // account committed to in the last 21 days. Excludes draft +
+  // cancelled — we want what the buyer actually committed to, not
+  // abandoned carts. Account-scoped when available; falls back to
+  // profile_id for legacy buyers without a profile_accounts link
+  // (same pattern as /orders/page.tsx).
+  const twentyOneDaysAgo = new Date(
+    new Date().getTime() - 21 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  let recentItemsQ = db
+    .from("order_items")
+    .select(
+      "product_id, order_id, orders!inner(account_id, profile_id, status, created_at)",
+    )
+    .in("orders.status", [
+      "confirmed",
+      "processing",
+      "ready",
+      "shipped",
+      "delivered",
+    ])
+    .gte("orders.created_at", twentyOneDaysAgo);
+  recentItemsQ = active
+    ? recentItemsQ.eq("orders.account_id", active.id)
+    : recentItemsQ.eq("orders.profile_id", profileId);
+  const recentItemsPromise = recentItemsQ;
+
+  const allowedPrivateIdsPromise = getAllowedPrivateProductIds(
+    db,
+    active?.id ?? account?.id ?? null,
+  );
+
+  const [
+    { data: allItems },
+    { data: newRows },
+    { data: recentItemRows },
+    allowedPrivateIds,
+  ] = await Promise.all([
     globalRankPromise,
     newProductsPromise,
+    recentItemsPromise,
+    allowedPrivateIdsPromise,
   ]);
+
+  // SmartShop ranking: count of DISTINCT orders a SKU appeared in
+  // (NOT total quantity — one bulk order shouldn't drown the rest of
+  // the rhythm). Dedupe on (product_id, order_id) so two line items
+  // in the same order don't double-count.
+  const seenOrderProduct = new Set<string>();
+  const ordersPerProduct = new Map<string, number>();
+  for (const r of (recentItemRows as
+    | { product_id: string; order_id: string }[]
+    | null) ?? []) {
+    const key = `${r.product_id}::${r.order_id}`;
+    if (seenOrderProduct.has(key)) continue;
+    seenOrderProduct.add(key);
+    ordersPerProduct.set(
+      r.product_id,
+      (ordersPerProduct.get(r.product_id) ?? 0) + 1,
+    );
+  }
+
+  // ---- Tier 4: hydrate the SmartShop product IDs through
+  // visibleProductsQuery so paused / out-of-scope / disabled SKUs
+  // disappear even if they sit in recent history. This must run after
+  // Tier 3 because it needs the product IDs.
+  let recentBuys: PricedProductLite[] = [];
+  const recentIds = Array.from(ordersPerProduct.keys());
+  if (recentIds.length) {
+    const effectiveBuyerType = me.buyer_type ?? account?.buyer_type ?? null;
+    const { data: prodRows } = await visibleProductsQuery(db, {
+      buyerType: effectiveBuyerType,
+      isB2B: true,
+      allowedPrivateIds,
+    }).in("id", recentIds);
+    const visible = (prodRows as Product[] | null) ?? [];
+    // Sort by order-count desc, then name asc (stable). Cap at 12.
+    visible.sort((a, b) => {
+      const diff =
+        (ordersPerProduct.get(b.id) ?? 0) -
+        (ordersPerProduct.get(a.id) ?? 0);
+      if (diff !== 0) return diff;
+      return a.name.localeCompare(b.name);
+    });
+    recentBuys = visible.slice(0, 12).map((p) => ({
+      ...p,
+      unitPrice: priceForProduct(p, pricingCtx),
+    }));
+  }
+
+  // Product IDs in the buyer's default guide — drives the gold
+  // "In guide" badge on discovery + SmartShop strip cards. Derived
+  // from the already-loaded guide items, so no extra query.
+  const inGuideIds = items.map((r) => r.product.id);
 
   // ---- Final assembly.
   const buyerProducerRank: Record<string, number> = {};
@@ -257,6 +363,8 @@ export default async function GuidePage() {
           buyerProducerRank={buyerProducerRank}
           globalProducerRank={globalProducerRank}
           newFromProducers={newFromProducers}
+          recentBuys={recentBuys}
+          inGuideIds={inGuideIds}
         />
       )}
     </div>
