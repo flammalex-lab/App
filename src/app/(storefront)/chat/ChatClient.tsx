@@ -21,7 +21,8 @@ export function ChatClient({
   const [messages, setMessages] = useState<Message[]>(initial);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const didInitialScroll = useRef(false);
 
   useEffect(() => {
     // Without an account the realtime channel has nothing to filter on
@@ -43,7 +44,20 @@ export function ChatClient({
     return () => void supabase.removeChannel(channel);
   }, [accountId, supabase]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
+  // Pin the chat to the newest message. We set scrollTop on the inner
+  // overflow container directly (instead of scrollIntoView on a sentinel,
+  // which scrolls the whole window when the chat is taller than the
+  // viewport — that was yanking the page down on open).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (!didInitialScroll.current) {
+      el.scrollTop = el.scrollHeight;
+      didInitialScroll.current = true;
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages.length]);
 
   async function send() {
     if (!body.trim()) return;
@@ -72,7 +86,7 @@ export function ChatClient({
 
   return (
     <div className="card flex flex-col h-[65vh]">
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
             <div className="h-16 w-16 rounded-full bg-brand-green-tint text-brand-green inline-flex items-center justify-center mb-3">
@@ -98,7 +112,6 @@ export function ChatClient({
             </div>
           );
         })}
-        <div ref={endRef} />
       </div>
       <div className="border-t border-black/5 p-3 flex gap-2">
         <Textarea
