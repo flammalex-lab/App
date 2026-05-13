@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Message } from "@/lib/supabase/types";
 import { relativeTime, dateShort } from "@/lib/utils/format";
@@ -98,6 +99,34 @@ export function ChatClient({
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   }, [messages.length]);
+
+  // Stockout-flow prefill: /chat?sku=...&context=... lands here when the
+  // buyer taps "Ask Alex" on a /guide stockout row. Drop a starter into
+  // the composer so the buyer can edit & send without retyping which
+  // product they're asking about. One-shot — wipes after first apply so
+  // a refresh doesn't re-prefill over the buyer's edits.
+  const searchParams = useSearchParams();
+  const ctxParam = searchParams?.get("context") ?? null;
+  const skuParam = searchParams?.get("sku") ?? null;
+  // Sync state from URL params during render (canonical React 19 pattern
+  // for "set state when a derived input changes"). Falls back to ref so
+  // a refresh after an edit doesn't re-prefill over the buyer's typing.
+  const [lastCtx, setLastCtx] = useState<string | null>(null);
+  if (ctxParam && ctxParam !== lastCtx) {
+    setLastCtx(ctxParam);
+    const skuTag = skuParam ? ` (${skuParam})` : "";
+    setBody(`${ctxParam}${skuTag} — what's a good swap?`);
+  }
+  useEffect(() => {
+    if (!ctxParam) return;
+    // Focus the composer once the prefill has rendered.
+    queueMicrotask(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.selectionStart = el.selectionEnd = el.value.length;
+    });
+  }, [ctxParam]);
 
   // Auto-grow the textarea between 1–4 rows. We measure scrollHeight
   // against a one-line baseline and clamp to a max so it never eats the

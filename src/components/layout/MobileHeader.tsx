@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/Brand";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { countdown, titleCase } from "@/lib/utils/format";
+import { useCart } from "@/lib/cart/store";
 import type { Account, Profile } from "@/lib/supabase/types";
 
 interface SerializedNextDelivery {
@@ -53,6 +54,14 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
   const [cutoffOpen, setCutoffOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
 
+  // The StickyCartBar pill owns urgency when (a) cart has lines and (b)
+  // cutoff is within 12h. While that's true, the header strip demotes to
+  // a quiet delivery-date-only line so urgency isn't double-rendered.
+  const cartLineCount = useCart((s) => s.lines.length);
+  const ms = next ? new Date(next.cutoffAt).getTime() - now : null;
+  const pillOwnsCountdown =
+    cartLineCount > 0 && ms != null && ms > 0 && ms < 12 * 60 * 60 * 1000;
+
   return (
     <header className="md:hidden bg-white border-b border-black/[0.06] h-[52px] flex items-center gap-2.5 px-3.5">
       <Link href={home} aria-label="Home" className="shrink-0 inline-flex">
@@ -63,7 +72,11 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
         <div className="display text-base font-bold tracking-tight leading-[1.1] text-ink-primary truncate">
           {title}
         </div>
-        <CutoffLine next={next} now={now} onOpen={() => setCutoffOpen(true)} />
+        {pillOwnsCountdown ? (
+          <DemotedDeliveryLine next={next} onOpen={() => setCutoffOpen(true)} />
+        ) : (
+          <CutoffLine next={next} now={now} onOpen={() => setCutoffOpen(true)} />
+        )}
       </div>
 
       <button
@@ -91,6 +104,41 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
         memberships={memberships}
       />
     </header>
+  );
+}
+
+/**
+ * Demoted variant of CutoffLine — shown when the StickyCartBar pill is
+ * carrying the urgency. Quiet, delivery-date-only, no countdown, no dot.
+ * Still tappable so the buyer can open the cutoff sheet if they want the
+ * full picture.
+ */
+function DemotedDeliveryLine({
+  next,
+  onOpen,
+}: {
+  next: SerializedNextDelivery | null;
+  onOpen: () => void;
+}) {
+  if (!next) return null;
+  const d = new Date(next.deliveryDate);
+  if (Number.isNaN(d.getTime())) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Delivery details"
+      className="text-[11px] leading-tight text-ink-tertiary text-left truncate"
+    >
+      Delivery{" "}
+      <span className="tabular">
+        {d.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })}
+      </span>
+    </button>
   );
 }
 
