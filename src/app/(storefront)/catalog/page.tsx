@@ -70,6 +70,12 @@ export default async function CatalogPage({
     getAllowedPrivateProductIds(db, account?.id ?? null),
   ]);
 
+  // Buyer's default order-guide product IDs. Used to flag matching cards
+  // with the gold "In guide" badge. B2B only — DTC customers don't have
+  // a guide. Two cheap round-trips; the second skips entirely when the
+  // buyer has no guide row yet.
+  const inGuideIds = await loadInGuideIds(db, profileId, isB2B);
+
   // Per-buyer buyer_type overrides the account's (see migration 0009).
   const effectiveBuyerType = me.buyer_type ?? account?.buyer_type ?? null;
   const allowed = allowedGroupsFor(effectiveBuyerType);
@@ -213,12 +219,14 @@ export default async function CatalogPage({
           emoji="🌱"
           subtitle="Fresh off the flyer — available for this delivery."
           products={thisWeek}
+          inGuideIds={inGuideIds}
         />
 
         {history.length > 0 ? (
           <ScrollStrip
             title="Based on your order history"
             products={history}
+            inGuideIds={inGuideIds}
           />
         ) : null}
 
@@ -228,6 +236,7 @@ export default async function CatalogPage({
             href={`/catalog?producer=${encodeURIComponent(featuredProducer)}`}
             subtitle="Featured producer"
             products={featured}
+            inGuideIds={inGuideIds}
           />
         ) : null}
 
@@ -502,13 +511,47 @@ export default async function CatalogPage({
               key={subCategory}
               title={subCategory}
               products={items}
+              inGuideIds={inGuideIds}
             />
           ))}
         </div>
       ) : (
-        <CatalogGrid products={visibleProducts} fromGroup={fromGroupLabel} />
+        <CatalogGrid
+          products={visibleProducts}
+          fromGroup={fromGroupLabel}
+          inGuideIds={inGuideIds}
+        />
       )}
     </div>
+  );
+}
+
+/**
+ * Returns the set of product IDs in the active buyer's default order
+ * guide. Empty set for DTC customers (no guide concept) or any buyer
+ * who hasn't been onboarded with a guide yet.
+ */
+async function loadInGuideIds(
+  db: Awaited<ReturnType<typeof createClient>>,
+  profileId: string,
+  isB2B: boolean,
+): Promise<ReadonlySet<string>> {
+  if (!isB2B) return new Set();
+  const { data: guideRows } = await db
+    .from("order_guides")
+    .select("id")
+    .eq("profile_id", profileId)
+    .eq("is_default", true)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const guideId = ((guideRows as { id: string }[] | null) ?? [])[0]?.id;
+  if (!guideId) return new Set();
+  const { data: items } = await db
+    .from("order_guide_items")
+    .select("product_id")
+    .eq("order_guide_id", guideId);
+  return new Set(
+    ((items as { product_id: string }[] | null) ?? []).map((i) => i.product_id),
   );
 }
 

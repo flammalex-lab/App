@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { PackOption, Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
-import { productImage } from "@/lib/utils/product-image";
+import { productPhoto } from "@/lib/utils/product-image";
 import { displayProductName } from "@/lib/utils/product-display";
 import { money } from "@/lib/utils/format";
 import { QtyInput } from "@/components/ui/QtyInput";
 import { VariantPickerSheet } from "@/components/products/VariantPickerSheet";
+import { ProductCardFallback } from "@/components/products/ProductCardFallback";
 
 export type PricedProduct = Product & { unitPrice: number | null };
 
@@ -23,18 +25,35 @@ type Variant = "grid" | "compact" | "row";
  *              (image-on-top, info+stepper below)
  *   - row:     full-width list row (producer-grouped category view)
  *
- * Stepper sized at 48dp / 48 CSS px — meets Material 3 (48) and exceeds
- * iOS HIG (44). Full-width pill on cards so the hit target is generous
- * without dominating the card frame; right-edge pill on rows.
+ * Stepper sized at 44px tap targets — exceeds iOS HIG (44) and meets
+ * Material 3 (48 was overshoot for the visual density we needed).
+ * Circular brand-blue buttons everywhere; green is reserved for the
+ * commit moment (Place order, Confirm).
+ *
+ * Visual signals on the media:
+ *   - persistent blue `× N` pill at top-right when in cart (compact/grid)
+ *   - gold-star "In guide" badge at top-left when in the buyer's guide
+ *     (compact/grid; row uses an inline flag beside the producer line)
+ *
+ * When the product has no real photo (no `image_url`), the media slot
+ * renders ProductCardFallback — a dot-grid brand-blue tile featuring
+ * the product name — instead of an FLF-logo placeholder.
  */
 export function ProductCard({
   product,
   variant,
   fromGroup,
+  inGuide = false,
 }: {
   product: PricedProduct;
   variant: Variant;
   fromGroup?: string | null;
+  /**
+   * Whether this product is in the active buyer's order guide. Used to
+   * render the "In guide" badge. Default false — the buyer's guide
+   * isn't fetched on every page, so callers must opt in.
+   */
+  inGuide?: boolean;
 }) {
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
@@ -69,9 +88,6 @@ export function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     if (!available) return;
-    // Multi-variant products → open the picker instead of silently +1ing
-    // the default pack (which is rarely what the buyer wants when they
-    // could be buying by the case).
     if (hasVariants) {
       setVariantOpen(true);
       return;
@@ -122,15 +138,7 @@ export function ProductCard({
       setQty(product.id, n, null);
     }
   }
-  function openVariantPicker(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setVariantOpen(true);
-  }
 
-  // Resolve per-variant prices once so VariantPickerSheet doesn't duplicate
-  // the resolvePrice machinery. Falls back to wholesale_price if the parent
-  // didn't override.
   const defaultVariantPrices: Record<string, number | null> = {};
   for (const opt of packOptions) {
     defaultVariantPrices[opt.key] = opt.wholesale_price ?? opt.retail_price ?? null;
@@ -143,9 +151,6 @@ export function ProductCard({
   // which reads as nonsense — middot reads as "for".
   const sep = richSize ? "·" : "/";
   const price = product.unitPrice != null ? money(product.unitPrice) : "—";
-  // Display name with producer prefix + size suffix stripped — both are
-  // shown elsewhere on the card so duplicating them in the title eats
-  // the readable name area.
   const displayName = displayProductName(
     product.name,
     product.producer,
@@ -153,12 +158,15 @@ export function ProductCard({
     product.case_pack,
   );
 
+  const photo = productPhoto(product);
+  const weekOff = !product.available_this_week && !paused;
+
   // ───────── Compact (vertical scroll-strip card) ─────────
   if (variant === "compact") {
     return (
       <>
       <div
-        className={`group/card relative w-full h-full flex flex-col rounded-xl border border-black/10 bg-white overflow-hidden snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 ${paused ? "opacity-70" : ""}`}
+        className={`group/card relative w-full h-full flex flex-col rounded-xl border border-black/10 bg-white overflow-hidden snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${paused ? "opacity-70" : ""}`}
       >
         <Link
           href={detailHref}
@@ -166,25 +174,20 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-square flex items-center justify-center bg-white pointer-events-none overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={productImage(product)}
-            alt=""
-            className="w-full h-full object-cover mix-blend-multiply"
-          />
-          <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
-        </div>
+        <CardMedia
+          aspect="square"
+          photo={photo}
+          product={product}
+          fallbackSize="md"
+          sizes="(max-width: 768px) 45vw, 200px"
+          cartQty={cartQty}
+          inGuide={inGuide}
+          paused={paused}
+          weekOff={weekOff}
+        />
 
         <div className="relative px-3 pt-2 pb-2 flex flex-col gap-0.5 pointer-events-none">
-          {product.producer && producerHref ? (
-            <Link
-              href={producerHref}
-              className="display text-[12px] font-medium text-ink-primary truncate hover:underline pointer-events-auto focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm"
-            >
-              {product.producer}
-            </Link>
-          ) : null}
+          <ProducerEyebrow producer={product.producer} producerHref={producerHref} />
           <div
             className="text-[14px] font-semibold leading-snug text-ink-primary truncate"
             title={product.name}
@@ -218,7 +221,7 @@ export function ProductCard({
     return (
       <>
       <div
-        className={`group/card relative rounded-xl border border-black/10 bg-white overflow-hidden flex flex-col transition-all duration-150 [@media(hover:hover)]:hover:-translate-y-px [@media(hover:hover)]:hover:border-black/20 [@media(hover:hover)]:hover:shadow-card ${paused ? "opacity-70" : ""}`}
+        className={`group/card relative rounded-xl border border-black/10 bg-white overflow-hidden flex flex-col transition-all duration-150 [@media(hover:hover)]:hover:-translate-y-px [@media(hover:hover)]:hover:border-black/20 [@media(hover:hover)]:hover:shadow-card focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${paused ? "opacity-70" : ""}`}
       >
         <Link
           href={detailHref}
@@ -226,25 +229,21 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-square flex items-center justify-center pointer-events-none bg-white overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={productImage(product)}
-            alt=""
-            className="w-full h-full object-cover mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
-          />
-          <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
-        </div>
+        <CardMedia
+          aspect="square"
+          photo={photo}
+          product={product}
+          fallbackSize="md"
+          sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+          cartQty={cartQty}
+          inGuide={inGuide}
+          paused={paused}
+          weekOff={weekOff}
+          zoomOnHover
+        />
 
         <div className="relative px-3 pt-2 pb-2 flex flex-col gap-0.5 pointer-events-none">
-          {product.producer && producerHref ? (
-            <Link
-              href={producerHref}
-              className="display text-[13px] font-medium text-ink-primary truncate hover:underline pointer-events-auto focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm"
-            >
-              {product.producer}
-            </Link>
-          ) : null}
+          <ProducerEyebrow producer={product.producer} producerHref={producerHref} />
           <div
             className="display text-[15px] font-semibold leading-snug text-ink-primary truncate mt-0.5"
             title={product.name}
@@ -280,39 +279,33 @@ export function ProductCard({
     >
       <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
 
-      <div className="relative h-16 w-16 shrink-0 rounded-md overflow-hidden bg-white flex items-center justify-center pointer-events-none">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={productImage(product)}
-          alt=""
-          className="w-full h-full object-contain mix-blend-multiply"
-        />
-        {cartQty > 0 ? (
-          <span className="absolute top-0 left-0 min-w-[18px] h-[18px] px-1 rounded-br bg-accent-gold text-white text-[11px] font-semibold flex items-center justify-center tabular">
-            {cartQty}
-          </span>
-        ) : null}
+      <div className="relative h-20 w-20 shrink-0 rounded-md overflow-hidden bg-bg-secondary flex items-center justify-center pointer-events-none">
+        {photo ? (
+          <Image
+            src={photo}
+            alt=""
+            fill
+            sizes="80px"
+            className="object-contain mix-blend-multiply"
+          />
+        ) : (
+          <ProductCardFallback product={product} size="sm" />
+        )}
       </div>
 
       <div className="flex-1 min-w-0 pointer-events-none">
-        {product.producer && producerHref ? (
-          <Link
-            href={producerHref}
-            className="display block max-w-full truncate text-[13px] font-medium text-ink-primary hover:underline pointer-events-auto focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm"
-          >
-            {product.producer}
-          </Link>
-        ) : null}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <ProducerEyebrow producer={product.producer} producerHref={producerHref} />
+          {inGuide ? <InGuideFlag /> : null}
+        </div>
         <div className="text-[15px] font-semibold leading-snug text-ink-primary line-clamp-1 mt-0.5" title={product.name}>
           {displayName}
         </div>
         <div className="text-[13px] text-ink-secondary mt-0.5 truncate">
           <span className="tabular font-medium text-ink-primary">{price}</span>
-          <span className="text-ink-tertiary"> / {sizeLabel}</span>
+          <span className="text-ink-tertiary"> {sep} {sizeLabel}</span>
           {paused ? <span className="ml-2 badge badge-gold">Paused</span> : null}
-          {!product.available_this_week && !paused ? (
-            <span className="ml-2 badge badge-gray">Week off</span>
-          ) : null}
+          {weekOff ? <span className="ml-2 badge badge-gray">Week off</span> : null}
         </div>
       </div>
 
@@ -329,8 +322,6 @@ export function ProductCard({
     </div>
   );
 
-  // Helper rendered in every variant so the picker sheet is available
-  // regardless of card layout. Closes over local state.
   function SheetPortal() {
     if (!hasVariants) return null;
     return (
@@ -345,22 +336,136 @@ export function ProductCard({
   }
 }
 
-function Badge({ paused, weekOff }: { paused: boolean; weekOff: boolean }) {
-  if (paused)
+/** Producer name in uppercase eyebrow caps. Links to producer filter when present. */
+function ProducerEyebrow({
+  producer,
+  producerHref,
+}: {
+  producer: string | null;
+  producerHref: string | null;
+}) {
+  if (!producer) return null;
+  const baseClass =
+    "text-[10px] uppercase tracking-[0.08em] font-semibold text-ink-tertiary truncate leading-tight";
+  if (producerHref) {
     return (
-      <span className="absolute top-2 right-2 badge badge-gold text-[10px]">Paused</span>
+      <Link
+        href={producerHref}
+        className={`${baseClass} hover:text-ink-secondary hover:underline pointer-events-auto focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm`}
+      >
+        {producer}
+      </Link>
     );
-  if (weekOff)
-    return (
-      <span className="absolute top-2 right-2 badge-gray bg-white/90 text-[10px]">
-        Week off
-      </span>
-    );
-  return null;
+  }
+  return <span className={baseClass}>{producer}</span>;
 }
 
 /**
- * 48dp stepper. Two states:
+ * Media tile with image (or fallback) + persistent in-cart pill + In-guide
+ * badge + week-off / paused overlays. Used by compact + grid variants.
+ */
+function CardMedia({
+  aspect,
+  photo,
+  product,
+  fallbackSize,
+  sizes,
+  cartQty,
+  inGuide,
+  paused,
+  weekOff,
+  zoomOnHover,
+}: {
+  aspect: "square";
+  photo: string | null;
+  product: PricedProduct;
+  fallbackSize: "sm" | "md" | "lg";
+  sizes: string;
+  cartQty: number;
+  inGuide: boolean;
+  paused: boolean;
+  weekOff: boolean;
+  zoomOnHover?: boolean;
+}) {
+  return (
+    <div
+      className={`relative ${aspect === "square" ? "aspect-square" : ""} flex items-center justify-center bg-white pointer-events-none overflow-hidden`}
+    >
+      {photo ? (
+        <Image
+          src={photo}
+          alt=""
+          fill
+          sizes={sizes}
+          className={`object-contain mix-blend-multiply transition-transform duration-150 ${zoomOnHover ? "[@media(hover:hover)]:group-hover/card:scale-[1.03]" : ""}`}
+        />
+      ) : (
+        <ProductCardFallback product={product} size={fallbackSize} />
+      )}
+
+      {inGuide ? <InGuideBadge /> : null}
+      {/* CartPill defers to availability badges — paused/week-off products
+          can't be acted on from the card, and stacking pills top-right
+          gets cluttered. The buyer still sees the count in the cart. */}
+      {cartQty > 0 && !paused && !weekOff ? <CartPill qty={cartQty} /> : null}
+      {paused ? (
+        <span className="absolute top-2 right-2 badge badge-gold text-[10px]">Paused</span>
+      ) : null}
+      {!paused && weekOff ? (
+        <span className="absolute top-2 right-2 badge-gray bg-white/90 text-[10px]">
+          Week off
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Persistent brand-blue pill anchored top-right of media when product is in cart. */
+function CartPill({ qty }: { qty: number }) {
+  return (
+    <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-brand-blue text-white text-[11px] font-semibold leading-none tabular shadow-card pointer-events-none">
+      × {qty}
+    </span>
+  );
+}
+
+/** Compact/grid: white pill with gold star + "In guide" copy. */
+function InGuideBadge() {
+  return (
+    <span className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white text-[#8a690f] text-[11px] font-semibold leading-none border border-accent-gold/40 shadow-card pointer-events-none">
+      <StarIcon />
+      In guide
+    </span>
+  );
+}
+
+/** Row variant: tiny gold-tint flag beside the producer eyebrow. */
+function InGuideFlag() {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none text-[#8a690f] bg-accent-gold/15 shrink-0">
+      <StarIcon />
+      In guide
+    </span>
+  );
+}
+
+function StarIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      aria-hidden
+      className="text-accent-gold"
+    >
+      <path d="M6 .5l1.6 3.7 4 .4-3 2.8.9 4-3.5-2.1-3.5 2.1.9-4-3-2.8 4-.4z" />
+    </svg>
+  );
+}
+
+/**
+ * 44px stepper. Two states:
  *   qty = 0  → single "+ Add" button (full-width when fullWidth, square otherwise)
  *   qty > 0  → −/N/+ pill (full-width when fullWidth, fixed-width otherwise)
  */
@@ -390,9 +495,8 @@ function Stepper({
 
   const wrap = fullWidth ? "w-full justify-between" : "shrink-0";
 
-  // Stepper colors: primary brand-blue everywhere. Green is reserved for the
-  // commit step (Place order, Confirm standing order) per the design system
-  // — using it on the routine Add/+/- buttons diluted the moment.
+  // Stepper colors: brand-blue everywhere. Green is reserved for the
+  // commit step (Place order, Confirm standing order) per the design system.
   if (cartQty > 0) {
     return (
       <div className={`${wrap} flex items-center gap-2`}>

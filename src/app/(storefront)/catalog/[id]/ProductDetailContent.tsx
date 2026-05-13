@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { Product } from "@/lib/supabase/types";
-import { productImage } from "@/lib/utils/product-image";
+import { productPhoto } from "@/lib/utils/product-image";
+import { ProductCardFallback } from "@/components/products/ProductCardFallback";
 import { BRAND_LABELS } from "@/lib/constants";
 import { ProductDetailClient, type PackRow } from "./ProductDetailClient";
 import { groupedDetailTitle } from "./packs";
@@ -46,16 +48,23 @@ export function ProductDetailContent({
   // marketplace brand (e.g. fingerlakes_farms), not the maker; the maker
   // is `producer`, already shown by the chip above.
   const showPackCaption = !isGrouped && (product.pack_size || product.case_pack);
+  const photo = productPhoto(product);
 
   return (
     <div className="md:grid md:grid-cols-2 md:gap-0">
-      <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-white border-b md:border-b-0 md:border-r border-black/[0.06] bg-gradient-radial-soft">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={productImage(product)}
-          alt=""
-          className="absolute inset-0 w-full h-full object-contain p-6 md:p-12 mix-blend-multiply"
-        />
+      <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-white border-b md:border-b-0 md:border-r border-black/[0.06] bg-gradient-radial-soft overflow-hidden">
+        {photo ? (
+          <Image
+            src={photo}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-contain p-6 md:p-12 mix-blend-multiply"
+            priority
+          />
+        ) : (
+          <ProductCardFallback product={product} size="lg" />
+        )}
       </div>
 
       <div className="px-5 md:px-8 pb-6 pt-4 md:py-10">
