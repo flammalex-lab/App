@@ -175,7 +175,7 @@ export function ChatClient({
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
+                className={`max-w-[75%] md:max-w-[560px] lg:max-w-[680px] rounded-2xl px-3.5 py-2 text-sm ${
                   mine
                     ? "bg-brand-blue text-white rounded-br-md"
                     : "bg-bg-secondary text-ink-primary rounded-bl-md"
@@ -385,7 +385,7 @@ function SystemBubble({ message }: { message: Message }) {
       <div className="flex flex-col items-start w-full">
         <Link
           href={`/orders/${message.related_order_id}`}
-          className="block w-[85%] max-w-[320px] rounded-lg bg-white border border-black/10 hover:shadow-card transition px-4 py-3"
+          className="block w-[85%] max-w-[320px] md:max-w-[440px] lg:max-w-[480px] rounded-lg bg-white border border-black/10 hover:shadow-card transition px-4 py-3"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -417,7 +417,7 @@ function SystemBubble({ message }: { message: Message }) {
       <div className="flex flex-col items-start w-full">
         <Link
           href={`/orders/${message.related_order_id}`}
-          className="block w-[85%] max-w-[320px] border border-ink-primary/80 rounded-lg bg-white hover:shadow-card transition"
+          className="block w-[85%] max-w-[320px] md:max-w-[440px] lg:max-w-[480px] border border-ink-primary/80 rounded-lg bg-white hover:shadow-card transition"
         >
           <div className="px-4 pt-3 pb-2">
             <div className="display text-xl leading-tight">Order</div>

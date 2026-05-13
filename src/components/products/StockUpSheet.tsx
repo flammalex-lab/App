@@ -165,9 +165,9 @@ export function StockUpSheet({
       open={open}
       onClose={onClose}
       ariaLabel={`Stock up on ${subject}`}
-      desktopMaxWidth="36rem"
+      desktopMaxWidth="48rem"
     >
-      <div className="flex flex-col h-full md:h-[70vh]">
+      <div className="flex flex-col h-full md:min-h-[400px] md:max-h-[80vh] md:h-[70vh]">
         {/* Header — display font, no border-bottom (we get one from the
             list's top edge instead). Subtitle uses the editorial voice
             from docs/design-system.md: terse, no "successfully", no

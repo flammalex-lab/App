@@ -46,8 +46,8 @@ export function ScrollStrip({
 
   const cardWidth =
     density === "dense"
-      ? "w-[38vw] max-w-[160px] min-w-[140px]"
-      : "w-[44vw] max-w-[180px] min-w-[150px]";
+      ? "w-[38vw] max-w-[160px] md:max-w-[200px] lg:max-w-[220px] min-w-[140px]"
+      : "w-[44vw] max-w-[180px] md:max-w-[220px] lg:max-w-[240px] min-w-[150px]";
 
   // Single-card strip: a centered card. No fades, no arrows — the
   // affordance would lie about there being more.
