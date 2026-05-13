@@ -36,6 +36,6 @@ export async function POST(
   }
   // Allowlist change can shift which products this account sees, so the
   // cached suggestion set for that buyer scope is now stale.
-  revalidateTag(CATALOG_SUGGESTIONS_TAG);
+  revalidateTag(CATALOG_SUGGESTIONS_TAG, "max");
   return NextResponse.json({ ok: true });
 }
