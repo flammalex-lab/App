@@ -21,7 +21,7 @@ import { CategoryChips } from "./CategoryChips";
 import { ProducerChips } from "./ProducerChips";
 import { StockUpButton } from "./StockUpButton";
 import { BackButton } from "@/components/layout/BackButton";
-import { groupBySubCategory } from "@/lib/products/sub-category";
+import { groupBySubCategory, subCategoryOf } from "@/lib/products/sub-category";
 import { compareProducersByRank, rankProducers } from "@/lib/products/producer-rank";
 import { getBuyerHistory } from "@/lib/products/buyer-history";
 import { getCatalogSuggestions } from "@/lib/products/suggestions";
@@ -38,7 +38,13 @@ function priceProducts(
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ group?: string; q?: string; sort?: string; producer?: string }>;
+  searchParams: Promise<{
+    group?: string;
+    q?: string;
+    sort?: string;
+    producer?: string;
+    subCategory?: string;
+  }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -79,9 +85,14 @@ export default async function CatalogPage({
     ? (sp.sort as SortKey)
     : "name");
   const producerFilter = sp.producer?.trim() ?? "";
+  const subCategoryFilter = sp.subCategory?.trim() ?? "";
   const isSearching = q.length > 0 || producerFilter.length > 0;
   const isExplore = sp.group === "explore";
   const isBest = sp.group === "best";
+  // Sub-category drill-in (e.g. /catalog?group=dairy&subCategory=Milk)
+  // gates on a real group filter — without a parent group we can't be
+  // sure which sub_category bucket the value belongs to.
+  const isSubCategoryView = Boolean(groupFilter) && subCategoryFilter.length > 0;
 
   // =====================================================================
   // LANDING: scroll-strip layout (Pepper-style)
@@ -277,9 +288,14 @@ export default async function CatalogPage({
   // Producer chips row — shown on category pages (?group=X) so loyalists
   // can one-tap narrow to a single producer. Stays visible when a producer
   // is already selected so the buyer can toggle it back off via the
-  // selected chip. Skipped on search / explore / best to keep those
-  // surfaces focused.
-  const showProducerChips = Boolean(groupFilter) && !q && !isBest && !isExplore;
+  // selected chip. Skipped on search / explore / best / sub-category
+  // drill-ins to keep those surfaces focused.
+  const showProducerChips =
+    Boolean(groupFilter) &&
+    !q &&
+    !isBest &&
+    !isExplore &&
+    !subCategoryFilter;
 
   // Main query, search-suggestions (cached), and producer-chip rows
   // are all independent — run them in parallel so they share one
@@ -343,13 +359,19 @@ export default async function CatalogPage({
     ? GROUP_LABELS[groupFilter]
     : `Search “${q}”`;
 
-  // When the user narrowed to a single category (and isn't also searching
-  // or filtering by producer), render sub-category sections (Milk / Eggs /
-  // Yogurt within Dairy, Beef / Pork / Chicken within Meat, etc.) so
-  // browsing-by-item-type leads. Drilling into a producer (?producer=X)
-  // still goes to a flat grid via producerFilter.
+  // When the user narrowed to a single category (and isn't also searching,
+  // filtering by producer, or drilling into a sub-category), render
+  // sub-category sections (Milk / Eggs / Yogurt within Dairy, Beef / Pork /
+  // Chicken within Meat, etc.) so browsing-by-item-type leads. Drilling
+  // into a producer (?producer=X) or a sub-category (?subCategory=Milk)
+  // still goes to a flat grid.
   const showSubCategorySections =
-    Boolean(groupFilter) && !producerFilter && !q && !isBest && !isExplore;
+    Boolean(groupFilter) &&
+    !producerFilter &&
+    !subCategoryFilter &&
+    !q &&
+    !isBest &&
+    !isExplore;
 
   // Order frequency ranking — applied to every catalog list view (group
   // filter, producer detail, search, explore, best sellers). Sort by:
@@ -416,7 +438,20 @@ export default async function CatalogPage({
   const bestSellers = isBest
     ? priced.filter((p) => (globalProductRank[p.id] ?? 0) > 0).slice(0, 60)
     : priced;
-  const visibleProducts = isBest ? bestSellers : priced;
+  let visibleProducts = isBest ? bestSellers : priced;
+
+  // Sub-category drill-in: filter to the products whose computed
+  // sub_category bucket matches the URL value. Match is exact (the URL
+  // value mirrors the strip title from groupBySubCategory). The category
+  // query has already constrained product_group, so this is purely a
+  // client-side narrow against an already-bounded list.
+  if (isSubCategoryView) {
+    visibleProducts = visibleProducts.filter(
+      (p) =>
+        subCategoryOf(p.name, p.category, p.sub_category, p.sku) ===
+        subCategoryFilter,
+    );
+  }
 
   const subCategorySections = showSubCategorySections
     ? groupBySubCategory(visibleProducts)
@@ -448,20 +483,18 @@ export default async function CatalogPage({
   }
   const fromGroupLabel = groupFilter ?? (isExplore ? "explore" : isBest ? "best" : null);
 
-  // Producer detail "slides in from the right" with a back button — same
-  // pattern as /cart, gives the buyer a clear way back to where they were.
+  // Producer + sub-category drill-ins both "slide in from the right"
+  // with a back button — same pattern as /cart. Gives the buyer a clear
+  // way back to where they were (the catalog landing, the order guide,
+  // etc.). Category browse stays planted inside the catalog so the chip
+  // tap doesn't read as a navigation away from the catalog surface.
   const isProducerView = Boolean(producerFilter);
+  const isDetailView = isProducerView || isSubCategoryView;
 
   return (
-    <div className={`max-w-screen-xl mx-auto pb-8 ${isProducerView ? "animate-slide-in-right" : ""}`}>
+    <div className={`max-w-screen-xl mx-auto pb-8 ${isDetailView ? "animate-slide-in-right" : ""}`}>
       <div className="pt-3">
-        {isProducerView ? (
-          <BackButton fallbackHref="/catalog" />
-        ) : (
-          <Link href="/catalog" className="text-xs text-ink-secondary hover:underline">
-            ← Catalog
-          </Link>
-        )}
+        {isDetailView ? <BackButton fallbackHref="/catalog" /> : null}
         {isProducerView ? (
           /* Editorial centered hero — Baldor-style "IN SEASON NOW / From X"
              treatment. Uppercase eyebrow above, big display name, count
@@ -477,10 +510,36 @@ export default async function CatalogPage({
               {visibleProducts.length} {visibleProducts.length === 1 ? "item" : "items"}
             </p>
           </div>
+        ) : isSubCategoryView ? (
+          /* Same editorial hero used for producer detail, repurposed for
+             a sub-category drill-in (e.g. "ALL ITEMS IN / Milk"). Drives
+             the guide → see-all flow into a focused shop-this surface. */
+          <div className="text-center my-6 md:my-10">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-ink-tertiary mb-2">
+              All items in
+            </p>
+            <h1 className="display text-3xl md:text-5xl tracking-tight leading-[1.05]">
+              {subCategoryFilter}
+            </h1>
+            <p className="text-[13px] text-ink-secondary mt-3">
+              {visibleProducts.length} {visibleProducts.length === 1 ? "item" : "items"}
+              {groupFilter ? (
+                <>
+                  <span className="text-ink-tertiary"> · </span>
+                  <Link
+                    href={`/catalog?group=${groupFilter}`}
+                    className="text-ink-secondary hover:text-ink-primary underline-offset-2 hover:underline"
+                  >
+                    All {GROUP_LABELS[groupFilter]}
+                  </Link>
+                </>
+              ) : null}
+            </p>
+          </div>
         ) : (
           <h1 className="display text-xl mt-1 mb-1">{headerTitle}</h1>
         )}
-        {!producerFilter ? (
+        {!isDetailView ? (
           <CategoryChips
             groups={allowed.map((g) => ({ group: g }))}
             active={(groupFilter as ProductGroup | null) ?? (isExplore ? "explore" : isBest ? "best" : null)}
@@ -495,33 +554,38 @@ export default async function CatalogPage({
             className="mb-3"
           />
         ) : null}
-        <form action="/catalog" className="mb-3 flex gap-2">
-          <CatalogSearchInput
-            defaultValue={q}
-            placeholder="Search name or farm"
-            datalistId="catalog-suggest-list"
-          />
-          <datalist id="catalog-suggest-list">
-            {suggestionsList.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-          {groupFilter ? <input type="hidden" name="group" value={groupFilter} /> : null}
-          <button className="btn-secondary text-sm">Search</button>
-        </form>
+        {!isSubCategoryView ? (
+          <form action="/catalog" className="mb-3 flex gap-2">
+            <CatalogSearchInput
+              defaultValue={q}
+              placeholder="Search name or farm"
+              datalistId="catalog-suggest-list"
+            />
+            <datalist id="catalog-suggest-list">
+              {suggestionsList.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+            {groupFilter ? <input type="hidden" name="group" value={groupFilter} /> : null}
+            <button className="btn-secondary text-sm">Search</button>
+          </form>
+        ) : null}
 
-        {!isBest && !showSubCategorySections ? (
+        {!isBest && !showSubCategorySections && !isSubCategoryView ? (
           <div className="flex items-center gap-2 mb-4">
             <SortSheet current={sort} />
           </div>
         ) : null}
       </div>
 
-      {/* Stock-up trigger — producer-filtered catalog only, when there's
-          enough assortment to be worth the multi-line flow. Single-product
-          producers would just be a "+1" with extra taps, so we skip. */}
-      {producerFilter && visibleProducts.length >= 2 ? (
-        <StockUpButton producer={producerFilter} products={visibleProducts} />
+      {/* Stock-up trigger — fires on producer- or sub-category-filtered
+          views with enough assortment to be worth the multi-line flow.
+          Single-product subjects would just be a "+1" with extra taps. */}
+      {(producerFilter || isSubCategoryView) && visibleProducts.length >= 2 ? (
+        <StockUpButton
+          subject={producerFilter || subCategoryFilter}
+          products={visibleProducts}
+        />
       ) : null}
 
       {visibleProducts.length === 0 ? (
@@ -535,6 +599,7 @@ export default async function CatalogPage({
             <ScrollStrip
               key={subCategory}
               title={subCategory}
+              href={`/catalog?group=${groupFilter}&subCategory=${encodeURIComponent(subCategory)}`}
               products={items}
               inGuideIds={inGuideIds}
             />
