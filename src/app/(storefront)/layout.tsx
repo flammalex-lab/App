@@ -8,8 +8,9 @@ import { StoreNav } from "@/components/layout/StoreNav";
 import { StickyCartBar } from "@/components/layout/StickyCartBar";
 import { CutoffClock } from "@/components/CutoffClock";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
-import type { DeliveryZoneRow, Profile } from "@/lib/supabase/types";
+import type { Account, DeliveryZoneRow, Profile } from "@/lib/supabase/types";
 
 export default async function StorefrontLayout({
   children,
@@ -55,8 +56,13 @@ export default async function StorefrontLayout({
         deliveryDate: nextDel.deliveryDate.toISOString(),
         cutoffAt: nextDel.cutoffAt.toISOString(),
         deliveryDayName: nextDel.deliveryDayName,
+        pastCutoff: nextDel.pastCutoff,
       }
     : null;
+  // Pill state inputs — minimum + fee are layout-stable, so we resolve them
+  // once at the layout level instead of refetching on /guide.
+  const accountMinimum = effectiveOrderMinimum(activeAccount as Account | null, zone);
+  const deliveryFee = zone?.delivery_fee ?? 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -88,7 +94,11 @@ export default async function StorefrontLayout({
       <main className="flex-1 px-4 md:px-6 lg:px-8 py-1 pb-32 overflow-x-clip">
         {children}
       </main>
-      <StickyCartBar next={serialized} />
+      <StickyCartBar
+        next={serialized}
+        accountMinimum={accountMinimum}
+        deliveryFee={deliveryFee}
+      />
       {modal}
       <footer className="hidden md:block border-t border-black/[0.06] mt-8 bg-white">
         <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">

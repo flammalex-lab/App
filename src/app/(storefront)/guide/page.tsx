@@ -5,18 +5,25 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import type {
   Account,
+  DeliveryZoneRow,
   OrderGuide,
   OrderGuideItem,
   Product,
 } from "@/lib/supabase/types";
 import { GuideClient } from "./GuideClient";
-import { ReorderLastCard } from "./ReorderLastCard";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { getBuyerHistory } from "@/lib/products/buyer-history";
 import {
   getAllowedPrivateProductIds,
   visibleProductsQuery,
 } from "@/lib/products/queries";
+import { loadDraftRhythm, type RhythmLine } from "@/lib/products/draft-rhythm";
+import {
+  nextDeliveryForZone,
+  upcomingDeliveriesForZone,
+} from "@/lib/utils/cutoff";
+import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
@@ -81,6 +88,44 @@ export default async function GuidePage() {
   const account = accountRow as Account | null;
   const guide = ((guideRows as OrderGuide[] | null) ?? [])[0] ?? null;
 
+  // ---- Delivery zone — drives the rhythm target weekday + the
+  // submit-sheet's date list. Cached one-row read.
+  let zone: DeliveryZoneRow | null = null;
+  if (account?.delivery_zone) {
+    const svc = createServiceClient();
+    const { data } = await svc
+      .from("delivery_zones")
+      .select("*")
+      .eq("zone", account.delivery_zone)
+      .maybeSingle();
+    zone = data as DeliveryZoneRow | null;
+  }
+  const nextDel = zone
+    ? nextDeliveryForZone(zone, new Date(), BUSINESS_TIMEZONE, account?.delivery_days)
+    : null;
+  const upcomingDeliveries = zone
+    ? upcomingDeliveriesForZone(
+        zone,
+        new Date(),
+        BUSINESS_TIMEZONE,
+        4,
+        account?.delivery_days,
+      )
+    : [];
+  const targetDeliveryDate = nextDel
+    ? toIsoDate(nextDel.deliveryDate)
+    : null;
+  const targetDeliveryDayName = nextDel?.deliveryDayName ?? null;
+  const pastCutoff = nextDel?.pastCutoff ?? false;
+  const accountMinimum = effectiveOrderMinimum(account, zone);
+  const deliveryFee = zone?.delivery_fee ?? 0;
+
+  // ---- Rhythm: last-4-occurrences average qty per product on this
+  // delivery weekday. Empty if buyer has no history.
+  const rhythm: RhythmLine[] = targetDeliveryDate
+    ? await loadDraftRhythm(db, profileId, targetDeliveryDate)
+    : [];
+
   // ---- Tier 2: anything that needed a Tier-1 result.
   // pricingCtx (needs account), guide items (needs guide.id), and the
   // last-order item count (needs lastOrderRow.id) are independent of
@@ -128,6 +173,114 @@ export default async function GuidePage() {
       lastOrderedAt: lastOrderedByProduct[p.id] ?? null,
     };
   });
+
+  // ---- Rhythm hydration -------------------------------------------------
+  // Some rhythm products may not appear in the buyer's default order_guide
+  // (the buyer ordered them ad-hoc and never pinned them). Fetch those
+  // products so the draft can render the row + qty. We trust the rhythm
+  // sample — they ordered it within the last few weeks, so it's a real
+  // product they care about, not noise.
+  const rhythmProductIds = rhythm.map((r) => r.productId);
+  const itemProductIds = new Set(items.map((it) => it.product.id));
+  const missingRhythmIds = rhythmProductIds.filter((id) => !itemProductIds.has(id));
+  if (missingRhythmIds.length) {
+    const { data: extraProducts } = await db
+      .from("products")
+      .select("*")
+      .in("id", missingRhythmIds);
+    for (const p of (extraProducts as Product[] | null) ?? []) {
+      items.push({
+        id: `rhythm:${p.id}`,
+        order_guide_id: guide?.id ?? "",
+        product_id: p.id,
+        suggested_qty: null,
+        par_levels: null,
+        sort_order: 9999,
+        product: p,
+        unitPrice: priceForProduct(p, pricingCtx),
+        lastOrderedAt: lastOrderedByProduct[p.id] ?? null,
+      });
+    }
+  }
+
+  // Quick lookup of rhythm signal per product so the client can render
+  // "Usually 3" without re-deriving from cart store.
+  const rhythmByProduct: Record<
+    string,
+    { averageQty: number; mostRecentQty: number; occurrenceCount: number }
+  > = {};
+  for (const r of rhythm) {
+    rhythmByProduct[r.productId] = {
+      averageQty: r.averageQty,
+      mostRecentQty: r.mostRecentQty,
+      occurrenceCount: r.occurrenceCount,
+    };
+  }
+
+  // ---- Active standing orders (locked-in card above the draft) ----------
+  // Render a separate "Already on for {day}" card per the brief. Scope to
+  // active+unpaused standing orders matching the target weekday. Hidden
+  // when none exist.
+  let activeStanding: {
+    id: string;
+    name: string | null;
+    summary: string;
+  }[] = [];
+  if (targetDeliveryDayName) {
+    const dayKey = targetDeliveryDayName; // "Friday", "Tuesday", etc.
+    // Resolve "now" once per render so we don't re-read the clock inside
+    // the filter loop (the react-hooks/purity rule flags Date.now()
+    // inside server-component body code).
+    const nowTime = new Date().getTime();
+    const svc = createServiceClient();
+    const { data: stRows } = await svc
+      .from("standing_orders")
+      .select("id, name, days_of_week, active, pause_until")
+      .eq("profile_id", profileId)
+      .eq("active", true);
+    const matchingIds: string[] = [];
+    for (const r of (stRows as {
+      id: string;
+      name: string | null;
+      days_of_week: string[];
+      active: boolean;
+      pause_until: string | null;
+    }[] | null) ?? []) {
+      if (r.pause_until && new Date(r.pause_until).getTime() > nowTime) continue;
+      if (!r.days_of_week?.includes(dayKey)) continue;
+      matchingIds.push(r.id);
+    }
+    if (matchingIds.length) {
+      const { data: itemsRows } = await svc
+        .from("standing_order_items")
+        .select("standing_order_id, quantity, product:products(name, unit)")
+        .in("standing_order_id", matchingIds);
+      const totalByStanding: Record<string, { qty: number; firstName: string }> = {};
+      for (const it of (itemsRows as any[] | null) ?? []) {
+        const cur = totalByStanding[it.standing_order_id] ?? {
+          qty: 0,
+          firstName: "",
+        };
+        cur.qty += Number(it.quantity ?? 0);
+        if (!cur.firstName && it.product?.name) cur.firstName = it.product.name;
+        totalByStanding[it.standing_order_id] = cur;
+      }
+      activeStanding = (stRows as { id: string; name: string | null }[]).map(
+        (r) => {
+          const agg = totalByStanding[r.id];
+          if (!agg) return null;
+          const unitLabel = agg.qty === 1 ? "unit" : "units";
+          const friendly = `${agg.qty} ${unitLabel}${agg.firstName ? ` of ${shortName(agg.firstName)}` : ""}`;
+          return {
+            id: r.id,
+            name: r.name,
+            summary: friendly,
+          };
+        },
+      )
+      .filter((x): x is { id: string; name: string | null; summary: string } => x !== null);
+    }
+  }
 
   const guideProducers = Array.from(
     new Set(
@@ -338,6 +491,23 @@ export default async function GuidePage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const firstName = me.first_name ?? "Chef";
 
+  const accountPaused = account?.status === "inactive" || account?.status === "churned";
+
+  // Buyer-count map for substitute ranking. Buyer's own order count (qty
+  // sum) per product — used by DraftLine's `pickSubstitutes` to prefer
+  // products the buyer already trusts. Capped at the buyer's history;
+  // globalCounts comes from the existing globalRank scan below.
+  const buyerProductCounts: Record<string, number> = {};
+  for (const row of buyerHistory) {
+    if (!row.product_id) continue;
+    buyerProductCounts[row.product_id] =
+      (buyerProductCounts[row.product_id] ?? 0) + row.qty;
+  }
+
+  // No-history empty state: a buyer who's never ordered hits an empty
+  // rhythm + empty guide. Show "Let's start your guide" copy.
+  const isNoHistoryBuyer = items.length === 0 && rhythm.length === 0;
+
   return (
     <div className="max-w-screen-xl mx-auto pb-8">
       {/* Personal greeting — single compact line */}
@@ -345,16 +515,21 @@ export default async function GuidePage() {
         {greeting}, <span className="font-medium text-ink-primary">{firstName}</span>.
       </div>
 
-      {/* Reorder-last card — brand-blue primary surface, client-side
-          hidden when the cart has items (would conflict with active edit). */}
-      {lastOrder ? <ReorderLastCard lastOrder={lastOrder} /> : null}
+      {accountPaused ? (
+        <div className="mb-3 rounded-lg bg-accent-rust/10 text-[#7a3b1f] px-4 py-3 border border-accent-rust/20">
+          <div className="text-[14px] font-medium">Account paused — message Alex</div>
+          <p className="text-[12px] text-ink-secondary leading-snug mt-0.5">
+            We&apos;ll get you back on rhythm. Lines below are read-only while paused.
+          </p>
+        </div>
+      ) : null}
 
-      {items.length === 0 ? (
+      {isNoHistoryBuyer ? (
         <EmptyState
           className="card md:mx-0"
           icon={<div className="text-5xl opacity-30">☰</div>}
-          title="Nothing in your guide yet"
-          body="Your rep will build this for you based on what you order. You can also browse the catalog and add items yourself."
+          title="Let's start your guide"
+          body="Browse the catalog and add the items you order each week. After your first order, this page becomes a one-tap draft for next time."
           cta={{ href: "/catalog", label: "Browse the catalog" }}
         />
       ) : (
@@ -365,10 +540,39 @@ export default async function GuidePage() {
           newFromProducers={newFromProducers}
           recentBuys={recentBuys}
           inGuideIds={inGuideIds}
+          rhythmByProduct={rhythmByProduct}
+          targetDeliveryDate={targetDeliveryDate}
+          targetDeliveryDayName={targetDeliveryDayName}
+          activeStanding={activeStanding}
+          buyerProductCounts={buyerProductCounts}
+          accountMinimum={accountMinimum}
+          deliveryFee={deliveryFee}
+          upcomingDeliveries={upcomingDeliveries}
+          lastOrder={lastOrder}
+          accountPaused={accountPaused}
+          pastCutoff={pastCutoff}
         />
       )}
     </div>
   );
+}
+
+/** Convert a Date to a YYYY-MM-DD string in local calendar time. Used for
+ *  the rhythm target date — server-side date math always anchors here so
+ *  the same wall-clock date the buyer sees is what gets queried. */
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Truncate a product name for use in a one-line standing-order summary
+ *  card. Two-word max keeps the card scannable. */
+function shortName(name: string): string {
+  const trimmed = name.trim();
+  const words = trimmed.split(/\s+/);
+  return words.slice(0, 2).join(" ");
 }
 
 /** Pre-formatted weekday + month + day for the Reorder card subtitle.
