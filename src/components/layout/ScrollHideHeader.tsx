@@ -33,6 +33,32 @@ export function useScrollHidden(): boolean {
 }
 
 /**
+ * Detects when a BottomSheet has locked the body via `position: fixed`
+ * (which BottomSheet does to prevent scroll-jump on open). While the
+ * lock is in place, `position: sticky` on the header breaks — sticky
+ * has no scrollable ancestor to anchor against, so the element flows
+ * with body's negative `top` offset and slides off-screen.
+ *
+ * The fix: swap to `position: fixed` for the duration of the lock so
+ * the header stays anchored to the viewport regardless of body's
+ * artificial offset.
+ */
+function useBodyLocked(): boolean {
+  const [locked, setLocked] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function update() {
+      setLocked(document.body.style.position === "fixed");
+    }
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+    return () => obs.disconnect();
+  }, []);
+  return locked;
+}
+
+/**
  * Wrapper kept for backwards compatibility — wraps children in a div
  * that translates up when scrolling down. Use the hook directly for
  * fixed-position bars (transforming a wrapper of a position:fixed
@@ -40,9 +66,15 @@ export function useScrollHidden(): boolean {
  */
 export function ScrollHideHeader({ children }: { children: React.ReactNode }) {
   const hidden = useScrollHidden();
+  const bodyLocked = useBodyLocked();
+  // Default: position: sticky (in-flow, keeps document layout sane).
+  // When a BottomSheet has locked the body via position: fixed, swap
+  // to position: fixed so the header stays at viewport top instead of
+  // riding body's negative top offset off-screen.
+  const positionClass = bodyLocked ? "fixed top-0 left-0 right-0" : "sticky top-0";
   return (
     <div
-      className={`sticky top-0 z-30 transition-transform duration-200 will-change-transform md:!translate-y-0 ${hidden ? "-translate-y-full" : ""}`}
+      className={`${positionClass} z-30 transition-transform duration-200 will-change-transform md:!translate-y-0 ${hidden ? "-translate-y-full" : ""}`}
     >
       {children}
     </div>
