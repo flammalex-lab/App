@@ -205,6 +205,7 @@ export default async function CatalogPage({
         <ScrollStrip
           title="This week"
           emoji="🌱"
+          href="/catalog?group=explore"
           subtitle="Fresh off the flyer — available for this delivery."
           products={thisWeek}
           inGuideIds={inGuideIds}
@@ -213,6 +214,7 @@ export default async function CatalogPage({
         {history.length > 0 ? (
           <ScrollStrip
             title="Based on your order history"
+            href="/orders"
             products={history}
             inGuideIds={inGuideIds}
           />

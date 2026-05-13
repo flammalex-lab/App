@@ -234,10 +234,20 @@ function StripHeader({
     <>
       <div className="flex items-baseline justify-between gap-3 mb-2">
         <div className="flex items-baseline gap-2 min-w-0">
-          <h2 className="text-[17px] font-semibold tracking-tight text-ink-primary leading-tight truncate">
-            {emoji ? <span className="mr-1">{emoji}</span> : null}
-            {title}
-          </h2>
+          {href ? (
+            <Link
+              href={href}
+              className="text-[17px] font-semibold tracking-tight text-ink-primary leading-tight truncate hover:text-brand-blue transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-sm"
+            >
+              {emoji ? <span className="mr-1">{emoji}</span> : null}
+              {title}
+            </Link>
+          ) : (
+            <h2 className="text-[17px] font-semibold tracking-tight text-ink-primary leading-tight truncate">
+              {emoji ? <span className="mr-1">{emoji}</span> : null}
+              {title}
+            </h2>
+          )}
           <span className="text-[12px] text-ink-tertiary tabular shrink-0">
             {count} {count === 1 ? "item" : "items"}
           </span>
