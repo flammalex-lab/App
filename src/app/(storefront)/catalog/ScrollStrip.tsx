@@ -16,6 +16,7 @@ export function ScrollStrip({
   products,
   emoji,
   density = "default",
+  inGuideIds,
 }: {
   title: string;
   href?: string;
@@ -25,6 +26,12 @@ export function ScrollStrip({
   /** "dense" packs more cards per viewport — used on the Guide where
    *  buyers scan known items quickly. "default" is the catalog feel. */
   density?: "default" | "dense";
+  /**
+   * IDs of products in the active buyer's order guide. Cards in this
+   * set render the gold "In guide" badge. Omit on pages where every
+   * card is already in-guide (the badge would be noise).
+   */
+  inGuideIds?: ReadonlySet<string>;
 }) {
   if (products.length === 0) return null;
 
@@ -63,7 +70,11 @@ export function ScrollStrip({
         <div className="flex gap-3 min-w-max">
           {products.map((p) => (
             <div key={p.id} className={`${cardWidth} shrink-0`}>
-              <ProductCard product={p} variant="compact" />
+              <ProductCard
+                product={p}
+                variant="compact"
+                inGuide={inGuideIds?.has(p.id) ?? false}
+              />
             </div>
           ))}
         </div>

@@ -49,17 +49,28 @@ function escapeXml(s: string): string {
 }
 
 /**
- * Returns the best image for a product: real image_url if present, else
- * the FLF logo as a placeholder. Used everywhere products render until
- * we have real product photography uploaded.
+ * Returns the best image URL for a product: real image_url if present, else
+ * the FLF logo as a placeholder. Legacy callers that always want SOMETHING
+ * renderable in an <img> tag (BarcodeScanner cart-line view, admin tools)
+ * should keep using this.
  *
- * Takes only image_url because that's all the implementation actually
- * needs — callers include the BarcodeScanner cart-line view, which
- * doesn't have a category to hand in. The function used to take
- * `{ image_url, category, name }` but never read the latter two.
+ * Buyer-facing surfaces (catalog, guide, PDP) prefer `productPhoto()`
+ * below — it returns null when there's no real photo so the caller can
+ * render an editorial fallback (ProductCardFallback) instead of a wall of
+ * repeated FLF logos.
  */
 export function productImage(p: { image_url: string | null }): string {
   return p.image_url ?? "/images/flf-logo.png";
+}
+
+/**
+ * Returns the product's real image URL or null. Pair with
+ * `ProductCardFallback` to render an intentional no-photo tile instead
+ * of the FLF logo placeholder.
+ */
+export function productPhoto(p: { image_url: string | null }): string | null {
+  const url = p.image_url?.trim();
+  return url && url.length > 0 ? url : null;
 }
 
 /**
