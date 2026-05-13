@@ -19,6 +19,7 @@ import { SortSheet, type SortKey } from "./SortSheet";
 import { CatalogSearchInput } from "./CatalogSearchInput";
 import { CategoryChips } from "./CategoryChips";
 import { ProducerChips } from "./ProducerChips";
+import { StockUpButton } from "./StockUpButton";
 import { BackButton } from "@/components/layout/BackButton";
 import { groupBySubCategory } from "@/lib/products/sub-category";
 import { compareProducersByRank, rankProducers } from "@/lib/products/producer-rank";
@@ -520,6 +521,13 @@ export default async function CatalogPage({
           </div>
         ) : null}
       </div>
+
+      {/* Stock-up trigger — producer-filtered catalog only, when there's
+          enough assortment to be worth the multi-line flow. Single-product
+          producers would just be a "+1" with extra taps, so we skip. */}
+      {producerFilter && visibleProducts.length >= 2 ? (
+        <StockUpButton producer={producerFilter} products={visibleProducts} />
+      ) : null}
 
       {visibleProducts.length === 0 ? (
         <EmptyState
