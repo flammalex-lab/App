@@ -285,7 +285,7 @@ export function ProductCard({
         <img
           src={productImage(product)}
           alt=""
-          className="w-full h-full object-cover mix-blend-multiply"
+          className="w-full h-full object-contain mix-blend-multiply"
         />
         {cartQty > 0 ? (
           <span className="absolute top-0 left-0 min-w-[18px] h-[18px] px-1 rounded-br bg-accent-gold text-white text-[11px] font-semibold flex items-center justify-center tabular">
