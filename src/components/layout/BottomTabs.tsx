@@ -12,8 +12,11 @@ export interface NavTab {
 /**
  * Bottom tab bar (mobile only). Slides off the bottom edge on scroll-
  * down, returns on any scroll-up — same behavior as the top header.
- * On md+ stays pinned (md:hidden hides it entirely on desktop, but
- * we keep the translate-y-0 override anyway in case that changes).
+ * On md+ it hides entirely.
+ *
+ * Active tab gets a 3px brand-blue underline anchored to the TOP of
+ * the tab cell (per brief 02 — visually quiet "floor" treatment) and
+ * brand-blue text + icon. No background swatch.
  */
 export function BottomTabs({ tabs }: { tabs: NavTab[] }) {
   const hidden = useScrollHidden();
@@ -24,17 +27,17 @@ export function BottomTabs({ tabs }: { tabs: NavTab[] }) {
       }`}
     >
       <nav
-        className="mx-auto max-w-3xl grid text-[11px]"
+        className="mx-auto max-w-3xl grid text-[10px] font-semibold"
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
         {tabs.map((t) => (
           <NavLink
             key={t.href}
             href={t.href}
-            className="flex flex-col items-center justify-center gap-0.5 pt-1.5 pb-1 text-ink-secondary hover:text-brand-blue active:bg-bg-secondary transition-colors duration-150"
-            activeClassName="!text-ink-primary"
+            className="relative flex flex-col items-center justify-center gap-0.5 pt-2.5 pb-1.5 text-ink-tertiary active:bg-bg-secondary transition-colors duration-150 before:absolute before:top-0 before:left-1/2 before:-translate-x-1/2 before:w-9 before:h-[3px] before:rounded-b-[3px] before:bg-brand-blue before:opacity-0 before:transition-opacity before:duration-150 motion-reduce:before:transition-none"
+            activeClassName="!text-brand-blue before:!opacity-100"
           >
-            <span className="h-5 w-5">{t.icon}</span>
+            <span className="h-[22px] w-[22px]">{t.icon}</span>
             <span className="leading-none">{t.label}</span>
           </NavLink>
         ))}

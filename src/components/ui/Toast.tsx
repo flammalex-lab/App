@@ -29,7 +29,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ push }}>
       {children}
-      <div className="fixed bottom-20 md:bottom-6 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
+      <div className="fixed right-4 z-50 flex flex-col gap-2 items-end pointer-events-none bottom-[calc(env(safe-area-inset-bottom,0px)+5rem+var(--sticky-cart-h,0px))] md:bottom-[calc(1.5rem+var(--sticky-cart-h,0px))] transition-[bottom] duration-200">
         {items.map((t) => (
           <div
             key={t.id}

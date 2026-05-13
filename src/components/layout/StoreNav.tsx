@@ -6,31 +6,46 @@ import { ProfileAvatar } from "./ProfileAvatar";
 import { NavLink } from "./NavLink";
 import { ScrollHideHeader } from "./ScrollHideHeader";
 import { BottomTabs, type NavTab } from "./BottomTabs";
+import { MobileHeader } from "./MobileHeader";
 import type { Account, Profile } from "@/lib/supabase/types";
+
+interface SerializedNextDelivery {
+  deliveryDate: string;
+  cutoffAt: string;
+  deliveryDayName: string;
+}
 
 interface StoreNavProps {
   profile: Profile;
   activeAccount: Account | null;
   memberships: Account[];
+  next: SerializedNextDelivery | null;
 }
 
 /**
  * Responsive shell:
- *   - Mobile: top header (logo · account · cart · profile) + bottom tab bar.
- *   - md+:    top header grows a horizontal nav strip; bottom tabs hide.
+ *   - Mobile: 52px MobileHeader (page title + cutoff + overflow) + bottom tab bar.
+ *     Cart access on mobile lives in StickyCartBar, not the header.
+ *   - md+:    Desktop header strip (logo · nav · account · cart · profile);
+ *             bottom tabs hide.
  *
- * B2B buyers home on /guide; DTC customers on /catalog. The DTC layout
- * previously had both "Shop" and "Catalog" tabs pointing to /catalog —
- * collapsed to a single "Catalog" tab.
+ * B2B buyers home on /guide; DTC customers on /catalog.
  */
-export function StoreNav({ profile, activeAccount, memberships }: StoreNavProps) {
+export function StoreNav({ profile, activeAccount, memberships, next }: StoreNavProps) {
   const isB2B = profile.role === "b2b_buyer";
   const home = isB2B ? "/guide" : "/catalog";
   const tabs = navTabs(isB2B);
   return (
     <>
       <ScrollHideHeader>
-        <TopHeader
+        <MobileHeader
+          home={home}
+          profile={profile}
+          activeAccount={activeAccount}
+          memberships={memberships}
+          next={next}
+        />
+        <DesktopHeader
           home={home}
           tabs={tabs}
           profile={profile}
@@ -58,7 +73,7 @@ function navTabs(isB2B: boolean): NavTab[] {
       ];
 }
 
-function TopHeader({
+function DesktopHeader({
   home,
   tabs,
   profile,
@@ -72,14 +87,13 @@ function TopHeader({
   memberships: Account[];
 }) {
   return (
-    <header className="bg-white/80 backdrop-blur-md border-b border-black/[0.06] supports-[backdrop-filter]:bg-white/70">
-      <div className="flex items-center gap-2 px-3 md:px-6 py-1.5">
+    <header className="hidden md:block bg-white/80 backdrop-blur-md border-b border-black/[0.06] supports-[backdrop-filter]:bg-white/70">
+      <div className="flex items-center gap-2 px-6 py-1.5">
         <Link href={home} className="shrink-0" aria-label="Home">
           <BrandLogo size={28} />
         </Link>
 
-        {/* Desktop horizontal nav strip — hidden on mobile */}
-        <nav className="hidden md:flex items-center gap-1 ml-4">
+        <nav className="flex items-center gap-1 ml-4">
           {tabs.map((t) => (
             <NavLink
               key={t.href}
@@ -93,7 +107,7 @@ function TopHeader({
           ))}
         </nav>
 
-        <div className="flex-1 min-w-0 flex justify-center md:justify-end md:pr-2">
+        <div className="flex-1 min-w-0 flex justify-end pr-2">
           {activeAccount ? (
             <AccountSwitcher active={activeAccount} memberships={memberships} />
           ) : null}
