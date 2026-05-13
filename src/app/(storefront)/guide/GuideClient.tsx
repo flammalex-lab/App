@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { Product } from "@/lib/supabase/types";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
 import { groupBySubCategory } from "@/lib/products/sub-category";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { GuideRow } from "./page";
 
 // See CatalogSearchInput for rationale — dynamic-import keeps the
@@ -72,9 +73,11 @@ export function GuideClient({ items }: Props) {
       </div>
 
       {visibleCount === 0 ? (
-        <div className="py-8 text-center text-sm text-ink-secondary">
-          No items match &ldquo;{search}&rdquo;.
-        </div>
+        <EmptyState
+          title={<>No items match &ldquo;{search}&rdquo;.</>}
+          body="Try a broader search or browse the full catalog."
+          cta={{ href: "/catalog", label: "Browse catalog" }}
+        />
       ) : (
         subCategorySections.map(({ subCategory, rows }) => {
           const filtered = rows.filter(searchMatch);

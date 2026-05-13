@@ -32,7 +32,7 @@ export function BackButton({
       className="inline-flex items-center gap-1 text-[13px] text-ink-secondary hover:text-ink-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand-blue/40 rounded-md py-1 -ml-1 px-1"
     >
       <span aria-hidden className="text-base leading-none">←</span>
-      <span>{label}</span>
+      <span className="whitespace-nowrap">{label}</span>
     </button>
   );
 }
