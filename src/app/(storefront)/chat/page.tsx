@@ -44,15 +44,9 @@ export default async function ChatPage() {
     messages = (data as Message[] | null) ?? [];
   }
 
-  return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="display text-2xl mb-1">Chat</h1>
-      <p className="text-xs text-ink-secondary mb-3">
-        {accountId
-          ? "Messages go to your rep as a text too — reply from either side."
-          : "You're not linked to an account yet. Messages go straight to our team."}
-      </p>
-      <ChatClient accountId={accountId} profileId={profileId} initial={messages} />
-    </div>
-  );
+  // Full-bleed surface — page title lives in the MobileHeader (mobile) and
+  // is implicit from the rep header strip (desktop). No page-level chrome
+  // here; ChatClient owns its rectangle and escapes the storefront <main>
+  // padding via negative margins.
+  return <ChatClient accountId={accountId} profileId={profileId} initial={messages} />;
 }
