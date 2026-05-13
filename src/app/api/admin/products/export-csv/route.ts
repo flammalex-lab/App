@@ -57,8 +57,12 @@ export async function GET(request: Request) {
   }
   const csv = lines.join("\n") + "\n";
 
+  // Prepend a UTF-8 BOM so Excel + Numbers detect the encoding correctly
+  // and don't mojibake characters like è, —, ’ as MacRoman. The Response
+  // is sent as a binary Blob so the BOM bytes survive untouched.
   const filename = all ? "products-all.csv" : "products-naming-review.csv";
-  return new Response(csv, {
+  const body = new Blob(["﻿", csv], { type: "text/csv; charset=utf-8" });
+  return new Response(body, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
