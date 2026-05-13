@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 32px; background: var(--bg-secondary); display: flex; gap: 24px; align-items: center; justify-content: space-around; }
+  .demo { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .box { background: white; width: 120px; height: 72px; border-radius: 12px; }
+  .card { box-shadow: var(--shadow-card); }
+  .sticky { box-shadow: var(--shadow-sticky); }
+  .floating { box-shadow: var(--shadow-floating); }
+  .name { font-size: 12px; color: var(--ink-primary); font-weight: 600; font-family: var(--font-sans); }
+  code { font-family: ui-monospace, monospace; font-size: 11px; color: var(--ink-secondary); text-align: center; max-width: 140px; }
+</style></head>
+<body>
+  <div class="demo"><div class="box card"></div><div class="name">shadow-card</div><code>gentle lift, rarely used</code></div>
+  <div class="demo"><div class="box sticky"></div><div class="name">shadow-sticky</div><code>upward, for cart bar</code></div>
+  <div class="demo"><div class="box floating"></div><div class="name">shadow-floating</div><code>modals, dropdowns</code></div>
+</body></html>

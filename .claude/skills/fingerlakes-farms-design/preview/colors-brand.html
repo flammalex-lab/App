@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface); }
+  .row { display: flex; gap: 12px; align-items: stretch; }
+  .swatch { flex: 1; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 92px; font-family: var(--font-sans); border: 1px solid var(--border-hairline); }
+  .swatch .name { font-weight: 600; font-size: 13px; }
+  .swatch .hex { font-family: ui-monospace, monospace; font-size: 11px; opacity: .85; }
+  .swatch.dark { color: white; }
+  .swatch.light { color: var(--ink-primary); }
+</style></head>
+<body>
+<div class="row">
+  <div class="swatch dark" style="background:#1763B5"><div class="name">brand-blue</div><div class="hex">#1763B5 · primary action</div></div>
+  <div class="swatch dark" style="background:#0F4A8A"><div class="name">brand-blue-dark</div><div class="hex">#0F4A8A · hover</div></div>
+  <div class="swatch light" style="background:#E5EFF8"><div class="name">brand-blue-tint</div><div class="hex">#E5EFF8 · selected wash</div></div>
+  <div class="swatch dark" style="background:#2A9B46"><div class="name">brand-green</div><div class="hex">#2A9B46 · commit / success</div></div>
+  <div class="swatch dark" style="background:#1F7A35"><div class="name">brand-green-dark</div><div class="hex">#1F7A35 · success hover</div></div>
+  <div class="swatch light" style="background:#E6F4EA"><div class="name">brand-green-tint</div><div class="hex">#E6F4EA · success wash</div></div>
+</div>
+</body></html>

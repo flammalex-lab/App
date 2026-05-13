@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface); }
+  .row { display: flex; gap: 12px; align-items: stretch; }
+  .swatch { flex: 1; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 92px; font-family: var(--font-sans); border: 1px solid var(--border-hairline); }
+  .swatch .name { font-weight: 600; font-size: 13px; }
+  .swatch .hex { font-family: ui-monospace, monospace; font-size: 11px; opacity: .85; }
+  .swatch.dark { color: white; }
+</style></head>
+<body>
+<div class="row">
+  <div class="swatch dark" style="background:#C49431"><div class="name">accent-gold</div><div class="hex">#C49431 · pending, warning</div></div>
+  <div class="swatch dark" style="background:#A0522D"><div class="name">accent-rust</div><div class="hex">#A0522D · editorial only</div></div>
+  <div class="swatch dark" style="background:#2A9B46"><div class="name">feedback-success</div><div class="hex">#2A9B46 · confirmation</div></div>
+  <div class="swatch dark" style="background:#C49431"><div class="name">feedback-warning</div><div class="hex">#C49431 · cutoff approaching</div></div>
+  <div class="swatch dark" style="background:#C13A28"><div class="name">feedback-error</div><div class="hex">#C13A28 · errors, cancel</div></div>
+</div>
+</body></html>
