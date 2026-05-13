@@ -67,7 +67,7 @@ export async function runStandingOrder(svc: any, standingOrderId: string): Promi
 
   // The buyer just gained a new order's worth of items via the cron —
   // bust their cached buyer-history aggregate.
-  revalidateTag(buyerHistoryTag(s.profile_id));
+  revalidateTag(buyerHistoryTag(s.profile_id), "max");
 
   await svc.from("standing_orders").update({
     last_run_date: new Date().toISOString().slice(0, 10),
