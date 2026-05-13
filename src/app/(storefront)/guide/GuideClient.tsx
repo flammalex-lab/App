@@ -91,10 +91,19 @@ export function GuideClient({ items, newFromProducers = [] }: Props) {
               ...r.product,
               unitPrice: r.unitPrice,
             }));
+            // "See all" expands from the buyer's guide-scoped subset to the
+            // catalog's full inventory in the parent group (e.g. Dairy).
+            // We don't have a per-subcategory URL filter, so the parent
+            // group is the closest meaningful target.
+            const parentGroup = filtered[0]?.product.category ?? null;
+            const seeAllHref = parentGroup
+              ? `/catalog?group=${parentGroup}`
+              : undefined;
             return (
               <ScrollStrip
                 key={subCategory}
                 title={subCategory}
+                href={seeAllHref}
                 products={products}
                 density="dense"
               />
