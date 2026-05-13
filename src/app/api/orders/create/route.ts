@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/session";
 import { getImpersonation } from "@/lib/auth/impersonation";
@@ -7,6 +8,7 @@ import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { meetsMinimum, effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
+import { buyerHistoryTag } from "@/lib/products/buyer-history";
 
 interface BodyLine {
   productId: string;
@@ -172,6 +174,10 @@ export async function POST(request: Request) {
   }));
   const { error: itemsErr } = await svc.from("order_items").insert(itemRows);
   if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 500 });
+
+  // Buyer's order-history aggregate just changed — drop the cached
+  // buyer-history entry so /guide and /catalog re-read fresh numbers.
+  revalidateTag(buyerHistoryTag(effectiveProfile.id));
 
   // Post an order summary into the account's chat thread. Stored as a
   // structured payload so the chat UI can render a rich card without
