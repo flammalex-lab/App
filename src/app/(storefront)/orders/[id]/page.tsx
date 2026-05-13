@@ -170,11 +170,11 @@ export default async function OrderDetail({
         ) : null}
       </div>
 
-      {/* Prominent Reorder CTA */}
+      {/* Prominent Reorder CTA — brand-blue per design-system primary token. */}
       <form action={`/api/orders/reorder?orderId=${o.id}`} method="post" className="mt-5">
         <button
           type="submit"
-          className="w-full bg-ink-primary text-white py-3.5 rounded-lg font-semibold hover:bg-black transition"
+          className="w-full btn-primary py-3.5 text-base font-semibold"
         >
           Reorder these items
         </button>

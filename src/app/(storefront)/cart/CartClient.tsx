@@ -232,7 +232,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
               if (lines.length === 0) return;
               setConfirmRemoveAll(true);
             }}
-            className="text-[11px] text-feedback-error uppercase tracking-wider font-medium hover:underline"
+            className="text-[11px] text-accent-rust uppercase tracking-wider font-medium hover:underline"
           >
             Remove all
           </button>

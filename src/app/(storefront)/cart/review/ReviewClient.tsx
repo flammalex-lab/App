@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { money, dateLong } from "@/lib/utils/format";
 import { LineItem } from "@/components/products/LineItem";
 import type { PickupLocation } from "@/lib/supabase/types";
@@ -37,10 +38,10 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
 
   if (lines.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-ink-secondary mb-4">Nothing to review — your cart is empty.</p>
-        <Link href="/guide" className="btn-primary text-sm">Back to guide</Link>
-      </div>
+      <EmptyState
+        title="Nothing to review — your cart is empty."
+        cta={{ href: "/guide", label: "Back to guide", variant: "primary" }}
+      />
     );
   }
 
