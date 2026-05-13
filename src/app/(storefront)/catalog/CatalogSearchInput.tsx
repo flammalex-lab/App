@@ -56,7 +56,7 @@ export function CatalogSearchInput({
   const [value, setValue] = useState(defaultValue);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  // Skip the URL-sync effect on initial mount — the server already
+  // Skip the URL-push effect on initial mount — the server already
   // rendered with the URL's current `q`. We only want to push when the
   // *buyer* changes the value.
   const didMount = useRef(false);
@@ -64,12 +64,16 @@ export function CatalogSearchInput({
   // If the URL's `q` changed without going through this input (back/
   // forward button, producer-chip click, navigating from another page),
   // mirror it into local state so the debounce effect doesn't push the
-  // stale typed value back onto the URL.
-  useEffect(() => {
-    const urlQ = searchParams?.get("q") ?? "";
-    if (urlQ !== value) setValue(urlQ);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  // stale typed value back onto the URL. Render-time reset rather than
+  // an effect: React 19's set-state-in-effect rule flags the effect
+  // version, and this matches the official "adjusting state on a prop
+  // change" pattern (https://react.dev/learn/you-might-not-need-an-effect).
+  const urlQ = searchParams?.get("q") ?? "";
+  const [lastUrlQ, setLastUrlQ] = useState(urlQ);
+  if (urlQ !== lastUrlQ) {
+    setLastUrlQ(urlQ);
+    setValue(urlQ);
+  }
 
   useEffect(() => {
     if (!didMount.current) {
