@@ -132,15 +132,22 @@ export async function POST(request: Request) {
   }
 
   // (3) Vision match. Scope candidates to the requested producer if given,
-  // else to the full active catalog. Cap at 40 so the prompt stays tight.
+  // else send the full active catalog. Previously capped at 40
+  // alphabetical, which silently cut off everything past M-ish — a real
+  // bug: "Yogurt, Plain — 32 oz" (producer Ithaca Milk) starts with Y
+  // and never made it into the prompt, so vision returned "not in the
+  // list" for a row that literally exists. With a producer hint we
+  // still cap (60 is plenty for any single producer) so the prompt
+  // doesn't get huge for nothing.
   let q = svc
     .from("products")
     .select("id, sku, name, producer, pack_size, unit, description")
     .eq("is_active", true);
-  if (body.producer?.trim()) {
-    q = q.ilike("producer", `%${body.producer.trim()}%`);
+  const hasProducer = Boolean(body.producer?.trim());
+  if (hasProducer) {
+    q = q.ilike("producer", `%${body.producer!.trim()}%`).limit(60);
   }
-  const { data: candRows } = await q.order("name", { ascending: true }).limit(40);
+  const { data: candRows } = await q.order("name", { ascending: true });
   const candidates = (candRows as Array<{
     id: string;
     sku: string | null;

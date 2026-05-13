@@ -101,6 +101,85 @@ export function ImageTriageClient() {
     setItems((xs) => [...xs, ...next]);
   }
 
+  function addFilesWithPath(files: { file: File; relativePath: string }[]) {
+    const next: Item[] = [];
+    for (const { file, relativePath } of files) {
+      if (!file.type.startsWith("image/")) continue;
+      next.push({
+        id: crypto.randomUUID(),
+        file,
+        cutoutFile: null,
+        previewUrl: URL.createObjectURL(file),
+        relativePath,
+        status: "idle",
+      });
+    }
+    if (next.length) setItems((xs) => [...xs, ...next]);
+  }
+
+  /**
+   * Walk a DataTransferItemList recursively and collect files with their
+   * folder-relative paths. Lets the drop-zone preserve `Brand/file.jpg`
+   * even when the multi-file picker would strip the folder name.
+   *
+   * Uses webkitGetAsEntry / FileSystemEntry — Chrome / Safari / Edge all
+   * support it. Firefox supports the relevant call path via the same
+   * API. Anything that returns null on getAsEntry() falls back to the
+   * flat list (which we still capture so drag-and-drop of bare files
+   * keeps working).
+   */
+  async function harvestDataTransfer(dt: DataTransfer): Promise<{ file: File; relativePath: string }[]> {
+    const out: { file: File; relativePath: string }[] = [];
+    const entries: FileSystemEntry[] = [];
+    for (let i = 0; i < dt.items.length; i++) {
+      const item = dt.items[i];
+      if (item.kind !== "file") continue;
+      const entry = item.webkitGetAsEntry?.();
+      if (entry) entries.push(entry);
+      else {
+        const f = item.getAsFile();
+        if (f) out.push({ file: f, relativePath: "" });
+      }
+    }
+
+    async function walk(entry: FileSystemEntry, prefix: string): Promise<void> {
+      if (entry.isFile) {
+        const fileEntry = entry as FileSystemFileEntry;
+        await new Promise<void>((resolve) => {
+          fileEntry.file((f) => {
+            out.push({ file: f, relativePath: prefix ? `${prefix}/${f.name}` : f.name });
+            resolve();
+          });
+        });
+      } else if (entry.isDirectory) {
+        const dirEntry = entry as FileSystemDirectoryEntry;
+        const reader = dirEntry.createReader();
+        // readEntries() returns up to 100 at a time — keep calling until
+        // an empty array comes back.
+        let batch: FileSystemEntry[] = [];
+        do {
+          batch = await new Promise<FileSystemEntry[]>((resolve) =>
+            reader.readEntries((es) => resolve(es)),
+          );
+          for (const sub of batch) {
+            await walk(sub, prefix ? `${prefix}/${entry.name}` : entry.name);
+          }
+        } while (batch.length > 0);
+      }
+    }
+
+    for (const e of entries) await walk(e, "");
+    return out;
+  }
+
+  function onDropZone(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDropActive(false);
+    harvestDataTransfer(e.dataTransfer).then(addFilesWithPath);
+  }
+
+  const [dropActive, setDropActive] = useState(false);
+
   /**
    * Server-side background removal via Replicate. Broken into
    * start-prediction + poll-status so each HTTP round-trip stays under
@@ -302,15 +381,34 @@ export function ImageTriageClient() {
         <div>
           <label className="label">Images</label>
           <p className="text-xs text-ink-tertiary mb-2 leading-snug max-w-md">
-            Two ways to surface brand context to the matcher:
-            (a) pick a folder named after the producer — files inside
-            <code className="mx-1">Red Jacket Orchards/</code> get those
-            tokens added to the matcher automatically; (b) type the
-            producer in the hint field above and pick individual files —
-            we&rsquo;ll prepend the producer to each filename before
-            matching, same effect. Folder picker doesn&rsquo;t work on
-            iOS Safari — use Chrome on desktop or fall back to (b).
+            Drag a brand folder onto the drop-zone (best — preserves the
+            <code className="mx-1">Brand/file.jpg</code> path automatically).
+            Or use the picker buttons. Or just type the producer in the
+            hint above and pick individual files — we&rsquo;ll prepend
+            the producer name to each filename, same effect as a folder
+            drop.
           </p>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDropActive(true);
+            }}
+            onDragLeave={() => setDropActive(false)}
+            onDrop={onDropZone}
+            className={`rounded-lg border-2 border-dashed px-4 py-6 text-center mb-3 transition-colors ${
+              dropActive
+                ? "border-brand-blue bg-brand-blue-tint/50"
+                : "border-black/15 bg-bg-secondary/50"
+            }`}
+          >
+            <p className="text-sm font-medium text-ink-primary">
+              Drop a brand folder here
+            </p>
+            <p className="text-[11px] text-ink-tertiary mt-1">
+              Files inside a folder named like the producer get that name
+              as a matching token automatically.
+            </p>
+          </div>
           <div className="flex items-center gap-3 flex-wrap">
             <input
               type="file"

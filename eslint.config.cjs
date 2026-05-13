@@ -12,6 +12,10 @@ module.exports = [
       "out/**",
       "build/**",
       "coverage/**",
+      // Claude skill packs ship reference JSX that imports symbols
+      // from the skill's design-system docs, not from the app. They're
+      // not production code, not built, and shouldn't fail CI lint.
+      ".claude/**",
     ],
   },
   {
