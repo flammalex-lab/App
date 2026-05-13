@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Horizontal Strips — Spec v2 · Fingerlakes Farms</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  body { margin: 0; padding: 40px 28px 96px; background: var(--bg-secondary); color: var(--text); overflow-x: auto; }
+  .wrap { max-width: 1480px; margin: 0 auto; }
+  .crumb { color: var(--ink-tertiary); font-size: 13px; }
+  .crumb a { color: inherit; }
+  h1.page { font-size: 36px; letter-spacing: -0.02em; margin: 12px 0 6px; }
+  .lede { color: var(--ink-secondary); font-size: 16px; line-height: 1.55; margin: 0 0 32px; max-width: 64ch; }
+
+  /* notes */
+  .notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: white; border: 1px solid var(--border-hairline); border-radius: 12px; padding: 20px 22px; margin-bottom: 40px; max-width: 1320px; }
+  .notes h4 { margin: 0 0 4px; font-size: 14px; font-family: var(--font-sans); font-weight: 600; }
+  .notes p { margin: 0; font-size: 12.5px; color: var(--ink-secondary); line-height: 1.5; }
+  .notes code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: var(--bg-secondary); padding: 1px 5px; border-radius: 4px; color: var(--ink-primary); }
+
+  section.case { margin-bottom: 64px; }
+  section.case > header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 6px; max-width: 1320px;}
+  section.case > header h2 { margin: 0; font-size: 22px; }
+  section.case > header .num { color: var(--ink-tertiary); font-size: 13px; font-variant-numeric: tabular-nums; }
+  section.case > header .where { color: var(--ink-secondary); font-size: 13px; margin-left: auto; }
+  .sec-note { font-size: 13px; color: var(--ink-secondary); line-height: 1.55; max-width: 80ch; margin: 0 0 24px; }
+  .sec-note strong { color: var(--ink-primary); font-weight: 600; }
+
+  /* breakpoint frame */
+  .frame { background: white; border: 1px solid var(--border-hairline); border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
+  .frame .vp-label { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border-hairline); background: var(--bg-secondary); }
+  .frame .vp-label .px { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--ink-secondary); background: white; border: 1px solid var(--border-hairline); padding: 2px 6px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+  .frame .vp-label .lbl { font-size: 12px; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .frame .vp-label .note { font-size: 12px; color: var(--ink-secondary); margin-left: auto; }
+  .frame .vp-body { background: white; overflow: hidden; }
+
+  /* strip header */
+  .strip-head { display: flex; align-items: baseline; padding: 18px 24px 12px; gap: 12px; }
+  .strip-head h3 { margin: 0; font-size: 20px; letter-spacing: -0.015em; }
+  .strip-head .count { color: var(--ink-tertiary); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .strip-head .controls { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .chip-btn { display: inline-flex; align-items: center; gap: 4px; background: white; border: 1px solid var(--border-hairline); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 500; color: var(--ink-primary); cursor: pointer; transition: border-color 150ms; }
+  .chip-btn:hover { border-color: var(--border-hover); }
+  .chip-btn svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 1.75; fill: none; }
+  .all-link { color: var(--brand-blue); font-size: 12px; font-weight: 600; }
+
+  /* the strip */
+  .strip { position: relative; padding-bottom: 18px; }
+  .strip__rail { display: flex; gap: 14px; padding: 4px 24px 12px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.12) transparent; }
+  .strip__rail::-webkit-scrollbar { height: 6px; }
+  .strip__rail::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 999px; }
+  .strip__rail::-webkit-scrollbar-track { background: transparent; }
+
+  /* fade affordance on overflow strips */
+  .strip.has-overflow::after { content: ""; position: absolute; top: 0; right: 0; bottom: 18px; width: 64px; background: linear-gradient(270deg, white 20%, rgba(255,255,255,0)); pointer-events: none; z-index: 5; }
+  .strip.has-overflow.is-scrolled::before { content: ""; position: absolute; top: 0; left: 0; bottom: 18px; width: 64px; background: linear-gradient(90deg, white 20%, rgba(255,255,255,0)); pointer-events: none; z-index: 5; }
+  .strip.has-overflow.is-end::after { opacity: 0; }
+
+  /* arrows (desktop only, ≥1024) — render in rail header */
+  .arrows { display: none; gap: 6px; margin-left: 8px; }
+  .arrow-btn { width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--border-hairline); background: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color 150ms; color: var(--ink-primary); }
+  .arrow-btn:hover { border-color: var(--border-hover); }
+  .arrow-btn[disabled] { color: var(--ink-tertiary); cursor: not-allowed; opacity: 0.5; }
+  .arrow-btn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; }
+  .frame.is-wide .arrows { display: inline-flex; }
+
+  /* card (strip variant — slim) */
+  .scard { width: 168px; flex-shrink: 0; scroll-snap-align: start; background: white; border: 1px solid var(--border-hairline); border-radius: 10px; overflow: hidden; transition: border-color 150ms; display: flex; flex-direction: column; }
+  .scard:hover { border-color: var(--border-hover); }
+  .scard__media { aspect-ratio: 1/1; background: var(--bg-secondary); position: relative; overflow: hidden; }
+  .scard__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .scard__fb { position: absolute; inset: 0; background: var(--brand-blue-tint); background-image: radial-gradient(circle, rgba(23,99,181,0.14) 1px, transparent 1px); background-size: 9px 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .scard__fb .c { font-size: 9px; letter-spacing: 0.1em; color: var(--brand-blue); font-weight: 700; }
+  .scard__fb .m { font-family: var(--font-display); font-weight: 800; font-size: 24px; color: var(--brand-blue); letter-spacing: -0.04em; line-height: 1; margin-top: 4px; }
+  .scard__body { padding: 8px 10px 10px; }
+  .scard__prod { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-tertiary); font-weight: 600; line-height: 1.2; }
+  .scard__title { font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--ink-primary); margin-top: 2px; }
+  .scard__price { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .scard__price .meta { font-weight: 400; color: var(--ink-tertiary); font-size: 10px; margin-left: 3px; }
+  .scard.is-focus { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-color: var(--brand-blue); }
+  .scard__cartdot { position: absolute; top: 6px; right: 6px; background: var(--brand-blue); color: white; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 6px; box-shadow: 0 1px 2px rgba(22,22,22,0.18); font-variant-numeric: tabular-nums; }
+
+  /* single-card featured composition */
+  .feature { display: flex; gap: 0; padding: 4px 24px 18px; }
+  .feature .scard { width: 220px; }
+  .feature .story { flex: 1; margin-left: 16px; padding: 16px 20px; background: var(--bg-tinted); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; }
+  .feature .story .eyebrow { margin-bottom: 6px; color: var(--brand-blue); }
+  .feature .story h4 { margin: 0 0 8px; font-family: var(--font-display); font-size: 22px; letter-spacing: -0.015em; font-weight: 700; }
+  .feature .story p { margin: 0; font-size: 13px; color: var(--ink-secondary); line-height: 1.55; max-width: 60ch; }
+  .feature .story .cta { margin-top: 12px; display: inline-flex; align-items: center; gap: 4px; color: var(--brand-blue); font-weight: 600; font-size: 13px; }
+  .feature.is-mobile { flex-direction: column; padding: 4px 16px 16px; }
+  .feature.is-mobile .scard { width: 100%; }
+  .feature.is-mobile .story { margin-left: 0; margin-top: 12px; padding: 14px; }
+
+  /* per-breakpoint widths */
+  .vp-body.w375 { width: 375px; }
+  .vp-body.w768 { width: 768px; }
+  .vp-body.w1024 { width: 1024px; }
+  .vp-body.w1440 { width: 1440px; }
+
+  /* tighter padding at 375 */
+  .vp-body.w375 .strip-head, .vp-body.w375 .strip__rail { padding-left: 16px; padding-right: 16px; }
+  .vp-body.w375 .strip-head { padding-top: 14px; padding-bottom: 10px; }
+  .vp-body.w375 .scard { width: 144px; }
+  .vp-body.w375 .strip-head h3 { font-size: 17px; }
+
+  /* annotation balloon */
+  .pin { position: relative; }
+  .pin .balloon { position: absolute; background: var(--ink-primary); color: white; font-size: 11px; padding: 6px 10px; border-radius: 6px; z-index: 9; line-height: 1.3; max-width: 200px; }
+  .pin .balloon::after { content: ""; position: absolute; width: 0; height: 0; border: 6px solid transparent; }
+  .pin .balloon.tl { top: 60px; left: 16px; }
+  .pin .balloon.tl::after { top: -10px; left: 12px; border-bottom-color: var(--ink-primary); }
+  .pin .balloon.tr { top: 60px; right: 16px; }
+  .pin .balloon.tr::after { top: -10px; right: 12px; border-bottom-color: var(--ink-primary); }
+  .pin .balloon.br { bottom: 30px; right: 24px; }
+  .pin .balloon.br::after { bottom: -10px; right: 12px; border-top-color: var(--ink-primary); }
+  .pin .balloon.bl { bottom: 30px; left: 24px; }
+  .pin .balloon.bl::after { bottom: -10px; left: 12px; border-top-color: var(--ink-primary); }
+
+  .pagefoot { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border-hairline); font-size: 12px; color: var(--ink-tertiary); max-width: 1320px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="crumb"><a href="index.html">Component specs</a> · Brief 3</div>
+  <h1 class="page">Horizontal strips</h1>
+  <p class="lede">Strips group products on <code>/guide</code> and <code>/catalog</code> — by category (Eggs, Cheese, Cream, Meat), by intent (Reorder last, In season this week), or by source (From Hartke's flock). The product card from Brief 1 is the strip's repeating unit. Today the strip hard-clips at the row edge — buyers don't know to swipe. This spec adds affordance without adding chrome.</p>
+
+  <div class="notes">
+    <div><h4>Fade + peek</h4><p>If content overflows, the rightmost card is intentionally <strong>peeked</strong> (60–70% visible) and a 64px white-to-transparent fade sits above the right edge. As the rail scrolls, the left fade appears symmetrically. No arrows on mobile — the peek does the work.</p></div>
+    <div><h4>No affordance when none needed</h4><p>If the rail fits within the strip, the fades and peek are suppressed. Cards left-align; the right edge is clean white. This is the only difference between Case 2 and a "broken" rail.</p></div>
+    <div><h4>Desktop arrows + keyboard</h4><p>≥1024px, two circular arrow buttons sit beside the strip header. Each scrolls by one card-stride. Arrow keys move focus card-by-card; the focused card auto-scrolls into the rail's center via <code>scrollIntoView({block: "nearest", inline: "center"})</code>.</p></div>
+    <div><h4>Single-card category</h4><p>One product = a featured horizontal composition: card on the left, producer/category editorial on the right. Solves the empty band by making the empty real estate <em>do</em> something — voice + a path to the rest of the category.</p></div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- CASE 1: Many cards                                           -->
+  <!-- ============================================================ -->
+  <section class="case">
+    <header>
+      <span class="num">01</span>
+      <h2>Many cards · 8+ products</h2>
+      <span class="where">Typical category — must indicate more-to-scroll</span>
+    </header>
+    <p class="sec-note">The default catalog strip. <strong>Eggs</strong>, 9 producers/SKUs. The rightmost card is half-clipped to create the peek; the fade gradient hints there's more. On wide breakpoints, two arrow buttons appear next to the strip header.</p>
+
+    <!-- 375 -->
+    <div class="frame">
+      <div class="vp-label"><span class="lbl">Mobile</span><span class="px">375 px</span><span class="note">Rest state — peek + fade on the right edge. Swipe to advance.</span></div>
+      <div class="vp-body w375"><div class="strip-head">
+        <h3>Eggs</h3><span class="count">9 items</span>
+        <span class="controls"><a class="all-link" href="#">See all →</a></span>
+      </div>
+      <div class="strip has-overflow pin">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><img src="assets/photos/chicken-1.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Jumbo Brown</span><span class="scard__price tabular">$108<span class="meta">/ 24 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">MC</span></div></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Pint Brown</span><span class="scard__price tabular">$72<span class="meta">/ 15 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Duck Eggs</span><span class="scard__price tabular">$48<span class="meta">/ 5 dz</span></span></div></div>
+        </div>
+        <span class="balloon tr">Right-edge fade · ~64px · peek of next card visible</span>
+      </div></div>
+    </div>
+
+    <!-- 768 -->
+    <div class="frame">
+      <div class="vp-label"><span class="lbl">Tablet</span><span class="px">768 px</span><span class="note">Mid-scroll · both fades visible. Pagination dots optional below the rail.</span></div>
+      <div class="vp-body w768"><div class="strip-head">
+        <h3>Eggs</h3><span class="count">9 items</span>
+        <span class="controls"><button class="chip-btn">Sort · Relevance ↓</button><a class="all-link" href="#">See all →</a></span>
+      </div>
+      <div class="strip has-overflow is-scrolled pin">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">MC</span></div></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Pint Brown</span><span class="scard__price tabular">$72<span class="meta">/ 15 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Duck Eggs</span><span class="scard__price tabular">$48<span class="meta">/ 5 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-4.jpg" alt=""><span class="scard__cartdot">×2</span></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Pullet Eggs</span><span class="scard__price tabular">$44<span class="meta">/ 10 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">QF</span></div></div><div class="scard__body"><span class="scard__prod">Quail Forge</span><span class="scard__title">Quail Eggs</span><span class="scard__price tabular">$36<span class="meta">/ 4 doz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/chicken-1.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Liquid Whole</span><span class="scard__price tabular">$88<span class="meta">/ 1 gal</span></span></div></div>
+        </div>
+        <span class="balloon tl">Left fade appears once <code style="background:rgba(255,255,255,0.15);color:white;padding:1px 4px;border-radius:3px;">scrollLeft &gt; 24px</code></span>
+        <span class="balloon tr">Right fade still on — more remains</span>
+      </div></div>
+    </div>
+
+    <!-- 1024 -->
+    <div class="frame is-wide">
+      <div class="vp-label"><span class="lbl">Laptop</span><span class="px">1024 px</span><span class="note">Arrow buttons appear ≥1024px. Keyboard focus auto-scrolls.</span></div>
+      <div class="vp-body w1024"><div class="strip-head">
+        <h3>Eggs</h3><span class="count">9 items</span>
+        <span class="controls">
+          <button class="chip-btn">Sort · Relevance ↓</button>
+          <button class="chip-btn">In season</button>
+          <a class="all-link" href="#">See all →</a>
+          <span class="arrows">
+            <button class="arrow-btn" disabled aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button class="arrow-btn" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </span>
+        </span>
+      </div>
+      <div class="strip has-overflow pin">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><img src="assets/photos/chicken-1.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Jumbo Brown</span><span class="scard__price tabular">$108<span class="meta">/ 24 dz</span></span></div></div>
+          <div class="scard is-focus"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">MC</span></div></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Pint Brown</span><span class="scard__price tabular">$72<span class="meta">/ 15 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Duck Eggs</span><span class="scard__price tabular">$48<span class="meta">/ 5 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-4.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Pullet Eggs</span><span class="scard__price tabular">$44<span class="meta">/ 10 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">QF</span></div></div><div class="scard__body"><span class="scard__prod">Quail Forge</span><span class="scard__title">Quail Eggs</span><span class="scard__price tabular">$36<span class="meta">/ 4 doz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/chicken-1.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Liquid Whole</span><span class="scard__price tabular">$88<span class="meta">/ 1 gal</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">MC</span></div></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Standard Pasture</span><span class="scard__price tabular">$94<span class="meta">/ 30 dz</span></span></div></div>
+        </div>
+        <span class="balloon bl">Keyboard focus ring on second card → tab cycles through, rail auto-scrolls to keep focus visible</span>
+        <span class="balloon br">Peek of next card · ~40% clipped</span>
+      </div></div>
+    </div>
+
+    <!-- 1440 -->
+    <div class="frame is-wide">
+      <div class="vp-label"><span class="lbl">Desktop</span><span class="px">1440 px</span><span class="note">Wider rail fits ~7 cards before peek. Today's 80px hard-clip becomes a soft fade.</span></div>
+      <div class="vp-body w1440"><div class="strip-head">
+        <h3>Eggs</h3><span class="count">9 items</span>
+        <span class="controls">
+          <button class="chip-btn">Sort · Relevance ↓</button>
+          <button class="chip-btn">In season</button>
+          <a class="all-link" href="#">See all →</a>
+          <span class="arrows">
+            <button class="arrow-btn" disabled aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button class="arrow-btn" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </span>
+        </span>
+      </div>
+      <div class="strip has-overflow pin">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><img src="assets/photos/chicken-1.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Jumbo Brown</span><span class="scard__price tabular">$108<span class="meta">/ 24 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">MC</span></div></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Pint Brown</span><span class="scard__price tabular">$72<span class="meta">/ 15 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Duck Eggs</span><span class="scard__price tabular">$48<span class="meta">/ 5 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-4.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Pullet Eggs</span><span class="scard__price tabular">$44<span class="meta">/ 10 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">QF</span></div></div><div class="scard__body"><span class="scard__prod">Quail Forge</span><span class="scard__title">Quail Eggs</span><span class="scard__price tabular">$36<span class="meta">/ 4 doz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/chicken-1.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Liquid Whole</span><span class="scard__price tabular">$88<span class="meta">/ 1 gal</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">MC</span></div></div><div class="scard__body"><span class="scard__prod">Meadow Creek</span><span class="scard__title">Standard Pasture</span><span class="scard__price tabular">$94<span class="meta">/ 30 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">EGGS</span><span class="m">BF</span></div></div><div class="scard__body"><span class="scard__prod">Bantam Farm</span><span class="scard__title">Bantam Eggs</span><span class="scard__price tabular">$42<span class="meta">/ 8 dz</span></span></div></div>
+        </div>
+        <span class="balloon br">Peek replaces the old 80px hard-clip</span>
+      </div></div>
+    </div>
+
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- CASE 2: Few cards                                            -->
+  <!-- ============================================================ -->
+  <section class="case">
+    <header>
+      <span class="num">02</span>
+      <h2>Few cards · 3–5 products</h2>
+      <span class="where">Fills the row · no overflow · no scroll affordance</span>
+    </header>
+    <p class="sec-note"><strong>From Hartke's flock</strong>, 4 SKUs. The rail fits within the strip at every breakpoint ≥768px. Fades and peek are suppressed. The strip looks deliberate, not unfinished. On 375 the strip can still overflow — fade reappears automatically.</p>
+
+    <!-- 375 -->
+    <div class="frame">
+      <div class="vp-label"><span class="lbl">Mobile</span><span class="px">375 px</span><span class="note">4 cards still overflow at 375 — fade returns automatically.</span></div>
+      <div class="vp-body w375"><div class="strip-head">
+        <h3>From Hartke's flock</h3>
+        <span class="controls"><a class="all-link" href="#">See farm →</a></span>
+      </div>
+      <div class="strip has-overflow">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Whole Milk · Jersey</span><span class="scard__price tabular">$42<span class="meta">/ 4 gal</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-2.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Salted Butter</span><span class="scard__price tabular">$58<span class="meta">/ 8 lb</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-4.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Pullet Eggs</span><span class="scard__price tabular">$44<span class="meta">/ 10 dz</span></span></div></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 768 -->
+    <div class="frame">
+      <div class="vp-label"><span class="lbl">Tablet</span><span class="px">768 px</span><span class="note">4 cards fit comfortably — fades and peek suppressed.</span></div>
+      <div class="vp-body w768"><div class="strip-head">
+        <h3>From Hartke's flock</h3>
+        <span class="controls"><span style="font-size:12px;color:var(--ink-secondary);">4 SKUs · vetted since 2014</span><a class="all-link" href="#">See farm →</a></span>
+      </div>
+      <div class="strip pin">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Whole Milk · Jersey</span><span class="scard__price tabular">$42<span class="meta">/ 4 gal</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-2.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Salted Butter</span><span class="scard__price tabular">$58<span class="meta">/ 8 lb</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-4.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Pullet Eggs</span><span class="scard__price tabular">$44<span class="meta">/ 10 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">DAIRY</span><span class="m">HK</span></div></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Heavy Cream</span><span class="scard__price tabular">$36<span class="meta">/ 2 gal</span></span></div></div>
+        </div>
+        <span class="balloon br">No right fade · the rail ends inside the viewport</span>
+      </div></div>
+    </div>
+
+    <!-- 1024 -->
+    <div class="frame is-wide">
+      <div class="vp-label"><span class="lbl">Laptop</span><span class="px">1024 px</span><span class="note">Cards left-align · arrows render disabled or omit entirely.</span></div>
+      <div class="vp-body w1024"><div class="strip-head">
+        <h3>From Hartke's flock</h3>
+        <span class="controls"><span style="font-size:12px;color:var(--ink-secondary);">4 SKUs · vetted since 2014 · Lodi, NY</span><a class="all-link" href="#">See farm →</a></span>
+      </div>
+      <div class="strip">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Whole Milk · Jersey</span><span class="scard__price tabular">$42<span class="meta">/ 4 gal</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-2.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Salted Butter</span><span class="scard__price tabular">$58<span class="meta">/ 8 lb</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-4.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Pullet Eggs</span><span class="scard__price tabular">$44<span class="meta">/ 10 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">DAIRY</span><span class="m">HK</span></div></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Heavy Cream</span><span class="scard__price tabular">$36<span class="meta">/ 2 gal</span></span></div></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 1440 -->
+    <div class="frame is-wide">
+      <div class="vp-label"><span class="lbl">Desktop</span><span class="px">1440 px</span><span class="note">Plenty of room — keep cards left-aligned. No empty-band trickery; the strip just ends.</span></div>
+      <div class="vp-body w1440"><div class="strip-head">
+        <h3>From Hartke's flock</h3>
+        <span class="controls"><span style="font-size:12px;color:var(--ink-secondary);">4 SKUs · vetted since 2014 · Lodi, NY</span><a class="all-link" href="#">See farm →</a></span>
+      </div>
+      <div class="strip">
+        <div class="strip__rail">
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-3.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Whole Milk · Jersey</span><span class="scard__price tabular">$42<span class="meta">/ 4 gal</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-2.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Salted Butter</span><span class="scard__price tabular">$58<span class="meta">/ 8 lb</span></span></div></div>
+          <div class="scard"><div class="scard__media"><img src="assets/photos/farm-4.jpg" alt=""></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Pullet Eggs</span><span class="scard__price tabular">$44<span class="meta">/ 10 dz</span></span></div></div>
+          <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">DAIRY</span><span class="m">HK</span></div></div><div class="scard__body"><span class="scard__prod">Hartke</span><span class="scard__title">Heavy Cream</span><span class="scard__price tabular">$36<span class="meta">/ 2 gal</span></span></div></div>
+        </div>
+      </div></div>
+    </div>
+
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- CASE 3: Single card                                          -->
+  <!-- ============================================================ -->
+  <section class="case">
+    <header>
+      <span class="num">03</span>
+      <h2>Single card · 1 product</h2>
+      <span class="where">e.g. "Cream" today · was a 1100px empty band</span>
+    </header>
+    <p class="sec-note">When the category holds one SKU, the strip flips to a <strong>featured composition</strong>: card on the left, editorial panel on the right. The empty real estate becomes voice — producer name, a one-sentence story, and a "Browse all dairy" link that surfaces the related supercategory. The visual rhythm of the page stays intact because the row height matches the other strips. On mobile the panel stacks below.</p>
+
+    <!-- 375 -->
+    <div class="frame">
+      <div class="vp-label"><span class="lbl">Mobile</span><span class="px">375 px</span><span class="note">Card top, editorial panel beneath. Single-column.</span></div>
+      <div class="vp-body w375"><div class="strip-head">
+        <h3>Cream</h3><span class="count">1 producer</span>
+      </div>
+      <div class="feature is-mobile">
+        <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">DAIRY</span><span class="m">HK</span></div></div><div class="scard__body"><span class="scard__prod">Hartke Family Farm</span><span class="scard__title">Heavy Cream</span><span class="scard__price tabular">$36<span class="meta">/ 2 gal</span></span></div></div>
+        <div class="story">
+          <span class="eyebrow">About cream</span>
+          <h4>One farm, one cream.</h4>
+          <p>Hartke's Jersey herd is the only cream we'll vouch for. Standing orders only — the volume is too thin for spot sales.</p>
+          <a href="#" class="cta">Browse all dairy →</a>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 768 -->
+    <div class="frame">
+      <div class="vp-label"><span class="lbl">Tablet</span><span class="px">768 px</span><span class="note">Card left, panel fills remaining width. Row height aligned to other strips.</span></div>
+      <div class="vp-body w768"><div class="strip-head">
+        <h3>Cream</h3><span class="count">1 producer</span>
+      </div>
+      <div class="feature">
+        <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">DAIRY</span><span class="m">HK</span></div></div><div class="scard__body"><span class="scard__prod">Hartke Family Farm</span><span class="scard__title">Heavy Cream</span><span class="scard__price tabular">$36<span class="meta">/ 2 gal</span></span></div></div>
+        <div class="story">
+          <span class="eyebrow">About cream</span>
+          <h4>One farm, one cream.</h4>
+          <p>Hartke's Jersey herd is the only cream we'll vouch for. Standing orders only — the volume is too thin for spot sales. If you need more, we'll text the next available date.</p>
+          <a href="#" class="cta">Browse all dairy →</a>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 1024 -->
+    <div class="frame is-wide">
+      <div class="vp-label"><span class="lbl">Laptop</span><span class="px">1024 px</span><span class="note">Editorial panel breathes — copy can be longer.</span></div>
+      <div class="vp-body w1024"><div class="strip-head">
+        <h3>Cream</h3><span class="count">1 producer</span>
+        <span class="controls"><a class="all-link" href="#">See all dairy →</a></span>
+      </div>
+      <div class="feature pin">
+        <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">DAIRY</span><span class="m">HK</span></div></div><div class="scard__body"><span class="scard__prod">Hartke Family Farm</span><span class="scard__title">Heavy Cream</span><span class="scard__price tabular">$36<span class="meta">/ 2 gal</span></span></div></div>
+        <div class="story">
+          <span class="eyebrow">About cream</span>
+          <h4>One farm, one cream.</h4>
+          <p>Hartke's Jersey herd is the only cream we'll vouch for. Standing orders only — the volume is too thin for spot sales. If you need more this week, we'll text the next available date and offer the substitute.</p>
+          <a href="#" class="cta">Browse all dairy →</a>
+        </div>
+        <span class="balloon br">The 1100px empty band — now editorial, not dead space</span>
+      </div></div>
+    </div>
+
+    <!-- 1440 -->
+    <div class="frame is-wide">
+      <div class="vp-label"><span class="lbl">Desktop</span><span class="px">1440 px</span><span class="note">Cap copy width so the panel doesn't sprawl. Use the trailing space for a thumb of the farm if we have a photo.</span></div>
+      <div class="vp-body w1440"><div class="strip-head">
+        <h3>Cream</h3><span class="count">1 producer</span>
+        <span class="controls"><a class="all-link" href="#">See all dairy →</a></span>
+      </div>
+      <div class="feature" style="align-items:stretch;">
+        <div class="scard"><div class="scard__media"><div class="scard__fb"><span class="c">DAIRY</span><span class="m">HK</span></div></div><div class="scard__body"><span class="scard__prod">Hartke Family Farm</span><span class="scard__title">Heavy Cream</span><span class="scard__price tabular">$36<span class="meta">/ 2 gal</span></span></div></div>
+        <div class="story" style="background: var(--bg-tinted); display:flex; gap:24px; align-items:stretch;">
+          <div style="flex:1; max-width: 60ch; display:flex;flex-direction:column;justify-content:center;">
+            <span class="eyebrow">About cream</span>
+            <h4>One farm, one cream.</h4>
+            <p>Hartke's Jersey herd is the only cream we'll vouch for. Standing orders only — the volume is too thin for spot sales. If you need more this week, we'll text the next available date and offer the substitute.</p>
+            <a href="#" class="cta">Browse all dairy →</a>
+          </div>
+          <div style="width: 240px; background: url('assets/photos/cow-jersey.jpg') center/cover; border-radius: 8px; flex-shrink: 0; align-self: stretch;"></div>
+        </div>
+      </div></div>
+    </div>
+
+  </section>
+
+  <div class="pagefoot">
+    Spec v2 · all rails use <code>scroll-snap-type: x proximity</code> + <code>scroll-snap-align: start</code> per card. <code>scroll-padding-inline: 24px</code> keeps card-stride aligned to the strip's padding so arrow buttons land cleanly on the next card. Fade gradients are CSS pseudo-elements driven by a tiny scroll listener that toggles <code>.is-scrolled</code> and <code>.is-end</code> on the strip element. No JS framework needed. Tokens: <code>colors_and_type.css</code>.
+  </div>
+
+</div>
+</body>
+</html>

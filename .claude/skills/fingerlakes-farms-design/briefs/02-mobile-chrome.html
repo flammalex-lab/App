@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mobile Chrome — Spec v2 · Fingerlakes Farms</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  body { margin: 0; padding: 40px 28px 96px; background: var(--bg-secondary); color: var(--text); }
+  .wrap { max-width: 1320px; margin: 0 auto; }
+  .crumb { color: var(--ink-tertiary); font-size: 13px; }
+  .crumb a { color: inherit; }
+  h1.page { font-size: 36px; letter-spacing: -0.02em; margin: 12px 0 6px; }
+  .lede { color: var(--ink-secondary); font-size: 16px; line-height: 1.55; margin: 0 0 32px; max-width: 64ch; }
+
+  section { margin-bottom: 56px; }
+  section > header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 6px; }
+  section > header h2 { margin: 0; font-size: 22px; }
+  section > header .num { color: var(--ink-tertiary); font-size: 13px; font-variant-numeric: tabular-nums; }
+  section > header .where { color: var(--ink-secondary); font-size: 13px; margin-left: auto; }
+  .sec-note { font-size: 13px; color: var(--ink-secondary); line-height: 1.5; max-width: 70ch; margin: 0 0 24px; }
+  .sec-note strong { color: var(--ink-primary); font-weight: 600; }
+
+  /* ---------- screens row ---------- */
+  .screens { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .screen-col { display: flex; flex-direction: column; gap: 10px; width: 375px; }
+  .screen-col .head { display: flex; align-items: center; gap: 8px; }
+  .screen-col .head .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--brand-blue); }
+  .screen-col .head .name { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-secondary); font-weight: 600; }
+  .screen-col .head .what { color: var(--ink-tertiary); font-size: 12px; font-weight: 500; margin-left: 4px; }
+  .screen-col .desc { font-size: 12px; color: var(--ink-secondary); line-height: 1.45; }
+  .screen-col.compare .desc { color: var(--feedback-error); }
+
+  /* ---------- phone frame ---------- */
+  .phone { width: 375px; height: 812px; background: white; border-radius: 32px; border: 8px solid #1c1c1c; box-shadow: 0 12px 36px rgba(22,22,22,0.12); position: relative; overflow: hidden; font-family: var(--font-sans); }
+  .phone .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 130px; height: 28px; background: #1c1c1c; border-radius: 0 0 16px 16px; z-index: 50; }
+  .phone .statusbar { position: absolute; top: 0; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 14px 24px 0; font-size: 14px; font-weight: 600; z-index: 40; color: var(--ink-primary); font-variant-numeric: tabular-nums; }
+  .phone .statusbar .right { display: flex; align-items: center; gap: 4px; }
+  .phone .statusbar svg { width: 16px; height: 11px; }
+
+  /* dashed home-indicator safe area marker */
+  .phone .safe-area-marker { position: absolute; left: 0; right: 0; bottom: 0; height: 34px; pointer-events: none; z-index: 60; border-top: 1.5px dashed rgba(193,58,40,0.55); display: flex; align-items: center; justify-content: center; }
+  .phone .safe-area-marker .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--feedback-error); background: rgba(255,255,255,0.92); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+  .phone .home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; background: #1c1c1c; border-radius: 999px; z-index: 70; }
+
+  /* ---------- OLD CHROME (before) ---------- */
+  .v1 .topbar1 { position: absolute; top: 44px; left: 0; right: 0; height: 32px; background: var(--bg-tinted); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 12px; color: var(--ink-secondary); font-weight: 500; border-bottom: 1px solid var(--border-hairline); }
+  .v1 .topbar1 .countdown { color: var(--accent-rust); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .v1 .topbar2 { position: absolute; top: 76px; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: white; border-bottom: 1px solid var(--border-hairline); }
+  .v1 .topbar2 .mark { display: flex; align-items: center; gap: 8px; }
+  .v1 .topbar2 .mark img { width: 32px; height: 32px; border-radius: 50%; }
+  .v1 .topbar2 .title { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.015em; }
+  .v1 .topbar2 .cart { width: 40px; height: 40px; border-radius: 999px; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; position: relative; }
+  .v1 .body { position: absolute; top: 140px; left: 0; right: 0; bottom: 0; overflow: hidden; padding: 16px; }
+  .v1 .height-meter { position: absolute; top: 44px; left: 6px; width: 4px; height: 96px; background: var(--feedback-error); border-radius: 2px; z-index: 30; }
+  .v1 .height-meter::after { content: "96px · 12%"; position: absolute; left: 8px; top: 0; font-size: 9px; color: var(--feedback-error); font-weight: 700; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ---------- NEW CHROME ---------- */
+  .v2 .topbar { position: absolute; top: 44px; left: 0; right: 0; height: 52px; background: white; border-bottom: 1px solid var(--border-hairline); display: flex; align-items: center; padding: 0 14px; gap: 10px; z-index: 30; }
+  .v2 .topbar .mark { width: 28px; height: 28px; border-radius: 50%; display: block; flex-shrink: 0; }
+  .v2 .topbar .ident { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+  .v2 .topbar .title { font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: -0.015em; line-height: 1.1; color: var(--ink-primary); }
+  .v2 .topbar .cutoff { font-size: 11px; color: var(--ink-secondary); display: flex; align-items: center; gap: 5px; line-height: 1.1; }
+  .v2 .topbar .cutoff .pulse { width: 6px; height: 6px; border-radius: 999px; background: var(--accent-gold); flex-shrink: 0; }
+  .v2 .topbar .cutoff.is-soon .pulse { background: var(--feedback-error); }
+  .v2 .topbar .cutoff .tabular { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink-primary); }
+  .v2 .topbar .iconbtn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--ink-primary); position: relative; cursor: pointer; }
+  .v2 .topbar .iconbtn:hover { background: var(--bg-secondary); }
+  .v2 .topbar .iconbtn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.75; fill: none; }
+  .v2 .topbar .iconbtn .nub { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: var(--brand-blue); border: 2px solid white; border-radius: 999px; }
+  .v2 .height-meter { position: absolute; top: 44px; left: 6px; width: 4px; height: 52px; background: var(--brand-green); border-radius: 2px; z-index: 31; }
+  .v2 .height-meter::after { content: "52px · 6.4%"; position: absolute; left: 8px; top: 0; font-size: 9px; color: var(--brand-green-dark); font-weight: 700; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* page content area */
+  .v2 .page { position: absolute; top: 96px; left: 0; right: 0; bottom: 83px; overflow: hidden; padding: 0; }
+
+  /* ---------- bottom tab nav ---------- */
+  .tabnav { position: absolute; bottom: 0; left: 0; right: 0; padding: 0 0 22px; background: white; border-top: 1px solid var(--border-hairline); display: flex; height: 83px; z-index: 35; }
+  .tabnav .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0 0; cursor: pointer; position: relative; color: var(--ink-tertiary); font-size: 10px; font-weight: 600; }
+  .tabnav .tab svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.75; fill: none; }
+  .tabnav .tab .badge { position: absolute; top: 6px; left: 50%; margin-left: 4px; min-width: 16px; height: 16px; border-radius: 999px; background: var(--brand-blue); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 4px; font-variant-numeric: tabular-nums; border: 2px solid white; box-sizing: content-box; }
+  .tabnav .tab.is-active { color: var(--brand-blue); }
+  .tabnav .tab.is-active::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 36px; height: 3px; background: var(--brand-blue); border-radius: 0 0 3px 3px; }
+  .v1 .tabnav .tab { font-size: 10px; }
+  .v1 .tabnav { padding-bottom: 8px; height: 64px; }
+
+  /* ---------- sticky cart bar ---------- */
+  .sticky-cart { position: absolute; left: 12px; right: 12px; bottom: calc(83px + 10px); background: var(--brand-blue); border-radius: 14px; box-shadow: 0 8px 24px rgba(23,99,181,0.25); padding: 10px 14px; display: flex; align-items: center; gap: 12px; color: white; z-index: 33; }
+  .sticky-cart .qty-blob { background: rgba(255,255,255,0.18); border-radius: 8px; padding: 4px 8px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sticky-cart .label { font-size: 13px; font-weight: 600; flex: 1; }
+  .sticky-cart .label small { display: block; font-weight: 400; opacity: 0.85; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .sticky-cart .view { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; }
+  .sticky-cart .view svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+  /* old sticky bar (collision example) */
+  .v1 .sticky-cart-old { position: absolute; left: 12px; right: 12px; bottom: 12px; background: var(--brand-green); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; color: white; z-index: 33; font-size: 13px; font-weight: 600; }
+  .v1 .toast { position: absolute; left: 16px; right: 16px; bottom: 80px; background: var(--ink-primary); color: white; padding: 10px 12px; border-radius: 10px; font-size: 12px; z-index: 34; }
+  .v1 .collision { position: absolute; bottom: 0; left: 0; right: 0; height: 64px; background: rgba(193,58,40,0.18); pointer-events: none; z-index: 80; border-top: 1.5px dashed var(--feedback-error); display:flex; align-items:flex-end; justify-content:center; padding-bottom:4px; }
+  .v1 .collision .lbl { font-size: 9px; color: var(--feedback-error); background: white; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+
+  /* shared body content */
+  .listcard { background: white; border: 1px solid var(--border-hairline); border-radius: 12px; padding: 12px; display: flex; gap: 12px; margin-bottom: 8px; align-items: center; }
+  .listcard .thumb { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; background: var(--bg-secondary) center/cover no-repeat; }
+  .listcard .meta { flex: 1; min-width: 0; }
+  .listcard .nm { font-weight: 600; font-size: 14px; }
+  .listcard .sm { font-size: 12px; color: var(--ink-secondary); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .listcard .pr { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .miniqty { display: inline-flex; align-items: center; border: 1px solid var(--brand-blue); border-radius: 8px; height: 30px; }
+  .miniqty button { width: 28px; height: 100%; background: white; color: var(--brand-blue); border: none; font-size: 14px; font-weight: 600; }
+  .miniqty .v { min-width: 22px; text-align: center; font-weight: 700; font-size: 12px; color: var(--brand-blue); font-variant-numeric: tabular-nums; }
+  .miniqty.is-on { background: var(--brand-blue); border-color: var(--brand-blue); }
+  .miniqty.is-on button { background: var(--brand-blue); color: white; }
+  .miniqty.is-on .v { color: white; }
+
+  .scrolltitle { padding: 14px 16px 8px; }
+  .scrolltitle h3 { margin: 0 0 2px; font-size: 18px; }
+  .scrolltitle .meta { color: var(--ink-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .listwrap { padding: 0 14px 16px; }
+
+  /* ---------- inline note callout ---------- */
+  .callout { background: white; border: 1px solid var(--border-hairline); border-radius: 12px; padding: 16px 18px; margin-top: 10px; max-width: 375px; }
+  .callout h4 { margin: 0 0 4px; font-size: 13px; font-family: var(--font-sans); font-weight: 600; }
+  .callout p { margin: 0; font-size: 12px; color: var(--ink-secondary); line-height: 1.5; }
+
+  /* annotation arrows */
+  .annot { font-size: 11px; color: var(--brand-blue); font-weight: 600; }
+
+  /* notes block ---------- */
+  .notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: white; border: 1px solid var(--border-hairline); border-radius: 12px; padding: 20px 22px; margin-bottom: 40px; }
+  .notes h4 { margin: 0 0 4px; font-size: 14px; font-family: var(--font-sans); font-weight: 600; }
+  .notes p { margin: 0; font-size: 13px; color: var(--ink-secondary); line-height: 1.5; }
+  .notes code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: var(--bg-secondary); padding: 1px 5px; border-radius: 4px; color: var(--ink-primary); }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+
+  .pagefoot { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border-hairline); font-size: 12px; color: var(--ink-tertiary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="crumb"><a href="index.html">Component specs</a> · Brief 2</div>
+  <h1 class="page">Mobile chrome</h1>
+  <p class="lede">Buyers are restaurant owners placing $300+ orders one-handed from a hot kitchen. Today's chrome eats 12% of the viewport before any product paints, and the cart lives in the worst thumb position. This spec collapses the header, promotes Cart to a tab, and stops the floating bar from fighting with toasts and the home indicator.</p>
+
+  <div class="notes">
+    <div><h4><span class="swatch" style="background:var(--brand-green)"></span>52px header (down from 96px)</h4><p>One bar carries brand mark, page identity, cutoff, and cart access. Wordmark drops on mobile; the circular mark + page title carry brand recognition. Cutoff lives where the date strip used to — same information, half the height.</p></div>
+    <div><h4>Cart is now a tab</h4><p>5 tabs: Guide / Catalog / <strong>Cart</strong> / Standing / Account. The badge count lives on the Cart tab — visible from any screen, in thumb reach. Top-right cart icon is removed. <code>aria-current="page"</code> on the active tab.</p></div>
+    <div><h4>StickyCartBar transitions</h4><p>Visible when cart ≥ 1 item <em>and</em> active tab ≠ Cart. Hides on the Cart screen (the tab is enough). Pinned <code>bottom: calc(83px + 10px)</code> above the tab bar; toasts move to <code>bottom: calc(83px + 70px)</code> when sticky is up.</p></div>
+    <div><h4>Stepper unifies on blue</h4><p>One <code>QtyStepper</code> — brand-blue outline at rest, filled blue when count ≥ 1. The green variant on <code>/guide</code> is deleted. Green is reserved for the commit moment.</p></div>
+    <div><h4>Safe-area</h4><p>Tab bar uses <code>padding-bottom: max(8px, env(safe-area-inset-bottom))</code>. StickyCartBar is positioned <em>above</em> the tab bar, so the home indicator only ever touches the tab bar's padding region — never live UI.</p></div>
+    <div><h4>Active-tab treatment</h4><p>3px brand-blue underline anchored to the top of the tab cell, icon + label switch to brand-blue. No background swatch — keeps the floor visually quiet. Reduced motion: instant; otherwise the underline animates 150ms via <code>--ease-fluent</code>.</p></div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- BEFORE vs AFTER                                              -->
+  <!-- ============================================================ -->
+  <section>
+    <header>
+      <span class="num">01</span>
+      <h2>Before vs. after</h2>
+      <span class="where">375 × 812 — iPhone 12 viewport</span>
+    </header>
+    <p class="sec-note">Same screen (Guide, 1 item in cart) under both chromes. Today's chrome consumes <strong>96px (12%)</strong> before any product paints, the cart sits in top-right thumb-reach hell, the floating cart bar collides with the home indicator, and the green stepper on /guide reads as a commit moment when it's not.</p>
+
+    <div class="screens">
+
+      <!-- BEFORE -->
+      <div class="screen-col compare">
+        <div class="head"><span class="dot" style="background:var(--feedback-error)"></span><span class="name">Today<span class="what"> · v1 chrome</span></span></div>
+        <div class="phone v1">
+          <div class="notch"></div>
+          <div class="statusbar">9:41<div class="right"><svg><use href="#i-sig"/></svg><svg><use href="#i-wifi"/></svg><svg><use href="#i-bat"/></svg></div></div>
+          <div class="topbar1">
+            <span>Tue 2pm cutoff · Zone 3</span>
+            <span class="countdown">4h 12m left</span>
+          </div>
+          <div class="topbar2">
+            <div class="mark">
+              <img src="assets/flf-logo.png" alt="">
+              <span class="title">My guide</span>
+            </div>
+            <div class="cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><use href="#i-cart"/></svg></div>
+          </div>
+          <div class="height-meter"></div>
+          <div class="body">
+            <div class="listcard">
+              <div class="thumb" style="background-image:url('assets/photos/chicken-1.jpg')"></div>
+              <div class="meta"><div class="nm">Jumbo Brown Eggs</div><div class="sm">24 dz · Meadow Creek</div></div>
+              <div class="pr">$108</div>
+            </div>
+            <div class="listcard">
+              <div class="thumb" style="background-image:url('assets/photos/farm-2.jpg')"></div>
+              <div class="meta"><div class="nm">Gruyère 8oz</div><div class="sm">12 × 8 oz · Silver Lake</div></div>
+              <div class="pr">$120</div>
+            </div>
+            <div class="listcard">
+              <div class="thumb" style="background-image:url('assets/photos/farm-3.jpg')"></div>
+              <div class="meta"><div class="nm">Whole milk</div><div class="sm">4 × 1 gal · Hartke's</div></div>
+              <div class="pr">$42</div>
+            </div>
+          </div>
+          <div class="toast">Added · Silver Lake Gruyère ×2</div>
+          <div class="sticky-cart-old">
+            <span>Cart · 2 items · $240</span>
+            <span style="font-size:13px;">View cart →</span>
+          </div>
+          <div class="tabnav">
+            <div class="tab is-active" style="color:var(--brand-green-dark)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><use href="#i-guide"/></svg>Guide</div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><use href="#i-catalog"/></svg>Catalog</div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><use href="#i-standing"/></svg>Standing</div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><use href="#i-acct"/></svg>Account</div>
+          </div>
+          <div class="collision"><span class="lbl">Cart bar + toast + home indicator collide here</span></div>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="desc"><strong style="color:var(--ink-primary);">Audit:</strong> 96px chrome (Finding #11) · top-right cart (U5) · safe-area ignored (#6) · toast/cart-bar overlap · green stepper miscolor (#9) · only 4 tabs.</p>
+      </div>
+
+      <!-- AFTER -->
+      <div class="screen-col">
+        <div class="head"><span class="dot"></span><span class="name">v2<span class="what"> · proposed</span></span></div>
+        <div class="phone v2">
+          <div class="notch"></div>
+          <div class="statusbar">9:41<div class="right"><svg><use href="#i-sig"/></svg><svg><use href="#i-wifi"/></svg><svg><use href="#i-bat"/></svg></div></div>
+          <div class="topbar">
+            <img src="assets/flf-logo.png" alt="" class="mark">
+            <div class="ident">
+              <span class="title">My guide</span>
+              <span class="cutoff"><span class="pulse"></span>Tue 2pm cutoff · <span class="tabular">4h 12m</span> · Zone 3</span>
+            </div>
+            <button class="iconbtn" aria-label="Search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
+            <button class="iconbtn" aria-label="Notifications"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg><span class="nub"></span></button>
+          </div>
+          <div class="height-meter"></div>
+          <div class="page">
+            <div class="scrolltitle">
+              <h3>For Tuesday delivery</h3>
+              <div class="meta">14 items in your guide</div>
+            </div>
+            <div class="listwrap">
+              <div class="listcard">
+                <div class="thumb" style="background-image:url('assets/photos/chicken-1.jpg')"></div>
+                <div class="meta"><div class="nm">Jumbo Brown Eggs</div><div class="sm">24 dz · $108.00</div></div>
+                <div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div>
+              </div>
+              <div class="listcard">
+                <div class="thumb" style="background-image:url('assets/photos/farm-2.jpg')"></div>
+                <div class="meta"><div class="nm">Gruyère 8oz</div><div class="sm">12 × 8 oz · $120.00</div></div>
+                <div class="miniqty is-on"><button>−</button><span class="v">2</span><button>+</button></div>
+              </div>
+              <div class="listcard">
+                <div class="thumb" style="background-image:url('assets/photos/farm-3.jpg')"></div>
+                <div class="meta"><div class="nm">Whole milk</div><div class="sm">4 × 1 gal · $42.00</div></div>
+                <div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="sticky-cart">
+            <div class="qty-blob">2</div>
+            <div class="label">Cart · $240.00<small>Tue cutoff in 4h 12m</small></div>
+            <div class="view">View<svg viewBox="0 0 24 24"><use href="#i-arrow-r"/></svg></div>
+          </div>
+          <div class="tabnav">
+            <div class="tab is-active"><svg><use href="#i-guide"/></svg>Guide</div>
+            <div class="tab"><svg><use href="#i-catalog"/></svg>Catalog</div>
+            <div class="tab"><svg><use href="#i-cart"/></svg>Cart<span class="badge">2</span></div>
+            <div class="tab"><svg><use href="#i-standing"/></svg>Standing</div>
+            <div class="tab"><svg><use href="#i-acct"/></svg>Account</div>
+          </div>
+          <div class="safe-area-marker"><span class="lbl">env(safe-area-inset-bottom)</span></div>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="desc"><strong style="color:var(--ink-primary);">Wins:</strong> 52px chrome · cart-tab badge in thumb reach · floating bar sits clear of indicator · stepper unified blue · 5 tabs.</p>
+      </div>
+
+      <div class="screen-col" style="width: 280px;">
+        <div class="head"><span class="dot"></span><span class="name">What changed<span class="what"> · annotations</span></span></div>
+        <div class="callout"><h4>Mark + title fuse</h4><p>The wordmark drops on mobile. The 28px logo paired with a Bricolage page title carries identity in 1/3 the height.</p></div>
+        <div class="callout"><h4>Cutoff is sub-titular</h4><p>Lives as the tiny line under the page title. Pulse dot turns red inside the last 60 min. Tappable: opens delivery schedule sheet.</p></div>
+        <div class="callout"><h4>Right side carries only utility</h4><p>Search + notifications. Cart leaves the header — it has its own tab.</p></div>
+        <div class="callout"><h4>Sticky bar sits in the gap</h4><p>10px above the tab bar, 12px from screen edges. The tab bar's own safe-area padding absorbs the home indicator below.</p></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 5 SCREENS WITH NEW CHROME                                    -->
+  <!-- ============================================================ -->
+  <section>
+    <header>
+      <span class="num">02</span>
+      <h2>Five screens, one chrome</h2>
+      <span class="where">empty guide → cart → checkout context</span>
+    </header>
+    <p class="sec-note">Each screen demonstrates a state of the chrome. Watch the <strong>Cart tab badge</strong>, the <strong>active-tab underline</strong>, and where the <strong>StickyCartBar</strong> appears or hides.</p>
+
+    <div class="screens">
+
+      <!-- SCREEN 1: Empty Guide -->
+      <div class="screen-col">
+        <div class="head"><span class="dot"></span><span class="name">Guide<span class="what"> · cart empty (no sticky bar)</span></span></div>
+        <div class="phone v2">
+          <div class="notch"></div>
+          <div class="statusbar">9:41<div class="right"><svg><use href="#i-sig"/></svg><svg><use href="#i-wifi"/></svg><svg><use href="#i-bat"/></svg></div></div>
+          <div class="topbar">
+            <img src="assets/flf-logo.png" alt="" class="mark">
+            <div class="ident"><span class="title">My guide</span><span class="cutoff"><span class="pulse"></span>Tue 2pm cutoff · <span class="tabular">4h 12m</span> · Zone 3</span></div>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg></button>
+          </div>
+          <div class="page">
+            <div class="scrolltitle"><h3>For Tuesday delivery</h3><div class="meta">14 items in your guide</div></div>
+            <div class="listwrap">
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/chicken-1.jpg')"></div><div class="meta"><div class="nm">Jumbo Brown Eggs</div><div class="sm">24 dz · $108.00</div></div><div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div></div>
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/farm-2.jpg')"></div><div class="meta"><div class="nm">Gruyère 8oz</div><div class="sm">12 × 8 oz · $120.00</div></div><div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div></div>
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/farm-3.jpg')"></div><div class="meta"><div class="nm">Whole milk</div><div class="sm">4 × 1 gal · $42.00</div></div><div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div></div>
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/farm-4.jpg')"></div><div class="meta"><div class="nm">Ground beef 80/20</div><div class="sm">10 lb · $94.00</div></div><div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div></div>
+            </div>
+          </div>
+          <div class="tabnav">
+            <div class="tab is-active"><svg><use href="#i-guide"/></svg>Guide</div>
+            <div class="tab"><svg><use href="#i-catalog"/></svg>Catalog</div>
+            <div class="tab"><svg><use href="#i-cart"/></svg>Cart</div>
+            <div class="tab"><svg><use href="#i-standing"/></svg>Standing</div>
+            <div class="tab"><svg><use href="#i-acct"/></svg>Account</div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="desc">Cart tab shows no badge — no count, no dot. Underline sits on Guide.</p>
+      </div>
+
+      <!-- SCREEN 2: Guide with 1 item (sticky visible) -->
+      <div class="screen-col">
+        <div class="head"><span class="dot"></span><span class="name">Guide<span class="what"> · 1 item (sticky bar visible)</span></span></div>
+        <div class="phone v2">
+          <div class="notch"></div>
+          <div class="statusbar">9:42<div class="right"><svg><use href="#i-sig"/></svg><svg><use href="#i-wifi"/></svg><svg><use href="#i-bat"/></svg></div></div>
+          <div class="topbar">
+            <img src="assets/flf-logo.png" alt="" class="mark">
+            <div class="ident"><span class="title">My guide</span><span class="cutoff"><span class="pulse"></span>Tue 2pm cutoff · <span class="tabular">4h 11m</span> · Zone 3</span></div>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg><span class="nub"></span></button>
+          </div>
+          <div class="page">
+            <div class="scrolltitle"><h3>For Tuesday delivery</h3><div class="meta">14 items in your guide</div></div>
+            <div class="listwrap">
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/chicken-1.jpg')"></div><div class="meta"><div class="nm">Jumbo Brown Eggs</div><div class="sm">24 dz · $108.00</div></div><div class="miniqty is-on"><button>−</button><span class="v">1</span><button>+</button></div></div>
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/farm-2.jpg')"></div><div class="meta"><div class="nm">Gruyère 8oz</div><div class="sm">12 × 8 oz · $120.00</div></div><div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div></div>
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/farm-3.jpg')"></div><div class="meta"><div class="nm">Whole milk</div><div class="sm">4 × 1 gal · $42.00</div></div><div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div></div>
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/farm-4.jpg')"></div><div class="meta"><div class="nm">Ground beef 80/20</div><div class="sm">10 lb · $94.00</div></div><div class="miniqty"><button>−</button><span class="v">0</span><button>+</button></div></div>
+            </div>
+          </div>
+          <div class="sticky-cart">
+            <div class="qty-blob">1</div>
+            <div class="label">Cart · $108.00<small>Tue cutoff in 4h 11m</small></div>
+            <div class="view">View<svg viewBox="0 0 24 24"><use href="#i-arrow-r"/></svg></div>
+          </div>
+          <div class="tabnav">
+            <div class="tab is-active"><svg><use href="#i-guide"/></svg>Guide</div>
+            <div class="tab"><svg><use href="#i-catalog"/></svg>Catalog</div>
+            <div class="tab"><svg><use href="#i-cart"/></svg>Cart<span class="badge">1</span></div>
+            <div class="tab"><svg><use href="#i-standing"/></svg>Standing</div>
+            <div class="tab"><svg><use href="#i-acct"/></svg>Account</div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="desc">Cart count appears in two places — the tab badge and the sticky pill. The sticky pill is the marketing nudge; the badge is the persistent fact.</p>
+      </div>
+
+      <!-- SCREEN 3: Catalog -->
+      <div class="screen-col">
+        <div class="head"><span class="dot"></span><span class="name">Catalog<span class="what"> · browsing with cart</span></span></div>
+        <div class="phone v2">
+          <div class="notch"></div>
+          <div class="statusbar">9:43<div class="right"><svg><use href="#i-sig"/></svg><svg><use href="#i-wifi"/></svg><svg><use href="#i-bat"/></svg></div></div>
+          <div class="topbar">
+            <img src="assets/flf-logo.png" alt="" class="mark">
+            <div class="ident"><span class="title">Catalog</span><span class="cutoff"><span class="pulse"></span>Tue 2pm cutoff · <span class="tabular">4h 10m</span> · Zone 3</span></div>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg></button>
+          </div>
+          <div class="page" style="background: var(--bg-secondary);">
+            <div class="scrolltitle" style="background:white;border-bottom:1px solid var(--border-hairline)"><h3>Eggs · 6 producers</h3><div class="meta">Sort · in season · sub all</div></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px;">
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;overflow:hidden;">
+                <div style="aspect-ratio:1/1;background:url('assets/photos/chicken-1.jpg') center/cover"></div>
+                <div style="padding:8px 10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-tertiary);font-weight:600;">Meadow Creek</div><div style="font-weight:600;font-size:13px;">Jumbo Brown Eggs</div><div style="font-size:11px;color:var(--ink-secondary);" class="tabular">24 dz · $108</div></div>
+              </div>
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;overflow:hidden;position:relative;">
+                <div style="aspect-ratio:1/1;background:var(--brand-blue-tint) radial-gradient(circle, rgba(23,99,181,0.14) 1px, transparent 1px); background-size:10px 10px; display:flex;align-items:center;justify-content:center;flex-direction:column;">
+                  <div style="font-size:9px;letter-spacing:0.1em;color:var(--brand-blue);font-weight:700;">EGGS</div>
+                  <div style="font-family:var(--font-display);font-weight:800;font-size:24px;color:var(--brand-blue);letter-spacing:-0.04em;line-height:1;margin-top:4px;">MC</div>
+                </div>
+                <div style="padding:8px 10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-tertiary);font-weight:600;">Meadow Creek</div><div style="font-weight:600;font-size:13px;">Brown Eggs — Pint</div><div style="font-size:11px;color:var(--ink-secondary);" class="tabular">15 dz · $72</div></div>
+              </div>
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;overflow:hidden;">
+                <div style="aspect-ratio:1/1;background:url('assets/photos/farm-3.jpg') center/cover"></div>
+                <div style="padding:8px 10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-tertiary);font-weight:600;">Hartke</div><div style="font-weight:600;font-size:13px;">Duck Eggs</div><div style="font-size:11px;color:var(--ink-secondary);" class="tabular">5 dz · $48</div></div>
+              </div>
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;overflow:hidden;">
+                <div style="aspect-ratio:1/1;background:url('assets/photos/farm-4.jpg') center/cover"></div>
+                <div style="padding:8px 10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-tertiary);font-weight:600;">Hartke</div><div style="font-weight:600;font-size:13px;">Pullet Eggs</div><div style="font-size:11px;color:var(--ink-secondary);" class="tabular">10 dz · $44</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="sticky-cart">
+            <div class="qty-blob">2</div>
+            <div class="label">Cart · $240.00<small>Tue cutoff in 4h 10m</small></div>
+            <div class="view">View<svg viewBox="0 0 24 24"><use href="#i-arrow-r"/></svg></div>
+          </div>
+          <div class="tabnav">
+            <div class="tab"><svg><use href="#i-guide"/></svg>Guide</div>
+            <div class="tab is-active"><svg><use href="#i-catalog"/></svg>Catalog</div>
+            <div class="tab"><svg><use href="#i-cart"/></svg>Cart<span class="badge">2</span></div>
+            <div class="tab"><svg><use href="#i-standing"/></svg>Standing</div>
+            <div class="tab"><svg><use href="#i-acct"/></svg>Account</div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="desc">Sticky bar persists across tabs (except Cart). Cart-tab badge keeps state in sight.</p>
+      </div>
+
+      <!-- SCREEN 4: Cart screen itself -->
+      <div class="screen-col">
+        <div class="head"><span class="dot"></span><span class="name">Cart<span class="what"> · sticky hidden, tab active</span></span></div>
+        <div class="phone v2">
+          <div class="notch"></div>
+          <div class="statusbar">9:43<div class="right"><svg><use href="#i-sig"/></svg><svg><use href="#i-wifi"/></svg><svg><use href="#i-bat"/></svg></div></div>
+          <div class="topbar">
+            <img src="assets/flf-logo.png" alt="" class="mark">
+            <div class="ident"><span class="title">Cart</span><span class="cutoff is-soon"><span class="pulse"></span>Tue 2pm cutoff · <span class="tabular" style="color:var(--feedback-error)">52m</span> · Zone 3</span></div>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg></button>
+          </div>
+          <div class="page">
+            <div class="scrolltitle"><h3>2 items · $240.00</h3><div class="meta">Delivery Tue 5/12, Zone 3</div></div>
+            <div class="listwrap">
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/farm-2.jpg')"></div><div class="meta"><div class="nm">Gruyère 8oz</div><div class="sm">12 × 8 oz · $120.00</div></div><div class="miniqty is-on"><button>−</button><span class="v">2</span><button>+</button></div></div>
+              <div class="listcard"><div class="thumb" style="background-image:url('assets/photos/chicken-1.jpg')"></div><div class="meta"><div class="nm">Jumbo Brown Eggs</div><div class="sm">24 dz · $108.00</div></div><div class="miniqty is-on"><button>−</button><span class="v">1</span><button>+</button></div></div>
+              <div style="background:var(--bg-secondary);border-radius:10px;padding:14px;margin-top:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-secondary);margin-bottom:4px;"><span>Subtotal</span><span class="tabular" style="color:var(--ink-primary);font-weight:600;">$240.00</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-secondary);"><span>Delivery</span><span>Included</span></div>
+                <button style="width:100%;height:44px;margin-top:12px;background:var(--brand-green);color:white;border:none;border-radius:10px;font-weight:600;font-size:14px;">Place order · billed Net 14</button>
+              </div>
+            </div>
+          </div>
+          <div class="tabnav">
+            <div class="tab"><svg><use href="#i-guide"/></svg>Guide</div>
+            <div class="tab"><svg><use href="#i-catalog"/></svg>Catalog</div>
+            <div class="tab is-active"><svg><use href="#i-cart"/></svg>Cart<span class="badge">2</span></div>
+            <div class="tab"><svg><use href="#i-standing"/></svg>Standing</div>
+            <div class="tab"><svg><use href="#i-acct"/></svg>Account</div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="desc">StickyCartBar hides — the tab is active and the user is already where the bar would send them. <strong style="color:var(--ink-primary);">Place order</strong> is green: this is the commit moment.</p>
+      </div>
+
+      <!-- SCREEN 5: Account -->
+      <div class="screen-col">
+        <div class="head"><span class="dot"></span><span class="name">Account<span class="what"> · sticky persists</span></span></div>
+        <div class="phone v2">
+          <div class="notch"></div>
+          <div class="statusbar">9:44<div class="right"><svg><use href="#i-sig"/></svg><svg><use href="#i-wifi"/></svg><svg><use href="#i-bat"/></svg></div></div>
+          <div class="topbar">
+            <img src="assets/flf-logo.png" alt="" class="mark">
+            <div class="ident"><span class="title">Account</span><span class="cutoff"><span class="pulse"></span>Tue 2pm cutoff · <span class="tabular">4h 09m</span> · Zone 3</span></div>
+            <button class="iconbtn"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg></button>
+          </div>
+          <div class="page">
+            <div style="padding:18px 16px 12px;display:flex;align-items:center;gap:12px;">
+              <div style="width:48px;height:48px;border-radius:999px;background:var(--brand-blue-tint);color:var(--brand-blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;font-family:var(--font-display);">RV</div>
+              <div><div style="font-weight:700;font-size:16px;">Red Velvet Cafe</div><div style="font-size:12px;color:var(--ink-secondary);">Net 14 · QuickBooks linked · Zone 3</div></div>
+            </div>
+            <div style="padding:0 14px;display:flex;flex-direction:column;gap:8px;">
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;padding:14px;display:flex;justify-content:space-between;"><span style="font-weight:500;font-size:14px;">Delivery schedule</span><span style="font-size:13px;color:var(--ink-secondary);">Tue · Fri</span></div>
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;padding:14px;display:flex;justify-content:space-between;"><span style="font-weight:500;font-size:14px;">Past orders</span><span style="font-size:13px;color:var(--ink-secondary);" class="tabular">42</span></div>
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;padding:14px;display:flex;justify-content:space-between;"><span style="font-weight:500;font-size:14px;">Billing</span><span style="font-size:13px;color:var(--ink-secondary);">$1,284 open</span></div>
+              <div style="background:white;border:1px solid var(--border-hairline);border-radius:10px;padding:14px;display:flex;justify-content:space-between;"><span style="font-weight:500;font-size:14px;">Message Alex</span><span style="font-size:13px;color:var(--brand-blue);">→</span></div>
+            </div>
+          </div>
+          <div class="sticky-cart">
+            <div class="qty-blob">3</div>
+            <div class="label">Cart · $348.00<small>Tue cutoff in 4h 09m</small></div>
+            <div class="view">View<svg viewBox="0 0 24 24"><use href="#i-arrow-r"/></svg></div>
+          </div>
+          <div class="tabnav">
+            <div class="tab"><svg><use href="#i-guide"/></svg>Guide</div>
+            <div class="tab"><svg><use href="#i-catalog"/></svg>Catalog</div>
+            <div class="tab"><svg><use href="#i-cart"/></svg>Cart<span class="badge">3</span></div>
+            <div class="tab"><svg><use href="#i-standing"/></svg>Standing</div>
+            <div class="tab is-active"><svg><use href="#i-acct"/></svg>Account</div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <p class="desc">Cart bar travels with the buyer through ancillary screens. Active underline is the only thing that moves between tabs.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="pagefoot">
+    Spec v2 · all measurements in CSS px from 375 × 812 base. Tab bar height 83px = 49px content + 34px iOS home-indicator zone. Header 52px sits below the 44px iOS status bar. Tokens: <code>colors_and_type.css</code>. Implementation note: the StickyCartBar should be a portal — not a sibling of the page content — so it never interferes with the page's own scroll containment.
+  </div>
+
+</div>
+
+<!-- shared status bar svgs (Lucide-style strokes) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sig" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="0.5" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="0.5" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="0.5" fill="currentColor" opacity="0.4"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 16 12"><path fill="currentColor" d="M8 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5-4.2a7 7 0 0 0-10 0l1.2 1.2a5.3 5.3 0 0 1 7.6 0L13 7.8zm2.7-2.7A11 11 0 0 0 .3 5.1L1.5 6.3a9 9 0 0 1 13 0l1.2-1.2z"/></symbol>
+    <symbol id="i-bat" viewBox="0 0 26 12"><rect x="0.5" y="0.5" width="22" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="23" y="3.5" width="2" height="5" rx="0.5" fill="currentColor"/><rect x="2" y="2" width="18" height="8" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-guide" viewBox="0 0 24 24"><path d="M4 4a1 1 0 0 1 1-1h13a3 3 0 0 1 3 3v15a1 1 0 0 1-1.5.87L15 19l-4.5 2.87a1 1 0 0 1-1 0L5 19l-1 .5"/><path d="M9 8h7M9 12h5"/></symbol>
+    <symbol id="i-catalog" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 3h2l2.4 12.3a2 2 0 0 0 2 1.7h7.7a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></symbol>
+    <symbol id="i-standing" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="7" cy="6" r="2" fill="currentColor"/><circle cx="14" cy="12" r="2" fill="currentColor"/><circle cx="9" cy="18" r="2" fill="currentColor"/></symbol>
+    <symbol id="i-acct" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+  </defs>
+</svg>
+</body>
+</html>
