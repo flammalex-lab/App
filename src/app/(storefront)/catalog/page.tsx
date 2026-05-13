@@ -288,7 +288,10 @@ export default async function CatalogPage({
   // LIST VIEW (group / search / producer / explore / best)
   // =====================================================================
   let query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds });
-  if (groupFilter) query = query.eq("product_group", groupFilter);
+  // Group filter: match the primary product_group OR an entry in
+  // additional_groups so cross-listed products (e.g. Hawthorne Valley
+  // krauts listed in both produce + dairy) surface in either browse.
+  if (groupFilter) query = query.or(`product_group.eq.${groupFilter},additional_groups.cs.{${groupFilter}}`);
   if (q) query = query.or(`name.ilike.%${q}%,producer.ilike.%${q}%`);
   if (producerFilter) query = query.ilike("producer", producerFilter);
 
