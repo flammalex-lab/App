@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { CATALOG_SUGGESTIONS_TAG } from "@/lib/products/suggestions";
 import type { Category, Brand } from "@/lib/supabase/types";
 
 interface Row {
@@ -139,5 +141,6 @@ export async function POST(request: Request) {
     }
   }
 
+  if (created > 0 || updated > 0) revalidateTag(CATALOG_SUGGESTIONS_TAG, "max");
   return NextResponse.json({ created, updated, skipped, errors });
 }

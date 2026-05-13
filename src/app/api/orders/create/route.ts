@@ -177,7 +177,7 @@ export async function POST(request: Request) {
 
   // Buyer's order-history aggregate just changed — drop the cached
   // buyer-history entry so /guide and /catalog re-read fresh numbers.
-  revalidateTag(buyerHistoryTag(effectiveProfile.id));
+  revalidateTag(buyerHistoryTag(effectiveProfile.id), "max");
 
   // Post an order summary into the account's chat thread. Stored as a
   // structured payload so the chat UI can render a rich card without

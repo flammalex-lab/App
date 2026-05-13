@@ -1,3 +1,23 @@
+// `react`'s `cache()` is a server-rendering primitive — calling it at
+// module load throws in Jest's node environment ("cache is not a
+// function"). The runStandingOrder code path never invokes the cached
+// reader (it only uses `buyerHistoryTag`), so a passthrough stub is
+// safe and keeps the test isolated from the per-request cache layer.
+jest.mock("react", () => ({
+  ...jest.requireActual("react"),
+  cache: <T>(fn: T) => fn,
+}));
+
+// `revalidateTag` reaches into Next's static-generation work store,
+// which only exists during a real request render. In the Jest node
+// environment it throws "Invariant: static generation store missing".
+// runStandingOrder calls it after each cron-driven order to bust the
+// buyer-history cache; for tests, a no-op stub is correct.
+jest.mock("next/cache", () => ({
+  revalidateTag: jest.fn(),
+  unstable_cache: <T extends (...args: any[]) => any>(fn: T) => fn,
+}));
+
 jest.mock("@/lib/notifications/dispatch", () => ({
   enqueueAndSend: jest.fn().mockResolvedValue(undefined),
 }));

@@ -25,10 +25,14 @@ interface RowState {
 }
 
 /**
- * Stock-up sheet: opens from a producer-filtered catalog and lets a buyer
- * dial in qty + size for every product from that producer in one pass,
- * then commits all rows to cart with a single tap. Saves the chef the
- * 16-tap drill of going PDP-by-PDP through an 8-flavor assortment.
+ * Stock-up sheet: opens from a producer- or sub-category-filtered catalog
+ * and lets a buyer dial in qty + size for every product in that subject's
+ * assortment in one pass, then commits all rows to cart with a single tap.
+ * Saves the chef the 16-tap drill of going PDP-by-PDP through a long list.
+ *
+ * `subject` is the noun used in the heading ("Stock up on {subject}") —
+ * a producer name on producer pages, a sub-category name (e.g. "Milk")
+ * on category drill-downs from the order guide.
  *
  * One row per product (not per SKU). Products with multiple pack options
  * get a size-pill toggle; the stepper applies to whichever pill is active.
@@ -39,12 +43,12 @@ interface RowState {
 export function StockUpSheet({
   open,
   onClose,
-  producer,
+  subject,
   products,
 }: {
   open: boolean;
   onClose: () => void;
-  producer: string;
+  subject: string;
   products: PricedProduct[];
 }) {
   const add = useCart((s) => s.add);
@@ -160,7 +164,7 @@ export function StockUpSheet({
     <BottomSheet
       open={open}
       onClose={onClose}
-      ariaLabel={`Stock up on ${producer}`}
+      ariaLabel={`Stock up on ${subject}`}
       desktopMaxWidth="36rem"
     >
       <div className="flex flex-col h-full md:h-[70vh]">
@@ -170,7 +174,7 @@ export function StockUpSheet({
             exclamation. */}
         <div className="px-5 pt-2 md:pt-5 pb-3">
           <h2 className="display text-xl font-bold tracking-tight leading-tight">
-            Stock up on {producer}
+            Stock up on {subject}
           </h2>
           <p className="text-[13px] text-ink-secondary mt-1">
             One tap to add the assortment — adjust each line below.
@@ -183,7 +187,7 @@ export function StockUpSheet({
         <ul className="flex-1 min-h-0 overflow-y-auto overscroll-contain border-t border-black/[0.06] divide-y divide-black/[0.06]">
           {orderable.length === 0 ? (
             <li className="px-5 py-10 text-center text-sm text-ink-secondary">
-              Nothing from {producer} is orderable this week.
+              Nothing from {subject} is orderable this week.
             </li>
           ) : (
             orderable.map((product) => {

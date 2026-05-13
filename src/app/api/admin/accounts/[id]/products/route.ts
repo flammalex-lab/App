@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { CATALOG_SUGGESTIONS_TAG } from "@/lib/products/suggestions";
 
 interface Input {
   productIds: string[];
@@ -32,5 +34,8 @@ export async function POST(
     const { error: insErr } = await svc.from("account_products").insert(rows);
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
   }
+  // Allowlist change can shift which products this account sees, so the
+  // cached suggestion set for that buyer scope is now stale.
+  revalidateTag(CATALOG_SUGGESTIONS_TAG, "max");
   return NextResponse.json({ ok: true });
 }

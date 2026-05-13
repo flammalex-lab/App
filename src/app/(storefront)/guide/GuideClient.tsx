@@ -121,13 +121,14 @@ export function GuideClient({
               ...r.product,
               unitPrice: r.unitPrice,
             }));
-            // "See all" expands from the buyer's guide-scoped subset to the
-            // catalog's full inventory in the parent group (e.g. Dairy).
-            // We don't have a per-subcategory URL filter, so the parent
-            // group is the closest meaningful target.
+            // "See all" drills into a sub-category-filtered catalog view
+            // (producer-page-style hero + Stock-up button + grid with the
+            // gold "In guide" badge on items the buyer already keeps).
+            // Falls back to the parent group when category metadata is
+            // missing — better than no link at all.
             const parentGroup = filtered[0]?.product.category ?? null;
             const seeAllHref = parentGroup
-              ? `/catalog?group=${parentGroup}`
+              ? `/catalog?group=${parentGroup}&subCategory=${encodeURIComponent(subCategory)}`
               : undefined;
             return (
               <ScrollStrip
