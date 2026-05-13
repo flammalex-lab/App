@@ -18,8 +18,10 @@ import { ScrollStrip } from "./ScrollStrip";
 import { SortSheet, type SortKey } from "./SortSheet";
 import { CatalogSearchInput } from "./CatalogSearchInput";
 import { CategoryChips } from "./CategoryChips";
+import { ProducerChips } from "./ProducerChips";
 import { BackButton } from "@/components/layout/BackButton";
 import { groupBySubCategory } from "@/lib/products/sub-category";
+import { compareProducersByRank, rankProducers } from "@/lib/products/producer-rank";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
@@ -324,6 +326,43 @@ export default async function CatalogPage({
 
   const priced = priceProducts(products as Product[] | null, pricingCtx);
 
+  // Producer chips row — shown on category pages (?group=X) so loyalists
+  // can one-tap narrow to a single producer. Stays visible when a producer
+  // is already selected so the buyer can toggle it back off via the
+  // selected chip. Skipped on search / explore / best to keep those
+  // surfaces focused.
+  const showProducerChips = Boolean(groupFilter) && !q && !isBest && !isExplore;
+  let categoryProducers: string[] = [];
+  if (showProducerChips) {
+    const { data: producerRows } = await visibleProductsQuery(db, {
+      buyerType: effectiveBuyerType,
+      isB2B,
+      allowedPrivateIds,
+      select: "producer",
+    })
+      .eq("product_group", groupFilter as ProductGroup)
+      .not("producer", "is", null);
+    const seen = new Set<string>();
+    for (const r of (producerRows as { producer: string | null }[] | null) ?? []) {
+      const name = r.producer?.trim();
+      if (name) seen.add(name);
+    }
+    const allProducers = Array.from(seen);
+    if (allProducers.length > 1) {
+      const { buyerRank: pbRank, globalRank: pgRank } = await rankProducers(db, {
+        profileId,
+        producers: allProducers,
+      });
+      categoryProducers = allProducers.sort((a, b) =>
+        compareProducersByRank(a, b, pbRank, pgRank),
+      );
+    } else {
+      // 0 or 1 producer — ProducerChips will render nothing in this case,
+      // but pass the list through anyway for shape consistency.
+      categoryProducers = allProducers;
+    }
+  }
+
   const headerTitle = producerFilter
     ? producerFilter
     : isExplore
@@ -477,6 +516,14 @@ export default async function CatalogPage({
           <CategoryChips
             groups={allowed.map((g) => ({ group: g }))}
             active={(groupFilter as ProductGroup | null) ?? (isExplore ? "explore" : isBest ? "best" : null)}
+            className="mb-3"
+          />
+        ) : null}
+        {showProducerChips && groupFilter ? (
+          <ProducerChips
+            group={groupFilter}
+            producers={categoryProducers}
+            selected={producerFilter || null}
             className="mb-3"
           />
         ) : null}
