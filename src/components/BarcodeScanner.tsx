@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
 import { useToast } from "@/components/ui/Toast";
@@ -56,6 +56,8 @@ export function BarcodeScanner({
   const [banner, setBanner] = useState<BannerState>({ kind: "idle" });
   const [manualCode, setManualCode] = useState("");
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isNative, setIsNative] = useState(false);
+  const [nativeBusy, setNativeBusy] = useState(false);
 
   // Render-time state reset on `open` toggling false: avoids the
   // setState-in-effect cascade that React 19's hook lint flags. The
@@ -81,6 +83,14 @@ export function BarcodeScanner({
     let cancelled = false;
 
     (async () => {
+      const { Capacitor } = await import("@capacitor/core");
+      const native = Capacitor.isNativePlatform();
+      if (cancelled) return;
+      setIsNative(native);
+      // Native shell uses the Capacitor Camera plugin via captureNative
+      // below — getUserMedia + <video> are web-only.
+      if (native) return;
+
       try {
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         const reader = new BrowserMultiFormatReader();
@@ -124,6 +134,48 @@ export function BarcodeScanner({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const captureNative = useCallback(async () => {
+    if (nativeBusy) return;
+    setNativeBusy(true);
+    try {
+      const [{ Camera, CameraResultType, CameraSource }, { BrowserMultiFormatReader }] =
+        await Promise.all([
+          import("@capacitor/camera"),
+          import("@zxing/browser"),
+        ]);
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+        correctOrientation: true,
+      });
+      if (!photo.dataUrl) {
+        setBanner({ kind: "error", message: "No image captured" });
+        setTimeout(() => setBanner({ kind: "idle" }), 2000);
+        return;
+      }
+      const reader = new BrowserMultiFormatReader();
+      const result = await reader.decodeFromImageUrl(photo.dataUrl);
+      lookup(result.getText());
+    } catch (e: any) {
+      // User-cancelled the camera or no barcode was in the frame. Both
+      // recover into the manual-entry field that's always visible below.
+      const msg = e?.message ?? "";
+      if (/cancel/i.test(msg)) return;
+      setBanner({
+        kind: "error",
+        message: /not\s*found|NotFoundException/i.test(msg)
+          ? "No barcode detected — try again"
+          : "Couldn't read that barcode",
+      });
+      setTimeout(() => setBanner({ kind: "idle" }), 2000);
+    } finally {
+      setNativeBusy(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nativeBusy]);
 
   async function lookup(code: string) {
     setBanner({ kind: "looking_up", code });
@@ -218,12 +270,27 @@ export function BarcodeScanner({
 
       {/* Camera viewport */}
       <div className="relative mx-3 rounded-2xl overflow-hidden bg-black/60 aspect-[4/3]">
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          playsInline
-          muted
-        />
+        {isNative ? (
+          <button
+            type="button"
+            onClick={captureNative}
+            disabled={nativeBusy}
+            className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-3 text-white/90 disabled:opacity-60"
+            aria-label="Tap to scan a barcode"
+          >
+            <BarcodeIcon className="opacity-80" />
+            <span className="text-sm font-medium">
+              {nativeBusy ? "Reading…" : "Tap to scan"}
+            </span>
+          </button>
+        ) : (
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            muted
+          />
+        )}
         {/* Scan frame */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-6 border-2 border-white/70 rounded-xl" />

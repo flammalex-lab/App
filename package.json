@@ -10,10 +10,25 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "cap:sync": "cap sync && node scripts/post-cap-sync.mjs",
+    "cap:assets": "capacitor-assets generate --iconBackgroundColor '#FBFAF6' --iconBackgroundColorDark '#1763B5' --splashBackgroundColor '#FBFAF6' --splashBackgroundColorDark '#1763B5'",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "cap open android",
+    "cap:run:ios": "cap run ios",
+    "cap:run:android": "cap run android"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.62.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/camera": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0",
+    "@capacitor/push-notifications": "^7.0.0",
+    "@capacitor/splash-screen": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.2",
     "@zxing/browser": "^0.1.5",
@@ -27,6 +42,8 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.16.11",
     "@types/react": "^18.3.11",
