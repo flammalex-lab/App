@@ -166,12 +166,12 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-square flex items-center justify-center bg-white pointer-events-none p-3">
+        <div className="relative aspect-square flex items-center justify-center bg-white pointer-events-none p-3 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
             alt=""
-            className="max-h-full max-w-full object-contain mix-blend-multiply"
+            className="w-full h-full object-contain mix-blend-multiply"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
         </div>
@@ -226,12 +226,12 @@ export function ProductCard({
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
-        <div className="relative aspect-square flex items-center justify-center p-3 pointer-events-none bg-white">
+        <div className="relative aspect-square flex items-center justify-center p-3 pointer-events-none bg-white overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={productImage(product)}
             alt=""
-            className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
+            className="w-full h-full object-contain mix-blend-multiply transition-transform duration-150 [@media(hover:hover)]:group-hover/card:scale-[1.03]"
           />
           <Badge paused={paused} weekOff={!product.available_this_week && !paused} />
         </div>
