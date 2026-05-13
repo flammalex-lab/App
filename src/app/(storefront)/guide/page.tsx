@@ -11,6 +11,7 @@ import type {
 import { GuideClient } from "./GuideClient";
 import { ReorderLastCard } from "./ReorderLastCard";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
+import { getBuyerHistory } from "@/lib/products/buyer-history";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
@@ -46,6 +47,24 @@ export default async function GuidePage() {
   // "New from your producers" strip below. Load once.
   const pricingCtx = await loadPricingContext(db, account, true);
 
+  // Single buyer-history fetch reused by three downstream features:
+  //   - last-ordered timestamp per guide product
+  //   - per-producer order-frequency rank
+  //   - "new from your producers" discovery filter
+  // Wrapped in React cache(), so future callers in the same request
+  // (and rapid re-renders inside the same dynamic segment) dedupe.
+  const buyerHistory = await getBuyerHistory(db, profileId);
+
+  const lastOrderedByProduct: Record<string, string> = {};
+  for (const row of buyerHistory) {
+    const ts = row.orderedAt;
+    if (!ts) continue;
+    const pid = row.product_id;
+    if (!lastOrderedByProduct[pid] || ts > lastOrderedByProduct[pid]) {
+      lastOrderedByProduct[pid] = ts;
+    }
+  }
+
   let items: GuideRow[] = [];
   if (guide) {
     const { data: itemRows } = await db
@@ -53,26 +72,6 @@ export default async function GuidePage() {
       .select("*, product:products(*)")
       .eq("order_guide_id", guide.id)
       .order("sort_order", { ascending: true });
-
-    // Last-ordered lookup — find the most recent order_items row for each product
-    // by this buyer. Cheap for now, bounded by the size of the guide.
-    const productIds = (itemRows as any[] | null ?? []).map((r) => r.product_id);
-    const lastOrderedByProduct: Record<string, string> = {};
-    if (productIds.length) {
-      const { data: recentItems } = await db
-        .from("order_items")
-        .select("product_id, order:orders!inner(profile_id, created_at)")
-        .eq("order.profile_id", profileId)
-        .in("product_id", productIds);
-      for (const row of ((recentItems as any[] | null) ?? [])) {
-        const pid = row.product_id as string;
-        const ts = row.order?.created_at as string;
-        if (!ts) continue;
-        if (!lastOrderedByProduct[pid] || ts > lastOrderedByProduct[pid]) {
-          lastOrderedByProduct[pid] = ts;
-        }
-      }
-    }
 
     items = (itemRows as any[] | null ?? []).map((row) => {
       const p = row.product as Product;
@@ -93,7 +92,8 @@ export default async function GuidePage() {
   //      producer);
   //   2. tie-break (and producers never ordered) by overall popularity
   //      across all customers.
-  // Both maps are passed to GuideClient as sort hints.
+  // Buyer rank is derived from the cached buyerHistory above; global
+  // rank still needs its own query (no buyer filter).
   const buyerProducerRank: Record<string, number> = {};
   const globalProducerRank: Record<string, number> = {};
   if (items.length) {
@@ -105,17 +105,12 @@ export default async function GuidePage() {
       ),
     );
     if (guideProducers.length) {
-      // Buyer's own order frequency per producer
-      const { data: myItems } = await db
-        .from("order_items")
-        .select("quantity, product:products!inner(producer), orders!inner(profile_id)")
-        .eq("orders.profile_id", profileId)
-        .in("product.producer", guideProducers);
-      for (const r of ((myItems as any[] | null) ?? [])) {
-        const prod = r.product?.producer as string | undefined;
-        if (!prod) continue;
+      const guideProducerSet = new Set(guideProducers);
+      for (const row of buyerHistory) {
+        const prod = row.producer?.trim();
+        if (!prod || !guideProducerSet.has(prod)) continue;
         buyerProducerRank[prod] =
-          (buyerProducerRank[prod] ?? 0) + Number(r.quantity ?? 0);
+          (buyerProducerRank[prod] ?? 0) + row.quantity;
       }
       // Global popularity per producer (anyone, any time)
       const { data: allItems } = await db
@@ -181,21 +176,14 @@ export default async function GuidePage() {
   // entirely when empty (no "no results" meta-state on discovery).
   let newFromProducers: PricedProductLite[] = [];
   {
-    // Buyer's full order history — distinct producers and distinct
-    // product_ids. One round-trip via inner joins on the orders table to
-    // scope by profile_id.
-    const { data: historyRows } = await db
-      .from("order_items")
-      .select("product_id, product:products!inner(producer), orders!inner(profile_id)")
-      .eq("orders.profile_id", profileId);
-
+    // Distinct producers + product_ids derived from the cached buyer
+    // history (saves a third round-trip on this page).
     const orderedProducers = new Set<string>();
     const orderedProductIds = new Set<string>();
-    for (const r of ((historyRows as any[] | null) ?? [])) {
-      const pid = r.product_id as string | undefined;
-      const producer = r.product?.producer as string | undefined;
-      if (pid) orderedProductIds.add(pid);
-      if (producer) orderedProducers.add(producer.trim());
+    for (const r of buyerHistory) {
+      if (r.product_id) orderedProductIds.add(r.product_id);
+      const producer = r.producer?.trim();
+      if (producer) orderedProducers.add(producer);
     }
 
     if (orderedProducers.size) {
