@@ -126,6 +126,11 @@ html[data-sheet-open="true"] .scroll-hide-header {
   top: 0 !important;
   left: 0;
   right: 0;
+  /* Sit below the sheet (z-50) but above page chrome so the rescued
+     header doesn't get caught in an iOS Safari stacking quirk where a
+     position:fixed element without an explicit z-index lands on the
+     wrong layer relative to the sheet's z-50 backdrop. */
+  z-index: 40;
 }
 
 /* Print: buyers print order confirmations from /orders/[id]. Strip every
