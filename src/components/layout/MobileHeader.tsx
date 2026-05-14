@@ -8,6 +8,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useToast } from "@/components/ui/Toast";
 import { countdown, titleCase } from "@/lib/utils/format";
 import { useCart } from "@/lib/cart/store";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { Account, Profile } from "@/lib/supabase/types";
 
 interface SerializedNextDelivery {
@@ -184,10 +185,26 @@ function CutoffLine({
   const dotTone = past || urgent ? "bg-feedback-error animate-pulse" : "bg-accent-gold";
   const timeTone = past || urgent ? "text-feedback-error" : "text-ink-primary";
 
+  // B4 hydration fix: pin the timezone to the business zone so SSR (Node,
+  // typically UTC) and CSR (whatever the buyer's browser is in) render
+  // the same `Fri 2pm cutoff` string. Without an explicit `timeZone`,
+  // toLocaleString uses the runtime's local zone — Node-UTC emits "Fri
+  // 6pm" while the buyer's EDT browser emits "Fri 2pm" for the same
+  // Date instant, tripping React hydration mismatch #418 on every page
+  // load that mounts the mobile header. The countdown text on the
+  // adjacent span is already guarded by the `now`-null pattern; this
+  // line is the day-of-week + hour copy that rendered unconditionally.
   const cutoffDate = new Date(next.cutoffAt);
-  const wd = cutoffDate.toLocaleString("en-US", { weekday: "short" });
+  const wd = cutoffDate.toLocaleString("en-US", {
+    weekday: "short",
+    timeZone: BUSINESS_TIMEZONE,
+  });
   const hour = cutoffDate
-    .toLocaleString("en-US", { hour: "numeric", hour12: true })
+    .toLocaleString("en-US", {
+      hour: "numeric",
+      hour12: true,
+      timeZone: BUSINESS_TIMEZONE,
+    })
     .replace(/\s/g, "")
     .toLowerCase();
 
