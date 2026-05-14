@@ -112,6 +112,13 @@ export function GuideClient({
   const lineCount = useCart((s) => s.lines.length);
   const adjustedKeys = useCart((s) => s.adjustedKeys);
   const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
+  // Subtotal (sum of unitPrice * qty across all lines) — drives the under-min
+  // copy on the in-eye-line submit pill. Mirrors the math the bottom
+  // StickyCartBar does (no delivery-fee add-on here; the cart bar owns the
+  // total + fee surface, the in-eye-line pill is action-first).
+  const cartSubtotal = useCart((s) =>
+    s.lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
+  );
 
   // ---- B1: drop any stale persisted delivery date on every mount.
   // Runs *before* the rhythm-seed effect so the default-date branch
@@ -269,6 +276,31 @@ export function GuideClient({
   // empty-draft state vs the full draft.
   const draftIsEmpty = draftRows.length === 0 && lineCount === 0;
 
+  // ---- In-eye-line submit pill ---------------------------------------
+  // Sits at the top of the draft so a buyer whose draft is exactly right
+  // can submit in one tap without scrolling to find the bottom cart bar.
+  // States mirror the bottom StickyCartBar (under-min, ready); past-cutoff
+  // collapses into the same two states because `targetDeliveryDayName` is
+  // already rolled forward upstream. Hidden when the draft is empty —
+  // the empty-state card already directs the buyer to the catalog. Wires
+  // through the same `flf:open-submit` event the bottom pill uses, so the
+  // SubmitSheet opens identically from both surfaces.
+  const submitPillUnderMin =
+    accountMinimum > 0 && cartSubtotal < accountMinimum;
+  const submitPillShortfall = Math.ceil(
+    Math.max(0, accountMinimum - cartSubtotal),
+  );
+  const submitPillCopy = submitPillUnderMin
+    ? targetDeliveryDayName
+      ? `Add $${submitPillShortfall} to ship ${targetDeliveryDayName}`
+      : `Add $${submitPillShortfall} to submit`
+    : targetDeliveryDayName
+      ? `Submit ${targetDeliveryDayName}'s order →`
+      : "Submit order →";
+  function handleSubmitPillClick() {
+    window.dispatchEvent(new Event("flf:open-submit"));
+  }
+
   const dateLabel = targetDeliveryDate
     ? dateLong(targetDeliveryDate)
     : "your next delivery";
@@ -347,6 +379,30 @@ export function GuideClient({
           </form>
         ) : null}
       </div>
+
+      {/* ---- In-eye-line submit pill ------------------------------------
+          Single visible CTA at the top of the draft. NOT sticky — the
+          bottom StickyCartBar already owns urgency/countdown/past-cutoff.
+          This is the "if your draft is right, submit in one tap" surface.
+          Hidden when the draft is empty (the EmptyState card below
+          already nudges the buyer toward the catalog). */}
+      {!draftIsEmpty ? (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={handleSubmitPillClick}
+            disabled={submitPillUnderMin}
+            aria-disabled={submitPillUnderMin}
+            className={
+              submitPillUnderMin
+                ? "w-full flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-bg-secondary text-ink-tertiary border border-black/[0.06] cursor-not-allowed"
+                : "w-full flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98]"
+            }
+          >
+            {submitPillCopy}
+          </button>
+        </div>
+      ) : null}
 
       {/* ---- Search + scan ----------------------------------------------
           Sticky pill that filters the guide rows client-side (the guide
