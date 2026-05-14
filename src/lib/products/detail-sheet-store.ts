@@ -4,23 +4,32 @@ import { create } from "zustand";
 import type { Product } from "@/lib/supabase/types";
 import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { loadProductDetail } from "@/app/(storefront)/catalog/detail-action";
+import { isGroupedCandidate } from "./build-packs";
 
 /**
  * Pepper-style client-state product detail modal.
  *
- * The catalog and guide cards already carry the `Product` row (name,
- * image, description, pack_options, etc.), so `open(product, ...)`
- * mounts the sheet INSTANTLY with title + image + description. The
- * server action then fills in:
- *   - `packs`        — priced PackRows, including sibling-grouped sizes
- *   - `groupedCount` — number of sibling products in the group
- *   - `inGuide`      — whether this product is on the buyer's guide
- *   - `isB2B`        — whether to show "Add to guide" affordances
+ * The catalog and guide cards already carry the `Product` row AND a
+ * pre-computed `packs` list (default pack + pack_options, priced
+ * against the active account's overrides + price-list + tier). So
+ * `open(product, { packs, isB2B, inGuide })` mounts the sheet INSTANTLY
+ * with title, image, description, AND fully-priced variant rows.
  *
- * While the action is in-flight, `loading` is true and consumers can
- * render an inline skeleton for the pack rows. The pack rows are the
- * only part that NEEDS server data; everything else renders from the
- * product the card handed us.
+ * The server action `loadProductDetail` only fires when the product is
+ * a sibling-grouped candidate — i.e. its name contains a pack-size
+ * suffix like " — Gallon" / " — Half Gallon". For most products
+ * (no siblings), zero round-trips: instant open, no skeleton, no
+ * background fetch.
+ *
+ * When it does fire (sibling candidates), the action returns the union
+ * of self-packs + sibling-packs; the store swaps `packs` in only when
+ * the union has MORE rows than the current self-packs (the canonical
+ * "we discovered siblings, upgrade now" signal). Stale upgrades are
+ * dropped via the requestId guard.
+ *
+ * Legacy callers that don't supply `packs`/`isB2B` still work — the
+ * store falls back to the full server-action loading path with a
+ * skeleton.
  *
  * Replaces the parallel-route `@modal/(.)catalog/[id]` interception
  * pattern. No URL change, no route push, no body-lock thrash, no
@@ -41,7 +50,21 @@ interface State {
 }
 
 interface Actions {
-  open: (product: Product, opts?: { fromGroup?: string | null; inGuide?: boolean }) => void;
+  open: (
+    product: Product,
+    opts?: {
+      fromGroup?: string | null;
+      inGuide?: boolean;
+      /** Whether the active session is a B2B buyer. Seed for instant
+       *  paint; the action also returns this when it fires. */
+      isB2B?: boolean;
+      /** Pre-computed self-pack list for this product. When provided,
+       *  the sheet skips the loading state entirely and renders the
+       *  packs immediately. The server action only fires for sibling
+       *  candidates; otherwise it's a zero-network open. */
+      packs?: PackRow[];
+    },
+  ) => void;
   close: () => void;
 }
 
@@ -57,29 +80,53 @@ export const useProductSheet = create<State & Actions>((set, get) => ({
 
   open(product, opts) {
     const nextRequestId = get().requestId + 1;
+    const seedPacks = opts?.packs;
+    const hasSeedPacks = Array.isArray(seedPacks);
+    // Sibling-grouped candidates need the server action to discover
+    // and price siblings. Everything else can skip the action entirely
+    // when seedPacks is present — instant-open with zero round-trips.
+    const grouped = isGroupedCandidate(product.name);
+    const willFetch = !hasSeedPacks || grouped;
+
     set({
       product,
       fromGroup: opts?.fromGroup ?? null,
-      // Seed inGuide from the caller (the card knows this) so the
-      // starred state is correct on first paint, before the server
-      // action confirms it.
+      // Seed inGuide / isB2B from the caller (the card knows these)
+      // so the starred state + Add-to-guide affordance are correct on
+      // first paint, before the server action confirms.
       inGuide: opts?.inGuide ?? false,
-      // Wipe stale packs from the previous open so we don't briefly
-      // render last product's variants.
-      packs: null,
+      isB2B: opts?.isB2B ?? false,
+      // Seed packs when provided — sheet renders the variant picker
+      // immediately. Otherwise null + loading=true triggers the
+      // skeleton path (legacy / unknown callers).
+      packs: hasSeedPacks ? seedPacks! : null,
       groupedProductCount: 1,
-      loading: true,
+      loading: !hasSeedPacks,
       requestId: nextRequestId,
     });
+
+    if (!willFetch) return;
+
     void (async () => {
       const res = await loadProductDetail(product.id);
       if (get().requestId !== nextRequestId) return;
       if (!res.ok) {
-        set({ loading: false });
+        // Only flip loading off if we ARE the loading-state owner;
+        // a seeded-packs open never went into loading=true.
+        if (!hasSeedPacks) set({ loading: false });
         return;
       }
+      // Sibling-upgrade comparator: swap to the action's packs only
+      // when it found MORE rows than we already have. For seeded
+      // opens with no siblings, the action returns the same self-pack
+      // count → no swap → no flash. For seeded opens that DO have
+      // siblings, the action returns a longer union → swap to it.
+      // For non-seeded (legacy) opens, current packs is null so the
+      // action's result always wins.
+      const current = get().packs;
+      const shouldSwap = !current || res.packs.length > current.length;
       set({
-        packs: res.packs,
+        ...(shouldSwap ? { packs: res.packs } : {}),
         groupedProductCount: res.groupedProductCount,
         isB2B: res.isB2B,
         inGuide: res.inGuide,

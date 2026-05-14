@@ -12,6 +12,8 @@ import type {
 } from "@/lib/supabase/types";
 import { GuideClient } from "./GuideClient";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
+import { buildSelfPacks } from "@/lib/products/build-packs";
+import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { getBuyerHistory } from "@/lib/products/buyer-history";
 import {
   getAllowedPrivateProductIds,
@@ -171,6 +173,7 @@ export default async function GuidePage() {
       ...row,
       product: p,
       unitPrice,
+      packs: buildSelfPacks(p, pricingCtx),
       lastOrderedAt: lastOrderedByProduct[p.id] ?? null,
     };
   });
@@ -199,6 +202,7 @@ export default async function GuidePage() {
         sort_order: 9999,
         product: p,
         unitPrice: priceForProduct(p, pricingCtx),
+        packs: buildSelfPacks(p, pricingCtx),
         lastOrderedAt: lastOrderedByProduct[p.id] ?? null,
       });
     }
@@ -436,6 +440,7 @@ export default async function GuidePage() {
     recentBuys = visible.slice(0, 12).map((p) => ({
       ...p,
       unitPrice: priceForProduct(p, pricingCtx),
+      packs: buildSelfPacks(p, pricingCtx),
     }));
   }
 
@@ -501,7 +506,11 @@ export default async function GuidePage() {
   // entirely when empty (no "no results" meta-state on discovery).
   const newFromProducers: PricedProductLite[] = ((newRows as Product[] | null) ?? [])
     .slice(0, 12)
-    .map((p) => ({ ...p, unitPrice: priceForProduct(p, pricingCtx) }));
+    .map((p) => ({
+      ...p,
+      unitPrice: priceForProduct(p, pricingCtx),
+      packs: buildSelfPacks(p, pricingCtx),
+    }));
 
   // Time-of-day greeting
   const hour = new Date().getHours();
@@ -614,11 +623,20 @@ function formatDeliveryLabel(d: string | null | undefined): string | null {
 }
 
 /** Lite priced-product shape passed from the server fetch to the client
- *  strip. Matches `PricedProduct` from `components/products/ProductCard`. */
-export type PricedProductLite = Product & { unitPrice: number | null };
+ *  strip. Matches `PricedProduct` from `components/products/ProductCard`.
+ *  Includes the pre-computed self-pack list so the client-state detail
+ *  sheet can render priced variant rows at t=0. */
+export type PricedProductLite = Product & {
+  unitPrice: number | null;
+  packs: PackRow[];
+};
 
 export type GuideRow = OrderGuideItem & {
   product: Product;
   unitPrice: number | null;
+  /** Pre-computed self-pack list for the row's product. Threaded into
+   *  the catalog/strip ProductCard so the detail sheet can open with
+   *  fully-priced variants at t=0. */
+  packs: PackRow[];
   lastOrderedAt: string | null;
 };

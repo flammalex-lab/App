@@ -7,6 +7,7 @@ import { resolveActiveAccount } from "@/lib/auth/active-account";
 import type { Category, Product } from "@/lib/supabase/types";
 import { loadPricingContext, priceForProduct, type PricingContext } from "@/lib/utils/pricing";
 import { getAllowedPrivateProductIds, visibleProductsQuery } from "@/lib/products/queries";
+import { buildSelfPacks } from "@/lib/products/build-packs";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   GROUP_LABELS,
@@ -30,8 +31,17 @@ export const metadata = { title: "Catalog — Fingerlakes Farms" };
 function priceProducts(
   rows: Product[] | null | undefined,
   ctx: PricingContext,
-): (Product & { unitPrice: number | null })[] {
-  return (rows ?? []).map((p) => ({ ...p, unitPrice: priceForProduct(p, ctx) }));
+): (Product & { unitPrice: number | null; packs: ReturnType<typeof buildSelfPacks> })[] {
+  // packs are pre-computed here so the client-state detail sheet can
+  // paint a fully-priced variant list at t=0 when the buyer taps a
+  // card. The PricingContext was already loaded once per render, so
+  // this is zero new DB queries — just walks pack_options + overrides
+  // + price-list rows already in memory.
+  return (rows ?? []).map((p) => ({
+    ...p,
+    unitPrice: priceForProduct(p, ctx),
+    packs: buildSelfPacks(p, ctx),
+  }));
 }
 
 export default async function CatalogPage({
@@ -255,6 +265,7 @@ export default async function CatalogPage({
                 products={preferredProducts}
                 fromGroup={null}
                 inGuideIds={inGuideIds}
+                isB2B={isB2B}
               />
             ) : null}
             {restProducts.length > 0 ? (
@@ -270,6 +281,7 @@ export default async function CatalogPage({
                   products={restProducts}
                   fromGroup={null}
                   inGuideIds={inGuideIds}
+                  isB2B={isB2B}
                 />
               </>
             ) : null}
@@ -283,6 +295,7 @@ export default async function CatalogPage({
               subtitle="Fresh off the flyer — available for this delivery."
               products={thisWeek}
               inGuideIds={inGuideIds}
+              isB2B={isB2B}
             />
 
             {history.length > 0 ? (
@@ -291,6 +304,7 @@ export default async function CatalogPage({
                 href="/orders"
                 products={history}
                 inGuideIds={inGuideIds}
+                isB2B={isB2B}
               />
             ) : null}
 
@@ -301,6 +315,7 @@ export default async function CatalogPage({
                 subtitle="Featured producer"
                 products={featured}
                 inGuideIds={inGuideIds}
+                isB2B={isB2B}
               />
             ) : null}
           </>
@@ -666,6 +681,7 @@ export default async function CatalogPage({
               href={`/catalog?group=${groupFilter}&subCategory=${encodeURIComponent(subCategory)}`}
               products={items}
               inGuideIds={inGuideIds}
+              isB2B={isB2B}
             />
           ))}
         </div>
@@ -674,6 +690,7 @@ export default async function CatalogPage({
           products={visibleProducts}
           fromGroup={fromGroupLabel}
           inGuideIds={inGuideIds}
+          isB2B={isB2B}
         />
       )}
     </div>

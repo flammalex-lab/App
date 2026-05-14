@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Product } from "@/lib/supabase/types";
+import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
 import { groupBySubCategory } from "@/lib/products/sub-category";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -74,7 +75,7 @@ interface Props {
   pastCutoff?: boolean;
 }
 
-type PricedProduct = Product & { unitPrice: number | null };
+type PricedProduct = Product & { unitPrice: number | null; packs?: PackRow[] };
 
 export function GuideClient({
   items,
@@ -237,7 +238,7 @@ export function GuideClient({
       out.push(p);
     }
     for (const it of items) {
-      push({ ...it.product, unitPrice: it.unitPrice });
+      push({ ...it.product, unitPrice: it.unitPrice, packs: it.packs });
     }
     for (const p of recentBuys) push(p);
     for (const p of newFromProducers) push(p);
@@ -387,6 +388,7 @@ export function GuideClient({
             products={recentBuys}
             density="dense"
             inGuideIds={inGuideSet}
+            isB2B
           />
         </div>
       ) : null}
@@ -400,6 +402,7 @@ export function GuideClient({
             const products: PricedProduct[] = filtered.map((r) => ({
               ...r.product,
               unitPrice: r.unitPrice,
+              packs: r.packs,
             }));
             const parentGroup = filtered[0]?.product.category ?? null;
             const seeAllHref = parentGroup
@@ -412,6 +415,8 @@ export function GuideClient({
                 href={seeAllHref}
                 products={products}
                 density="dense"
+                inGuideIds={inGuideSet}
+                isB2B
               />
             );
           })}
@@ -426,6 +431,7 @@ export function GuideClient({
             products={newFromProducers}
             density="dense"
             inGuideIds={inGuideSet}
+            isB2B
           />
         </div>
       ) : null}
