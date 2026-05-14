@@ -197,6 +197,7 @@ export function StockUpSheet({
                   key={product.id}
                   product={product}
                   state={state}
+                  sheetProducerHeader={subject}
                   onChangeQty={(n) => setRow(product.id, { qty: n })}
                   onChangeVariant={(key) => setRow(product.id, { variantKey: key })}
                 />
@@ -214,7 +215,7 @@ export function StockUpSheet({
         >
           <div className="flex-1 min-w-0 leading-tight">
             <div className="text-[13px] text-ink-secondary tabular">
-              {lineCount} {lineCount === 1 ? "item" : "items"}
+              {lineCount} {lineCount === 1 ? "line" : "lines"}
               <span className="text-ink-tertiary"> · </span>
               <span className="text-ink-primary font-semibold">{money(subtotal)}</span>
             </div>
@@ -240,14 +241,25 @@ export function StockUpSheet({
 function StockUpRow({
   product,
   state,
+  sheetProducerHeader,
   onChangeQty,
   onChangeVariant,
 }: {
   product: PricedProduct;
   state: RowState;
+  sheetProducerHeader: string;
   onChangeQty: (n: number) => void;
   onChangeVariant: (key: string | null) => void;
 }) {
+  // When the sheet was opened from a producer-filtered view, the heading
+  // already says "Stock up on {producer}", so re-stating the producer on
+  // every row is redundant and makes a single-producer list look like it
+  // spans multiple producers when scanned fast. Skip the producer caption
+  // (and the producer prefix in the display name) only when they match.
+  const sheetIsProducer =
+    !!product.producer &&
+    product.producer.trim().toLowerCase() ===
+      sheetProducerHeader.trim().toLowerCase();
   const photo = productPhoto(product);
   const opts = (product.pack_options as PackOption[] | null) ?? [];
   const displayName = displayProductName(
@@ -314,7 +326,7 @@ function StockUpRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        {product.producer ? (
+        {product.producer && !sheetIsProducer ? (
           <div className="text-[10px] uppercase tracking-[0.08em] font-semibold text-ink-tertiary truncate leading-tight">
             {product.producer}
           </div>

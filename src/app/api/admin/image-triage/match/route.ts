@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 // Vercel Hobby caps at 10s; Pro allows up to 60. We ask for 10 to document
 // the Hobby target — Haiku vision matches a single image + compact candidate
@@ -29,6 +30,8 @@ interface MatchBody {
  *      shows, scoped to the producer filter if present.
  */
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {

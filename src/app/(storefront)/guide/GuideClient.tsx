@@ -269,7 +269,7 @@ export function GuideClient({
   const dateLabel = targetDeliveryDate
     ? dateLong(targetDeliveryDate)
     : "your next delivery";
-  const draftHeaderSub = `${draftRows.length} ${draftRows.length === 1 ? "line" : "lines"} · pulled from your last 4 ${targetDeliveryDayName ? `${targetDeliveryDayName}s` : "deliveries"}`;
+  const draftHeaderSub = `${draftRows.length} ${draftRows.length === 1 ? "edit" : "edits"} · pulled from your last 4 ${targetDeliveryDayName ? `${targetDeliveryDayName}s` : "deliveries"}`;
 
   return (
     <>

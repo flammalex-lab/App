@@ -65,27 +65,12 @@ self.addEventListener("activate", (e) => {
 const SW = `// Generated at request time. CACHE bumps on every deploy so a stale
 // shell can't be served after a release.
 const CACHE = "flf-${BUILD_ID}";
-const SHELL = ["/", "/guide", "/catalog", "/manifest.json"];
-
-// Auth-sensitive paths whose responses must never land in the SW cache.
-// /api and /auth are excluded earlier; this list catches anything that
-// renders per-account or per-buyer content. (Set-Cookie filtering is
-// useless here: the Fetch spec lists Set-Cookie as a forbidden response
-// header, so the SW can't read it.)
-const NEVER_CACHE_PREFIXES = [
-  "/account",
-  "/admin",
-  "/orders",
-  "/standing",
-  "/cart",
-  "/chat",
-  "/login",
-  "/register",
-];
-function isCacheableUrl(pathname) {
-  for (const p of NEVER_CACHE_PREFIXES) if (pathname === p || pathname.startsWith(p + "/")) return false;
-  return true;
-}
+// Precache is limited to static app-shell assets only. Route HTML is
+// deliberately excluded: on a shared device, a signed-out cookie cannot
+// strip a cached HTML body, so a per-buyer route cached under one
+// session would leak to the next user. HTML always hits the network;
+// Next.js + the CDN already cache HTML where appropriate.
+const SHELL = ["/manifest.json"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -112,22 +97,37 @@ self.addEventListener("fetch", (event) => {
   const cacheable = (res) =>
     res && res.ok && res.status >= 200 && res.status < 300;
 
-  if (req.mode === "navigate") {
+  // HTML navigations: always go straight to the network, never cache.
+  // This is the polarity flip — an opt-out list of "buyer routes" is
+  // fragile (any future per-account page added without the prefix would
+  // leak across sessions on shared devices). The SW adds no value over
+  // the network for HTML; Next.js + the CDN handle HTML caching.
+  if (req.mode === "navigate") return;
+
+  // Immutable Next.js build output — safe to cache long. Hashed filenames
+  // change every deploy, so staleness self-resolves.
+  if (url.pathname.startsWith("/_next/static")) {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (cacheable(res) && isCacheableUrl(url.pathname)) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => caches.match(req).then((r) => r || caches.match("/"))),
+      caches.match(req).then((cached) => {
+        const net = fetch(req)
+          .then((res) => {
+            if (cacheable(res)) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy));
+            }
+            return res;
+          })
+          .catch(() => cached);
+        return cached || net;
+      }),
     );
     return;
   }
 
-  if (url.pathname.startsWith("/_next") || url.pathname.match(/\\.(png|jpg|jpeg|webp|svg|ico|css|js|woff2?)$/)) {
+  // Image assets — cache-first with a network refresh. These are not
+  // buyer-scoped and stale-while-revalidate is the right tradeoff for
+  // offline / flaky-mobile use.
+  if (url.pathname.match(/\\.(jpg|jpeg|png|webp|gif|svg|ico)$/)) {
     event.respondWith(
       caches.match(req).then((cached) => {
         const net = fetch(req)

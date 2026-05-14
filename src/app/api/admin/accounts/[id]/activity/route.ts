@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { ActivityType } from "@/lib/supabase/types";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface Body {
   type: ActivityType;
@@ -11,6 +12,8 @@ interface Body {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   let admin;
   try {
     admin = await requireAdmin();

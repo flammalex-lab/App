@@ -190,6 +190,7 @@ describe("runStandingOrder", () => {
     const { svc } = makeSvc({ ...baseFixture(), standingOrder: null });
     const res = await runStandingOrder(svc, "missing");
     expect(res.ok).toBe(false);
+    if (res.ok) throw new Error("unreachable");
     expect(res.error).toBe("not found");
   });
 
@@ -198,6 +199,7 @@ describe("runStandingOrder", () => {
     const { svc } = makeSvc(fx);
     const res = await runStandingOrder(svc, "so-1");
     expect(res.ok).toBe(false);
+    if (res.ok) throw new Error("unreachable");
     expect(res.error).toBe("no items");
   });
 

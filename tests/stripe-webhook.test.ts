@@ -171,6 +171,126 @@ describe("stripe webhook — dedupe", () => {
   });
 });
 
+describe("stripe webhook — ownership verification (C3)", () => {
+  // The mismatch path warns to console.warn; silence it for clean test output.
+  let warnSpy: jest.SpyInstance;
+  beforeAll(() => { warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {}); });
+  afterAll(() => { warnSpy.mockRestore(); });
+
+  it("checkout.session.completed: does NOT update orders when metadata.order_id targets a row whose stripe_payment_id doesn't match the session", async () => {
+    // Threat: caller crafts a checkout session with metadata.order_id =
+    // <victim's order id>. Stripe signs the event. Webhook must NOT flip
+    // the victim's order to paid/confirmed.
+    mockConstructEvent.mockReturnValue({
+      id: "evt_forge",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_attacker", metadata: { order_id: "ord_victim" }, payment_intent: "pi_attacker" } },
+    });
+
+    let ordersUpdateFilters: Array<[string, any]> = [];
+    let ordersUpdatePayload: any = null;
+    let updatedRowsReturned: any[] = [];
+    mockSvc.from.mockImplementation((table: string) => {
+      if (table === "stripe_events") {
+        return {
+          insert: () => ({
+            select: () => ({
+              maybeSingle: () => Promise.resolve({ data: { id: "evt_forge" }, error: null }),
+            }),
+          }),
+          delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+        };
+      }
+      if (table === "orders") {
+        return {
+          update: (row: any) => {
+            ordersUpdatePayload = row;
+            const chain: any = {
+              eq: (col: string, val: any) => {
+                ordersUpdateFilters.push([col, val]);
+                return chain;
+              },
+              select: () => {
+                // The .eq("id", ord_victim).eq("stripe_payment_id", cs_attacker)
+                // filter pair matches NO row in the table — the victim row's
+                // stripe_payment_id is its own session id, not cs_attacker.
+                return Promise.resolve({ data: updatedRowsReturned, error: null });
+              },
+            };
+            return chain;
+          },
+        };
+      }
+      return {} as any;
+    });
+
+    const r = await POST(req("payload"));
+    expect(r.status).toBe(200);
+    // Crucially, the update was *attempted* but scoped by both filters,
+    // and returned zero rows — so no order was actually mutated.
+    expect(ordersUpdateFilters).toEqual(
+      expect.arrayContaining([
+        ["id", "ord_victim"],
+        ["stripe_payment_id", "cs_attacker"],
+      ])
+    );
+    expect(updatedRowsReturned).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("metadata.order_id does not match"),
+      expect.objectContaining({ metadataOrderId: "ord_victim", sessionId: "cs_attacker" })
+    );
+  });
+
+  it("checkout.session.completed: DOES update orders when metadata.order_id and stripe_payment_id agree", async () => {
+    mockConstructEvent.mockReturnValue({
+      id: "evt_match",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_match", metadata: { order_id: "ord_match" }, payment_intent: "pi_match" } },
+    });
+
+    let updateCalledWith: any = null;
+    let filters: Array<[string, any]> = [];
+    mockSvc.from.mockImplementation((table: string) => {
+      if (table === "stripe_events") {
+        return {
+          insert: () => ({
+            select: () => ({
+              maybeSingle: () => Promise.resolve({ data: { id: "evt_match" }, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === "orders") {
+        return {
+          update: (row: any) => {
+            updateCalledWith = row;
+            const chain: any = {
+              eq: (col: string, val: any) => {
+                filters.push([col, val]);
+                return chain;
+              },
+              select: () => Promise.resolve({ data: [{ id: "ord_match" }], error: null }),
+            };
+            return chain;
+          },
+        };
+      }
+      return {} as any;
+    });
+
+    const r = await POST(req("payload"));
+    expect(r.status).toBe(200);
+    expect(updateCalledWith).toMatchObject({ status: "confirmed", payment_status: "paid" });
+    // The ownership-check filter pair is present.
+    expect(filters).toEqual(
+      expect.arrayContaining([
+        ["id", "ord_match"],
+        ["stripe_payment_id", "cs_match"],
+      ])
+    );
+  });
+});
+
 describe("stripe webhook — mutation rollback on failure", () => {
   // The mutation-error path intentionally console.errors a diagnostic.
   // Silence it for this test so jest output isn't noisy.

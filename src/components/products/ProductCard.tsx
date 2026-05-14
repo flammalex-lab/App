@@ -31,9 +31,13 @@ type Variant = "grid" | "compact" | "row";
  * commit moment (Place order, Confirm).
  *
  * Visual signals on the media:
- *   - persistent blue `× N` pill at top-right when in cart (compact/grid)
  *   - gold-star "In guide" badge at top-left when in the buyer's guide
  *     (compact/grid; row uses an inline flag beside the producer line)
+ *
+ * The in-cart state is conveyed by the stepper alone (it swaps from
+ * "+ Add" to the −/N/+ pill once a product is in the cart). A separate
+ * top-right `× N` badge was tried and dropped — two pieces of chrome
+ * encoding the same fact read as noisy.
  *
  * When the product has no real photo (no `image_url`), the media slot
  * renders ProductCardFallback — a dot-grid brand-blue tile featuring
@@ -180,7 +184,6 @@ export function ProductCard({
           product={product}
           fallbackSize="md"
           sizes="(max-width: 768px) 45vw, 200px"
-          cartQty={cartQty}
           inGuide={inGuide}
           paused={paused}
           weekOff={weekOff}
@@ -235,7 +238,6 @@ export function ProductCard({
           product={product}
           fallbackSize="md"
           sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
-          cartQty={cartQty}
           inGuide={inGuide}
           paused={paused}
           weekOff={weekOff}
@@ -361,8 +363,11 @@ function ProducerEyebrow({
 }
 
 /**
- * Media tile with image (or fallback) + persistent in-cart pill + In-guide
- * badge + week-off / paused overlays. Used by compact + grid variants.
+ * Media tile with image (or fallback) + In-guide badge + week-off /
+ * paused overlays. Used by compact + grid variants.
+ *
+ * The in-cart state lives on the stepper below the media, not on a
+ * top-right pill — see the component doc-block above for rationale.
  */
 function CardMedia({
   aspect,
@@ -370,7 +375,6 @@ function CardMedia({
   product,
   fallbackSize,
   sizes,
-  cartQty,
   inGuide,
   paused,
   weekOff,
@@ -381,7 +385,6 @@ function CardMedia({
   product: PricedProduct;
   fallbackSize: "sm" | "md" | "lg";
   sizes: string;
-  cartQty: number;
   inGuide: boolean;
   paused: boolean;
   weekOff: boolean;
@@ -404,10 +407,6 @@ function CardMedia({
       )}
 
       {inGuide ? <InGuideBadge /> : null}
-      {/* CartPill defers to availability badges — paused/week-off products
-          can't be acted on from the card, and stacking pills top-right
-          gets cluttered. The buyer still sees the count in the cart. */}
-      {cartQty > 0 && !paused && !weekOff ? <CartPill qty={cartQty} /> : null}
       {paused ? (
         <span className="absolute top-2 right-2 badge badge-gold text-[10px]">Paused</span>
       ) : null}
@@ -417,15 +416,6 @@ function CardMedia({
         </span>
       ) : null}
     </div>
-  );
-}
-
-/** Persistent brand-blue pill anchored top-right of media when product is in cart. */
-function CartPill({ qty }: { qty: number }) {
-  return (
-    <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-brand-blue text-white text-[11px] font-semibold leading-none tabular shadow-card pointer-events-none">
-      × {qty}
-    </span>
   );
 }
 

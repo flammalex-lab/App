@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { StoreNav } from "@/components/layout/StoreNav";
@@ -39,8 +39,10 @@ export default async function StorefrontLayout({
 
   let zone: DeliveryZoneRow | null = null;
   if (activeAccount?.delivery_zone) {
-    const svc = createServiceClient();
-    const { data: z } = await svc
+    // RLS on delivery_zones is `select using (true)` (see 0002_rls.sql) — regular
+    // authed client is sufficient; no need for service-role here.
+    const supabase = await createClient();
+    const { data: z } = await supabase
       .from("delivery_zones")
       .select("*")
       .eq("zone", activeAccount.delivery_zone)

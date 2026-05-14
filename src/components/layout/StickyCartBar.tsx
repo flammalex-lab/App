@@ -171,9 +171,12 @@ export function StickyCartBar({
   }
 
   // READY
-  const leftMeta = countdownActive
-    ? `Cutoff in ${countdown(ms!)} · ${cutoffDayHour(next!)}`
-    : `${next ? formatPillDate(next) + " · " : ""}${itemCount} ${itemCount === 1 ? "line" : "lines"} · ${money(total)}`;
+  // B8: The money portion is the most useful info on the pill — never let it
+  // truncate. Split leftMeta into segments so the date + lines prefix can
+  // collapse on narrow viewports (`hidden sm:inline`) while `$total →` stays
+  // intact. Countdown mode keeps its single-string form (urgency copy is
+  // short — "Cutoff in 4h 12m · Tue 2pm" fits without truncation).
+  const linesLabel = `${itemCount} ${itemCount === 1 ? "line" : "lines"}`;
 
   return (
     <div className={wrapperClass}>
@@ -184,9 +187,21 @@ export function StickyCartBar({
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-brand-blue text-white shadow-floating hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
         >
           <span className="flex-1 min-w-0 leading-tight">
-            <span className="block text-sm font-semibold tabular truncate">
-              {leftMeta}
-            </span>
+            {countdownActive ? (
+              <span className="block text-sm font-semibold tabular truncate">
+                Cutoff in {countdown(ms!)} · {cutoffDayHour(next!)}
+              </span>
+            ) : (
+              <span className="flex items-baseline gap-1.5 text-sm font-semibold tabular">
+                {next ? (
+                  <span className="hidden sm:inline truncate">
+                    {formatPillDate(next)} ·
+                  </span>
+                ) : null}
+                <span className="truncate min-w-0">{linesLabel} ·</span>
+                <span className="whitespace-nowrap shrink-0">{money(total)}</span>
+              </span>
+            )}
           </span>
           <span className="inline-flex items-center gap-1 text-sm font-bold shrink-0">
             Submit order

@@ -5,8 +5,11 @@ import { buildInvoice } from "@/lib/accounting/build-invoice";
 import { getAccountingService } from "@/lib/accounting";
 import { buildCSVExport } from "@/lib/accounting/iif-export";
 import type { Order, OrderItem, Product, Account, QBSetting } from "@/lib/supabase/types";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const format = new URL(request.url).searchParams.get("format") ?? "iif";
   const svc = createServiceClient();

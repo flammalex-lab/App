@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Replicate from "replicate";
 import { requireAdmin } from "@/lib/auth/session";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 // Quick-start route: creates the prediction and returns immediately with
 // the prediction id. Client polls /strip-bg/status for the result. Keeps
@@ -11,6 +12,8 @@ const DEFAULT_MODEL =
   "851-labs/background-remover:a029dff38972b5fda4ec5d75d7d1cd25aeff621d2cf4946a41055d7db66b80bc";
 
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {
