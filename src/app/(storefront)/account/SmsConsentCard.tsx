@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 interface Props {
@@ -48,9 +49,21 @@ export function SmsConsentCard({ initialOptedIn, initialOptedInAt }: Props) {
         <div className="flex-1">
           <div id="sms-consent-label" className="text-sm font-medium">Transactional SMS</div>
           <p className="text-xs text-ink-secondary leading-relaxed mt-0.5">
-            Order confirmations, delivery updates, standing-order reminders,
-            cutoff nudges. No marketing or promotional texts. Msg frequency
-            varies (approx 1–20/month). Msg &amp; data rates may apply.
+            By turning this on, I agree to receive transactional SMS from
+            Fingerlakes Farms (order confirmations, delivery updates,
+            standing-order reminders, cutoff nudges) at my account phone
+            number. We do not send marketing or promotional texts. Msg
+            frequency varies (approx 1–20/month). Msg &amp; data rates may
+            apply. Reply <strong>STOP</strong> to opt out,{" "}
+            <strong>HELP</strong> for help. See our{" "}
+            <Link href="/privacy" className="underline hover:text-ink-primary">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/terms" className="underline hover:text-ink-primary">
+              Terms
+            </Link>
+            .
           </p>
         </div>
         <button
