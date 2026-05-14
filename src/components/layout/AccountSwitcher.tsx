@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 import type { Account } from "@/lib/supabase/types";
 import { titleCase } from "@/lib/utils/format";
 
@@ -19,6 +20,7 @@ export function AccountSwitcher({
   memberships: Account[];
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -50,7 +52,7 @@ export function AccountSwitcher({
       setOpen(false);
       router.refresh();
     } else {
-      alert("Could not switch account");
+      toast.push("Could not switch account", "error");
     }
   }
 

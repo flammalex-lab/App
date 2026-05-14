@@ -151,8 +151,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Fingerlakes Farms", {
       body: data.body || "",
-      icon: "/images/flf-logo.png",
-      badge: "/images/flf-logo.png",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-32.png",
       data: { url: data.url || "/" },
     }),
   );

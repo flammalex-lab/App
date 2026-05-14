@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { StoreNav } from "@/components/layout/StoreNav";
@@ -12,6 +14,43 @@ import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { Account, DeliveryZoneRow, Profile } from "@/lib/supabase/types";
+
+// M20: impersonation profile re-fetch. Wrapped in React `cache()` so any
+// other helper that needs the same impersonated profile in the same
+// request reuses this read instead of issuing a fresh round-trip.
+const fetchImpersonatedProfile = cache(async (impersonatedId: string) => {
+  const svc = createServiceClient();
+  const { data } = await svc
+    .from("profiles")
+    .select("*")
+    .eq("id", impersonatedId)
+    .maybeSingle();
+  return (data as Profile | null) ?? null;
+});
+
+// M20: delivery_zones is admin-curated and effectively static between
+// admin edits — wrap the per-zone lookup in `unstable_cache` so the
+// storefront layout doesn't pay for a fresh round-trip on every nav.
+// Tagged "delivery-zones" so a future admin save path can invalidate
+// the whole set (no obvious save path exists yet, hence no invalidation
+// call here); 1h revalidate is a defensive fallback.
+const fetchDeliveryZone = (zoneKey: string) =>
+  unstable_cache(
+    async () => {
+      // RLS on delivery_zones is `select using (true)` (see 0002_rls.sql) —
+      // regular authed client is sufficient. Use the service client here
+      // since unstable_cache runs outside the per-request cookie context.
+      const svc = createServiceClient();
+      const { data } = await svc
+        .from("delivery_zones")
+        .select("*")
+        .eq("zone", zoneKey)
+        .maybeSingle();
+      return (data as DeliveryZoneRow | null) ?? null;
+    },
+    ["delivery-zone", zoneKey],
+    { tags: ["delivery-zones"], revalidate: 3600 },
+  )();
 
 export default async function StorefrontLayout({
   children,
@@ -26,9 +65,8 @@ export default async function StorefrontLayout({
   const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   let effective: Profile = session.profile;
   if (impersonating) {
-    const svc = createServiceClient();
-    const { data } = await svc.from("profiles").select("*").eq("id", impersonating).maybeSingle();
-    if (data) effective = data as Profile;
+    const data = await fetchImpersonatedProfile(impersonating);
+    if (data) effective = data;
   }
 
   if (effective.role === "admin") redirect("/dashboard");
@@ -40,15 +78,7 @@ export default async function StorefrontLayout({
 
   let zone: DeliveryZoneRow | null = null;
   if (activeAccount?.delivery_zone) {
-    // RLS on delivery_zones is `select using (true)` (see 0002_rls.sql) — regular
-    // authed client is sufficient; no need for service-role here.
-    const supabase = await createClient();
-    const { data: z } = await supabase
-      .from("delivery_zones")
-      .select("*")
-      .eq("zone", activeAccount.delivery_zone)
-      .maybeSingle();
-    zone = (z as DeliveryZoneRow) ?? null;
+    zone = await fetchDeliveryZone(activeAccount.delivery_zone);
   }
 
   const nextDel = zone

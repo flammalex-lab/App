@@ -75,17 +75,21 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // Keep the client-side router cache warm so toggling between Guide /
-  // Catalog / Orders / Chat is instant after the first visit. Next 16
-  // defaults dynamic pages to 0s, which forces a full server roundtrip
-  // on every nav and makes the portal feel sluggish. 30s is short
-  // enough that pricing / inventory edits still appear quickly, and
-  // explicit router.refresh() / revalidatePath() calls still bypass
-  // the cache as before.
+  // staleTimes disabled to fix B3 — `TypeError: Cannot read properties
+  // of null (reading 'parentNode')` from Next's inline $RS() streaming
+  // helper, firing once per item on catalog pages (193x on
+  // /catalog?group=dairy). The warm router cache held now-unmounted
+  // Suspense placeholder trees alive long enough that $RS tried to
+  // reconcile against a parentNode that React had already detached
+  // during soft-nav stream resolve. See
+  // docs/audits/2026-05-14-full-code-audit.md (Wave 2 row #12).
+  // If we miss the perceived-snappy nav this gave us, the right
+  // re-introduction is per-route loading.tsx + explicit <Suspense>
+  // boundaries, not a global cache extension.
   experimental: {
     staleTimes: {
-      dynamic: 30,
-      static: 180,
+      dynamic: 0,
+      static: 0,
     },
   },
   images: {

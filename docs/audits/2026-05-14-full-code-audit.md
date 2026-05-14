@@ -175,7 +175,7 @@ The static + dynamic findings are partitioned into waves so parallel agents can 
 | 9 | Stock-up sheet (producer prefix, counter) | — | B11, B12 | stock-up sheet component |
 | 10 | Cart pill total truncation | — | B8 | `src/components/layout/StickyCartBar.tsx` |
 | 11 | `/guide` "0 lines" copy + ProductCard dup badge | — | B9, B14 | `src/app/(storefront)/guide/...`, `src/components/products/ProductCard.tsx` |
-| 12 | Hydration / `$RS parentNode` investigation | — | B3, B4 | ScrollStrip code, any relative-time renderer |
+| 12 | Hydration / `$RS parentNode` — **fix shipped: `next.config.js` `experimental.staleTimes` disabled** (held now-unmounted Suspense placeholder trees alive across soft-nav, causing `$RS()` to dereference a null `parentNode`). B4 fixed separately in MobileHeader / CutoffClock. | — | B3, B4 | `next.config.js`, ScrollStrip code, relative-time renderers |
 | 13 | BottomSheet focus trap | H12 | — | `src/components/ui/BottomSheet.tsx` |
 | 14 | `localStorage` cart key scoped by user | H13 | — | `src/lib/cart/store.ts`, sign-out path |
 | 15 | Service-worker: drop HTML caching | H10 | — | `src/app/sw.js/route.ts` |

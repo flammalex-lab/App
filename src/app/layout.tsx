@@ -27,16 +27,20 @@ export const metadata: Metadata = {
   description: "Order fresh NYS farm products — wholesale and direct.",
   manifest: "/manifest.json",
   icons: {
+    // Per-size derivatives generated from the 1024px master via
+    // scripts/resize-logo.py — saves ~660KB on every cold page load
+    // because browsers were previously eating the full master for a 32px slot.
     icon: [
-      { url: "/images/flf-logo.png", type: "image/png", sizes: "1024x1024" },
+      { url: "/icons/icon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
     // Apple touch icons for iOS Home Screen installs. The 180x180 is the
     // primary modern size; the smaller sizes are for older iOS versions
     // that ignore the modern size hint.
     apple: [
-      { url: "/images/flf-logo.png", sizes: "180x180", type: "image/png" },
-      { url: "/images/flf-logo.png", sizes: "152x152", type: "image/png" },
-      { url: "/images/flf-logo.png", sizes: "120x120", type: "image/png" },
+      { url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" },
+      { url: "/icons/icon-152.png", sizes: "152x152", type: "image/png" },
     ],
   },
   appleWebApp: {
