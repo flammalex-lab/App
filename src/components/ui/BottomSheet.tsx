@@ -244,12 +244,24 @@ export function BottomSheet({
   // Reset drag + height every time the sheet opens. Render-time sync
   // instead of useEffect so React 19's set-state-in-effect lint stays
   // green (no derivable source — open's transition is the trigger).
+  //
+  // We also seed `effectiveHeightPx` so the FIRST paint after open has
+  // the resolved px value already applied. Without this, the first
+  // paint uses the CSS fallback `${PEEK_VH * 100}vh` and the second
+  // paint switches to px. On iOS Safari those disagree (vh includes
+  // the URL bar height, window.innerHeight doesn't) so the panel
+  // visibly shrinks one frame in — buyer reported it as "takes a
+  // second, then jumps in." The setHeightPx state still rides along
+  // so drag handlers see a stable value across renders.
   const [lastOpen, setLastOpen] = useState(open);
+  let effectiveHeightPx = heightPx;
   if (lastOpen !== open) {
     setLastOpen(open);
     if (open) {
+      const resolved = vh(PEEK_VH);
       setDragOffset(0);
-      setHeightPx(vh(PEEK_VH));
+      setHeightPx(resolved);
+      effectiveHeightPx = resolved;
     }
   }
 
@@ -364,7 +376,7 @@ export function BottomSheet({
               ? "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)"
               : "transform 200ms cubic-bezier(.2,.8,.2,1)",
           maxWidth: desktopMaxWidth,
-          height: heightPx != null ? `${heightPx}px` : `${PEEK_VH * 100}vh`,
+          height: effectiveHeightPx != null ? `${effectiveHeightPx}px` : `${PEEK_VH * 100}vh`,
         }}
         className={`relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating ${suppressEnterAnimation ? "" : "animate-sheet-up md:animate-slide-up"} md:!h-auto md:max-h-[92vh] flex flex-col`}
       >
