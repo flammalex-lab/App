@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 interface PatchBody {
   name?: string;
@@ -23,7 +24,7 @@ export async function PATCH(
   const { id } = await params;
   const body = (await request.json()) as PatchBody;
   const svc = createServiceClient();
-  const patch: Record<string, unknown> = {};
+  const patch: TablesUpdate<"order_guide_templates"> = {};
   if (body.name !== undefined) {
     if (!body.name.trim()) return NextResponse.json({ error: "name required" }, { status: 400 });
     patch.name = body.name.trim();

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { StandingOrder, Account } from "@/lib/supabase/types";
+import type { StandingOrder } from "@/lib/supabase/types";
 import { dateShort } from "@/lib/utils/format";
 
 export const metadata = { title: "Admin — Standing orders" };
+
+type StandingOrderWithAccount = StandingOrder & { account: { name: string } | null };
 
 export default async function AdminStandingPage() {
   const db = await createClient();
@@ -11,6 +13,7 @@ export default async function AdminStandingPage() {
     .from("standing_orders")
     .select("*, account:accounts(name)")
     .order("next_run_date", { ascending: true });
+  const rows = (data ?? []) as StandingOrderWithAccount[];
 
   return (
     <div className="max-w-4xl">
@@ -19,7 +22,7 @@ export default async function AdminStandingPage() {
         <Link href="/admin/standing/new" className="btn-primary text-sm">New</Link>
       </div>
       <div className="card divide-y divide-black/5">
-        {((data as (StandingOrder & { account: { name: string } })[]) ?? []).map((s) => (
+        {rows.map((s) => (
           <Link key={s.id} href={`/admin/standing/${s.id}`} className="p-3 flex items-center justify-between hover:bg-bg-secondary">
             <div>
               {/* Surface both the user-chosen name and the account so
@@ -49,7 +52,7 @@ export default async function AdminStandingPage() {
             })()}
           </Link>
         ))}
-        {!((data as any[]) ?? []).length ? (
+        {!rows.length ? (
           <div className="p-8 text-center">
             <p className="text-sm font-medium text-ink-primary mb-1">
               No standing orders yet

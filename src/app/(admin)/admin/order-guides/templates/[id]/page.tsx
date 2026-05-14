@@ -7,7 +7,10 @@ import { BUYER_TYPE_LABELS, type BuyerType } from "@/lib/constants";
 import { adminPickerProductsQuery } from "@/lib/products/queries";
 import { TemplateEditor } from "./TemplateEditor";
 
-type TemplateItemWithProduct = OrderGuideTemplateItem & { product: Product };
+type TemplateItemWithProduct = Omit<OrderGuideTemplateItem, "par_levels"> & {
+  par_levels: Record<string, number> | null;
+  product: Product;
+};
 
 export default async function TemplateEditPage({
   params,

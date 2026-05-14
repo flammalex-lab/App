@@ -16,7 +16,7 @@ export async function getSession(): Promise<Session | null> {
     .eq("id", user.id)
     .maybeSingle();
   if (!profile) return null;
-  return { userId: user.id, profile: profile as Profile };
+  return { userId: user.id, profile };
 }
 
 export async function requireAdmin(): Promise<Session> {

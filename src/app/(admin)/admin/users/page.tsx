@@ -66,8 +66,10 @@ export default async function AdminUsersPage({
 
     // 3. Merge auth-only matches that don't yet have a profile row, just
     //    so admin can still see they exist.
-    const profileIds = new Set(((profileRows as any[] | null) ?? []).map((p) => p.id));
-    users = ((profileRows as any[] | null) ?? []).map((p) => ({
+    type ProfileWithAccount = Profile & { account: { name: string | null } | null };
+    const rows = (profileRows ?? []) as ProfileWithAccount[];
+    const profileIds = new Set(rows.map((p) => p.id));
+    users = rows.map((p) => ({
       ...(p as Profile),
       account_name: p.account?.name ?? null,
       authEmail: emailById.get(p.id) ?? null,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { parseNotificationPrefs } from "@/lib/supabase/types";
 import type { NotificationPrefs } from "@/lib/supabase/types";
 
 const KEYS: (keyof NotificationPrefs)[] = [
@@ -16,7 +17,8 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = (await request.json()) as Partial<NotificationPrefs>;
-  const next = { ...(session.profile.notification_prefs ?? {}) } as Record<string, boolean>;
+  const current = parseNotificationPrefs(session.profile.notification_prefs);
+  const next: Record<string, boolean> = { ...current };
   for (const k of KEYS) {
     if (typeof body[k] === "boolean") next[k] = body[k] as boolean;
   }

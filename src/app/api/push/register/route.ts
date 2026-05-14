@@ -25,7 +25,17 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  // device_tokens is defined in migration 0037 but not yet present in the
+  // generated database.types.ts (regen after the migration lands). Casting
+  // the table name keeps the typed client elsewhere intact.
+  const { error } = await (supabase as unknown as {
+    from: (table: string) => {
+      upsert: (
+        row: Record<string, unknown>,
+        opts: { onConflict: string },
+      ) => Promise<{ error: { message: string } | null }>;
+    };
+  })
     .from("device_tokens")
     .upsert(
       {

@@ -7,6 +7,7 @@ import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { prettyPhone } from "@/lib/utils/phone";
 import { titleCase } from "@/lib/utils/format";
 import type { Profile } from "@/lib/supabase/types";
+import { parseNotificationPrefs } from "@/lib/supabase/types";
 import { NotificationToggles } from "./NotificationToggles";
 import { PasswordCard } from "./PasswordCard";
 import { SmsConsentCard } from "./SmsConsentCard";
@@ -22,7 +23,7 @@ export default async function ProfileSheetPage() {
 
   const { data: profile } = await db.from("profiles").select("*").eq("id", profileId).maybeSingle();
   if (!profile) redirect("/login");
-  const me = profile as Profile;
+  const me = profile;
 
   const { active: account } = await resolveActiveAccount(me.id, me.account_id);
 
@@ -35,7 +36,7 @@ export default async function ProfileSheetPage() {
       .eq("account_id", account.id)
       .neq("id", me.id)
       .order("first_name", { ascending: true });
-    teammates = (mates as Profile[] | null) ?? [];
+    teammates = mates ?? [];
   }
 
   const displayName =
@@ -70,7 +71,7 @@ export default async function ProfileSheetPage() {
       </Section>
 
       <Section title="Notifications">
-        <NotificationToggles initial={me.notification_prefs} />
+        <NotificationToggles initial={parseNotificationPrefs(me.notification_prefs)} />
       </Section>
 
       {account ? (

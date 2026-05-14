@@ -291,8 +291,8 @@ export default async function CatalogPage({
       allowed_private_ids: allowedPrivateIds,
       allowed_groups: allowedGroupsFor(effectiveBuyerType),
       allowed_categories: allowedCategoriesFor(effectiveBuyerType),
-      group_filter: groupFilter,
-      producer_filter: producerFilter || null,
+      group_filter: groupFilter ?? undefined,
+      producer_filter: producerFilter || undefined,
     });
   } else {
     query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds });
@@ -434,8 +434,8 @@ export default async function CatalogPage({
       buyerProductRank[row.product_id] =
         (buyerProductRank[row.product_id] ?? 0) + row.qty;
     }
-    for (const r of ((allItems as any[] | null) ?? [])) {
-      const pid = r.product_id as string;
+    for (const r of (allItems ?? [])) {
+      const pid = r.product_id;
       globalProductRank[pid] = (globalProductRank[pid] ?? 0) + Number(r.quantity ?? 0);
     }
     for (const p of priced) {

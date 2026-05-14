@@ -13,7 +13,7 @@ import { CutoffClock } from "@/components/CutoffClock";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
-import type { Account, DeliveryZoneRow, Profile } from "@/lib/supabase/types";
+import type { Account, DeliveryZone, DeliveryZoneRow, Profile } from "@/lib/supabase/types";
 
 // M20: impersonation profile re-fetch. Wrapped in React `cache()` so any
 // other helper that needs the same impersonated profile in the same
@@ -44,9 +44,9 @@ const fetchDeliveryZone = (zoneKey: string) =>
       const { data } = await svc
         .from("delivery_zones")
         .select("*")
-        .eq("zone", zoneKey)
+        .eq("zone", zoneKey as DeliveryZone)
         .maybeSingle();
-      return (data as DeliveryZoneRow | null) ?? null;
+      return data;
     },
     ["delivery-zone", zoneKey],
     { tags: ["delivery-zones"], revalidate: 3600 },

@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/utils/format";
+import type { AccountPricing } from "@/lib/supabase/types";
 
 export const metadata = { title: "Admin — Pricing" };
+
+type PricingRow = AccountPricing & {
+  account: { id: string; name: string | null } | null;
+  product: { name: string; unit: string; pack_size: string | null } | null;
+};
 
 export default async function AdminPricingPage() {
   const db = await createClient();
@@ -12,7 +18,7 @@ export default async function AdminPricingPage() {
     .order("effective_date", { ascending: false })
     .limit(500);
   // Sort by account name client-side since PostgREST doesn't allow ORDER on joined column aliases reliably.
-  const sorted = ((rows as any[]) ?? []).slice().sort((a, b) =>
+  const sorted = ((rows ?? []) as PricingRow[]).slice().sort((a, b) =>
     (a.account?.name ?? "").localeCompare(b.account?.name ?? ""),
   );
 

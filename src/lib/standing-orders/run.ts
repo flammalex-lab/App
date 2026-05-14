@@ -1,5 +1,7 @@
 import { revalidateTag } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StandingOrder, StandingOrderItem, Product, Account, Profile } from "@/lib/supabase/types";
+import type { Database } from "@/lib/supabase/database.types";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { buyerHistoryTag } from "@/lib/products/buyer-history";
@@ -19,7 +21,10 @@ export type RunStandingOrderResult =
  * `standing_orders.update(last_run_date)` fails we bail with `ok:false` —
  * better to re-run next cycle than to silently lose state.
  */
-export async function runStandingOrder(svc: any, standingOrderId: string): Promise<RunStandingOrderResult> {
+export async function runStandingOrder(
+  svc: SupabaseClient<Database>,
+  standingOrderId: string,
+): Promise<RunStandingOrderResult> {
   const { data: so, error: soErr } = await svc
     .from("standing_orders")
     .select("*, items:standing_order_items(*, product:products(*)), account:accounts(*), buyer:profiles!standing_orders_profile_id_fkey(*)")
@@ -70,7 +75,7 @@ export async function runStandingOrder(svc: any, standingOrderId: string): Promi
   if (orderErr || !order) {
     return { ok: false, error: `order create failed: ${orderErr?.message ?? "no row returned"}` };
   }
-  const newOrderId = (order as any).id as string;
+  const newOrderId = order.id;
 
   const { error: itemsErr } = await svc.from("order_items").insert(priced.map((it) => ({
     order_id: newOrderId,

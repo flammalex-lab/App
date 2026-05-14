@@ -6,6 +6,10 @@ import { QBExportForm } from "./QBExportForm";
 
 export const metadata = { title: "Admin — QuickBooks" };
 
+type OrderWithAccount = Order & {
+  account: { name: string | null; qb_customer_name: string | null } | null;
+};
+
 export default async function QBPage() {
   const db = await createClient();
   const { data: pending } = await db
@@ -15,7 +19,7 @@ export default async function QBPage() {
     .neq("status", "cancelled")
     .order("created_at", { ascending: true });
 
-  const rows = ((pending as any[]) ?? []);
+  const rows = (pending ?? []) as OrderWithAccount[];
   const unmapped = rows.filter((r) => !r.account?.qb_customer_name && r.order_type === "b2b");
 
   return (
@@ -42,7 +46,7 @@ export default async function QBPage() {
           <h2 className="font-serif text-lg">Unexported orders ({rows.length})</h2>
         </div>
         <div className="divide-y divide-black/5">
-          {rows.map((r: any) => (
+          {rows.map((r) => (
             <Link key={r.id} href={`/admin/orders/${r.id}`} className="p-3 flex hover:bg-bg-secondary">
               <div className="flex-1">
                 <span className="mono font-medium">{r.order_number}</span>

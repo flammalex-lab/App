@@ -204,7 +204,7 @@ export async function POST(request: Request) {
             type: "image",
             source: {
               type: "base64",
-              media_type: body.imageMediaType as any,
+              media_type: body.imageMediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
               data: body.imageBase64,
             },
           },

@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SUGGESTIONS_TAG } from "@/lib/products/suggestions";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
+import type { TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 
 /**
  * Columns an admin is allowed to set via this endpoint. Locked down
@@ -71,17 +72,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = pickProductFields(raw);
   const svc = createServiceClient();
   if (id === "new") {
-    const { data, error } = await svc.from("products").insert(body).select("id").single();
+    const { data, error } = await svc
+      .from("products")
+      .insert(body as TablesInsert<"products">)
+      .select("id")
+      .single();
     if (error || !data) return NextResponse.json({ error: error?.message ?? "no row" }, { status: 500 });
     revalidateTag(CATALOG_SUGGESTIONS_TAG, "max");
-    return NextResponse.json({ id: (data as { id: string }).id });
+    return NextResponse.json({ id: data.id });
   }
   if (Object.keys(body).length === 0) {
     // Nothing to update — avoid issuing a no-op write that still updates
     // `updated_at` and noises up the audit trail.
     return NextResponse.json({ id });
   }
-  const { error } = await svc.from("products").update(body).eq("id", id);
+  const { error } = await svc
+    .from("products")
+    .update(body as TablesUpdate<"products">)
+    .eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   revalidateTag(CATALOG_SUGGESTIONS_TAG, "max");
   return NextResponse.json({ id });

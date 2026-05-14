@@ -46,8 +46,9 @@ export async function GET(request: Request) {
         delivery_zones: zones ?? 0,
       },
     };
-  } catch (e: any) {
-    db = { ok: false, error: e.message };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    db = { ok: false, error: msg };
   }
 
   const required = [

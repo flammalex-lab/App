@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { Brand, Category, Product } from "@/lib/supabase/types";
+import type { Brand, Category } from "@/lib/supabase/types";
 import { BRAND_LABELS, CATEGORY_LABELS } from "@/lib/constants";
 import { WithoutImagesClient } from "./WithoutImagesClient";
 
@@ -25,10 +25,28 @@ export default async function ProductsWithoutImagesPage({
     .eq("is_active", true)
     .or("image_url.is.null,image_url.eq.");
   if (sp.producer) q = q.ilike("producer", `%${sp.producer}%`);
-  if (sp.category) q = q.eq("category", sp.category);
-  if (sp.brand) q = q.eq("brand", sp.brand);
+  if (sp.category && (CATEGORY_LABELS as Record<string, string>)[sp.category]) {
+    q = q.eq("category", sp.category as Category);
+  }
+  if (sp.brand && (BRAND_LABELS as Record<string, string>)[sp.brand]) {
+    q = q.eq("brand", sp.brand as Brand);
+  }
   const { data } = await q.order("producer").order("name");
-  const products = (data as Product[] | null) ?? [];
+  const products = (data ?? []) as Array<
+    Pick<
+      import("@/lib/supabase/types").Product,
+      | "id"
+      | "sku"
+      | "name"
+      | "producer"
+      | "pack_size"
+      | "unit"
+      | "brand"
+      | "category"
+      | "image_url"
+      | "sort_order"
+    >
+  >;
 
   // Distinct producers among the result set so the filter chips reflect
   // what's still missing an image (rather than the full catalog list).

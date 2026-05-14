@@ -97,11 +97,11 @@ export function ProductForm({ product }: { product: Product | null }) {
       <div className="grid grid-cols-3 gap-3">
         <Field label="Pack size"><Input name="pack_size" value={form.pack_size} onChange={(e) => setForm({ ...form, pack_size: e.target.value })} /></Field>
         <Field label="Case pack"><Input name="case_pack" value={form.case_pack} onChange={(e) => setForm({ ...form, case_pack: e.target.value })} /></Field>
-        <Field label="Avg weight (lb)"><Input name="avg_weight_lbs" value={form.avg_weight_lbs as any} onChange={(e) => setForm({ ...form, avg_weight_lbs: e.target.value })} /></Field>
+        <Field label="Avg weight (lb)"><Input name="avg_weight_lbs" value={String(form.avg_weight_lbs ?? "")} onChange={(e) => setForm({ ...form, avg_weight_lbs: e.target.value })} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Wholesale price"><Input name="wholesale_price" value={form.wholesale_price as any} onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })} /></Field>
-        <Field label="Retail price"><Input name="retail_price" value={form.retail_price as any} onChange={(e) => setForm({ ...form, retail_price: e.target.value })} /></Field>
+        <Field label="Wholesale price"><Input name="wholesale_price" value={String(form.wholesale_price ?? "")} onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })} /></Field>
+        <Field label="Retail price"><Input name="retail_price" value={String(form.retail_price ?? "")} onChange={(e) => setForm({ ...form, retail_price: e.target.value })} /></Field>
       </div>
       <Field label="QB income account override" hint="Blank = use category default from QB settings">
         <Input name="qb_income_account" value={form.qb_income_account} onChange={(e) => setForm({ ...form, qb_income_account: e.target.value })} />

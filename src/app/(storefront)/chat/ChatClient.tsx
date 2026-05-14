@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
-import type { Message } from "@/lib/supabase/types";
+import type { Message, MessagePayload } from "@/lib/supabase/types";
 import { relativeTime, dateShort } from "@/lib/utils/format";
 
 const REP_NAME = process.env.NEXT_PUBLIC_REP_NAME || "Alex Flamm";
@@ -403,10 +403,13 @@ const STATUS_PILL: Record<string, { bg: string; text: string; label: string }> =
 function SystemBubble({ message }: { message: Message }) {
   // Structured payload is the source of truth for system messages. If no
   // payload or unknown kind, render a plain dashed bubble.
-  const payload = message.payload;
+  // payload is jsonb in the DB; cast to the discriminated union here.
+  const payload = (message.payload && typeof message.payload === "object" && !Array.isArray(message.payload)
+    ? (message.payload as unknown as MessagePayload)
+    : null);
   if (payload && payload.kind === "order_status" && message.related_order_id) {
-    const status = String((payload as any).status ?? "");
-    const orderNumber = String((payload as any).order_number ?? "");
+    const status = String((payload as { status?: unknown }).status ?? "");
+    const orderNumber = String((payload as { order_number?: unknown }).order_number ?? "");
     const pill = STATUS_PILL[status] ?? {
       bg: "bg-bg-secondary",
       text: "text-ink-secondary",
@@ -439,10 +442,10 @@ function SystemBubble({ message }: { message: Message }) {
     );
   }
   if (payload && payload.kind === "order_placed" && message.related_order_id) {
-    const items = Number((payload as any).items ?? 0);
-    const deliverIso = ((payload as any).delivery_date ?? (payload as any).pickup_date ?? null) as
-      | string
-      | null;
+    const items = Number((payload as { items?: unknown }).items ?? 0);
+    const deliverIso = ((payload as { delivery_date?: unknown; pickup_date?: unknown }).delivery_date
+      ?? (payload as { delivery_date?: unknown; pickup_date?: unknown }).pickup_date
+      ?? null) as string | null;
     const deliver = deliverIso ? dateShort(deliverIso) : null;
     return (
       <div className="flex flex-col items-start w-full">
@@ -453,7 +456,7 @@ function SystemBubble({ message }: { message: Message }) {
           <div className="px-4 pt-3 pb-2">
             <div className="display text-xl leading-tight">Order</div>
             <div className="text-xs text-ink-secondary mono">
-              {String((payload as any).order_number ?? "")}
+              {String((payload as { order_number?: unknown }).order_number ?? "")}
             </div>
           </div>
           <div className="border-t border-black/10">

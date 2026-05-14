@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { allowedCategoriesFor, allowedGroupsFor } from "@/lib/constants";
+import type { Database } from "@/lib/supabase/database.types";
 
-type AnyDb = SupabaseClient<any, any, any>;
+type Db = SupabaseClient<Database>;
 
 /**
  * Shared scoping expression for "which products does this buyer_type see."
@@ -25,7 +26,7 @@ function buyerScopeOrExpr(buyerType: string | null | undefined): string | null {
  * see only public products.
  */
 export async function getAllowedPrivateProductIds(
-  db: AnyDb,
+  db: Db,
   accountId: string | null | undefined,
 ): Promise<string[]> {
   if (!accountId) return [];
@@ -33,7 +34,7 @@ export async function getAllowedPrivateProductIds(
     .from("account_products")
     .select("product_id")
     .eq("account_id", accountId);
-  return ((data as { product_id: string }[] | null) ?? []).map((r) => r.product_id);
+  return (data ?? []).map((r) => r.product_id);
 }
 
 /**
@@ -46,7 +47,7 @@ export async function getAllowedPrivateProductIds(
  * code there too.
  */
 export async function isProductVisibleToAccount(
-  db: AnyDb,
+  db: Db,
   product: { id: string; private: boolean },
   accountId: string | null | undefined,
 ): Promise<boolean> {
@@ -74,15 +75,20 @@ export async function isProductVisibleToAccount(
  * or detail page. Admin picker code should use adminPickerProductsQuery
  * instead so unlaunched products can still be curated.
  */
+// Returns `any` because the select string is dynamic; callers chain
+// further filters and cast the resolved data themselves.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function visibleProductsQuery(
-  db: AnyDb,
+  db: Db,
   opts: {
     buyerType: string | null | undefined;
     isB2B: boolean;
     allowedPrivateIds?: string[];
     select?: string;
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q: any = db.from("products").select(opts.select ?? "*").eq("is_active", true);
   q = q.eq(opts.isB2B ? "available_b2b" : "available_dtc", true);
 
@@ -110,7 +116,7 @@ export function visibleProductsQuery(
  * Admin queries always see private products — curating allow-lists requires it.
  */
 export function adminPickerProductsQuery(
-  db: AnyDb,
+  db: Db,
   opts: {
     buyerType: string | null | undefined;
     onlyAvailableB2B?: boolean;

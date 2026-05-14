@@ -28,7 +28,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
     return (
       <div className="max-w-5xl">
         <h1 className="display text-3xl mb-4">New account</h1>
-        <AccountForm account={null} priceLists={(priceLists as PriceList[] | null) ?? []} />
+        <AccountForm account={null} priceLists={priceLists ?? []} />
       </div>
     );
   }
@@ -59,29 +59,33 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
   ]);
 
   const itemCounts = new Map<string, number>();
-  for (const r of ((templateItemCountsRaw as { template_id: string }[] | null) ?? [])) {
+  for (const r of (templateItemCountsRaw ?? [])) {
     itemCounts.set(r.template_id, (itemCounts.get(r.template_id) ?? 0) + 1);
   }
-  const templateOptions = ((templatesRaw as { id: string; name: string; buyer_type: string | null }[] | null) ?? [])
+  const templateOptions = (templatesRaw ?? [])
     .map((t) => ({ ...t, itemCount: itemCounts.get(t.id) ?? 0 }));
 
   // Per-buyer guide stats — one batched query, aggregated in memory.
   const buyerStats: Record<string, BuyerGuideStats> = {};
-  const buyerIds = ((buyers as Profile[] | null) ?? []).map((b) => b.id);
+  const buyerIds = (buyers ?? []).map((b) => b.id);
   if (buyerIds.length) {
     const { data: guideRows } = await db
       .from("order_guides")
       .select(`profile_id, order_guide_items(product:products(product_group))`)
       .in("profile_id", buyerIds)
       .eq("is_default", true);
-    for (const g of ((guideRows as any[] | null) ?? [])) {
-      const items = (g.order_guide_items as any[] | null) ?? [];
+    type GuideRow = {
+      profile_id: string;
+      order_guide_items: Array<{ product: { product_group: string | null } | null } | null> | null;
+    };
+    for (const g of ((guideRows ?? []) as GuideRow[])) {
+      const items = g.order_guide_items ?? [];
       const groupSet = new Set<ProductGroup>();
       for (const it of items) {
-        const pg = it.product?.product_group as ProductGroup | null;
+        const pg = it?.product?.product_group as ProductGroup | null | undefined;
         if (pg) groupSet.add(pg);
       }
-      buyerStats[g.profile_id as string] = {
+      buyerStats[g.profile_id] = {
         itemCount: items.length,
         groups: Array.from(groupSet),
       };
@@ -92,8 +96,8 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
     <div className="max-w-5xl space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="display text-3xl">{(account as Account).name}</h1>
-          <p className="text-ink-secondary text-sm">{(account as Account).status}</p>
+          <h1 className="display text-3xl">{account.name}</h1>
+          <p className="text-ink-secondary text-sm">{account.status}</p>
         </div>
         <div className="flex gap-2">
           <Link href={`/admin/accounts/${id}/products`} className="btn-ghost text-sm">
@@ -105,7 +109,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
         </div>
       </div>
 
-      <AccountForm account={account as Account} priceLists={(priceLists as PriceList[] | null) ?? []} />
+      <AccountForm account={account} priceLists={priceLists ?? []} />
 
       <section>
         <div className="flex items-center justify-between mb-2 gap-3">
@@ -117,17 +121,17 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
           </div>
           <AddBuyerDialog
             accountId={id}
-            accountBuyerType={(account as Account).buyer_type}
+            accountBuyerType={account.buyer_type}
             templates={templateOptions}
           />
         </div>
         <div className="card divide-y divide-black/5">
-          {((buyers as Profile[] | null) ?? []).map((b) => {
+          {(buyers ?? []).map((b) => {
             const stats = buyerStats[b.id];
             const groupLabels = stats?.groups.map((g) => GROUP_LABELS[g]) ?? [];
-            const effectiveType = (b.buyer_type ?? (account as Account).buyer_type) as BuyerType | null;
+            const effectiveType = (b.buyer_type ?? account.buyer_type) as BuyerType | null;
             const typeLabel = effectiveType ? BUYER_TYPE_LABELS[effectiveType] : null;
-            const isOverride = !!b.buyer_type && b.buyer_type !== (account as Account).buyer_type;
+            const isOverride = !!b.buyer_type && b.buyer_type !== account.buyer_type;
             const buyerDisplay =
               titleCase(`${b.first_name ?? ""} ${b.last_name ?? ""}`.trim()) ||
               b.email ||
@@ -179,7 +183,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
               </div>
             );
           })}
-          {!(buyers as Profile[] | null)?.length ? (
+          {!buyers?.length ? (
             <div className="p-6 text-sm text-ink-secondary text-center">
               No buyers yet. Click <strong>Add buyer</strong> above to invite one.
             </div>
@@ -190,7 +194,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
       <section>
         <h2 className="display text-xl mb-2">Recent orders</h2>
         <div className="card divide-y divide-black/5 overflow-hidden">
-          {((orders as Order[] | null) ?? []).map((o) => (
+          {(orders ?? []).map((o) => (
             <Link
               key={o.id}
               href={`/admin/orders/${o.id}`}
@@ -204,7 +208,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
               <span className="tabular font-semibold">{money(o.total)}</span>
             </Link>
           ))}
-          {!((orders as Order[] | null) ?? []).length ? (
+          {!orders?.length ? (
             <div className="p-4 text-sm text-ink-secondary">No orders yet.</div>
           ) : null}
         </div>
@@ -213,7 +217,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
       <section>
         <h2 className="display text-xl mb-2">Standing orders</h2>
         <div className="card">
-          {((standing as StandingOrder[] | null) ?? []).map((s) => (
+          {(standing ?? []).map((s) => (
             <Link key={s.id} href={`/admin/standing/${s.id}`} className="p-3 text-sm flex justify-between hover:bg-bg-secondary">
               <span>
                 {s.name ?? "Standing order"} · {s.frequency} · {s.days_of_week.join(", ")}
@@ -221,7 +225,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
               <span>{s.active ? "active" : "off"}</span>
             </Link>
           ))}
-          {!(standing as StandingOrder[] | null)?.length ? (
+          {!standing?.length ? (
             <div className="p-4 text-sm text-ink-secondary">No standing orders.</div>
           ) : null}
         </div>
@@ -233,7 +237,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
         </div>
         <ActivityLogForm accountId={id} />
         <div className="card divide-y divide-black/5 mt-2">
-          {((activities as Activity[] | null) ?? []).map((a) => (
+          {(activities ?? []).map((a) => (
             <div key={a.id} className="p-3 text-sm">
               <div className="flex justify-between">
                 <span>
@@ -249,7 +253,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
               ) : null}
             </div>
           ))}
-          {!((activities as Activity[] | null) ?? []).length ? (
+          {!activities?.length ? (
             <div className="p-4 text-sm text-ink-secondary">No activity logged.</div>
           ) : null}
         </div>

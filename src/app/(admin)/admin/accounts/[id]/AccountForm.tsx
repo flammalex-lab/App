@@ -243,7 +243,7 @@ export function AccountForm({
         <Input value={form.delivery_day} onChange={(e) => setForm({ ...form, delivery_day: e.target.value })} />
       </Field>
       <Field label="Order minimum ($)">
-        <Input value={form.order_minimum as any} onChange={(e) => setForm({ ...form, order_minimum: e.target.value })} />
+        <Input value={String(form.order_minimum ?? "")} onChange={(e) => setForm({ ...form, order_minimum: e.target.value })} />
       </Field>
 
       <div className="divider" />

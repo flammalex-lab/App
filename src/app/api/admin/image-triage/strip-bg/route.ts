@@ -54,9 +54,10 @@ export async function POST(request: Request) {
       input: { image: dataUrl },
     });
     return NextResponse.json({ predictionId: prediction.id, status: prediction.status });
-  } catch (e: any) {
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "unknown";
     return NextResponse.json(
-      { error: `replicate create failed: ${e?.message ?? "unknown"}` },
+      { error: `replicate create failed: ${msg}` },
       { status: 502 },
     );
   }

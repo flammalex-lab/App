@@ -244,11 +244,12 @@ export function ImageTriageClient() {
                 : x,
             ),
           );
-        } catch (e: any) {
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "unknown";
           setItems((xs) =>
             xs.map((x) =>
               x.id === it.id
-                ? { ...x, status: "error", error: `bg removal failed: ${e?.message ?? "unknown"}` }
+                ? { ...x, status: "error", error: `bg removal failed: ${msg}` }
                 : x,
             ),
           );
@@ -303,10 +304,11 @@ export function ImageTriageClient() {
               : x,
           ),
         );
-      } catch (e: any) {
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "match failed";
         setItems((xs) =>
           xs.map((x) =>
-            x.id === it.id ? { ...x, status: "error", error: e?.message ?? "match failed" } : x,
+            x.id === it.id ? { ...x, status: "error", error: msg } : x,
           ),
         );
       }

@@ -74,7 +74,14 @@ export default async function AdminGuideEditPage({
       </p>
       <GuideEditor
         guideId={guide.id}
-        initialItems={(items as (OrderGuideItem & { product: Product })[] | null) ?? []}
+        initialItems={
+          ((items as
+            | (Omit<OrderGuideItem, "par_levels"> & {
+                par_levels: Record<string, number> | null;
+                product: Product;
+              })[]
+            | null) ?? [])
+        }
         allProducts={(products as Product[] | null) ?? []}
       />
     </div>
