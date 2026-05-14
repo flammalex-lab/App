@@ -142,8 +142,8 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
           <p className="text-[12px] text-ink-secondary leading-relaxed border-t border-black/[0.06] pt-3">
             Orders placed after the cutoff are queued for the next available
             delivery date. Need a special arrangement?{" "}
-            <a href="/chat" className="text-brand-blue underline">
-              Message your rep
+            <a href="mailto:orders@ilovenyfarms.com" className="text-brand-blue underline">
+              Email any questions to orders@ilovenyfarms.com
             </a>
             .
           </p>
