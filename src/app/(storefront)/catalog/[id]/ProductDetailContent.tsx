@@ -28,6 +28,7 @@ export function ProductDetailContent({
   isB2B,
   inGuide,
   onClose,
+  packsPlaceholder,
 }: {
   product: Product;
   packs: PackRow[];
@@ -35,6 +36,12 @@ export function ProductDetailContent({
   isB2B: boolean;
   inGuide: boolean;
   onClose?: () => void;
+  /** When `packs` is empty AND this is provided, render this in place
+   * of the default "Contact your rep for pricing" fallback. Used by
+   * the client-state detail sheet to show a pack-rows skeleton while
+   * the server action resolves; the full PDP page passes nothing here
+   * and gets the original fallback behavior. */
+  packsPlaceholder?: React.ReactNode;
 }) {
   const brandLabel = BRAND_LABELS[product.brand];
   const producerOrBrand = product.producer ?? brandLabel;
@@ -106,6 +113,8 @@ export function ProductDetailContent({
             inGuideInitial={inGuide}
             onClose={onClose}
           />
+        ) : packsPlaceholder !== undefined ? (
+          packsPlaceholder
         ) : (
           <p className="mt-4 text-sm text-ink-secondary">
             Contact your rep for pricing on this item.

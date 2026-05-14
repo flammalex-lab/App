@@ -14,6 +14,7 @@ import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { Account, DeliveryZone, DeliveryZoneRow, Profile } from "@/lib/supabase/types";
+import { ProductDetailSheet } from "@/components/products/ProductDetailSheet";
 
 // M20: impersonation profile re-fetch. Wrapped in React `cache()` so any
 // other helper that needs the same impersonated profile in the same
@@ -54,10 +55,8 @@ const fetchDeliveryZone = (zoneKey: string) =>
 
 export default async function StorefrontLayout({
   children,
-  modal,
 }: {
   children: React.ReactNode;
-  modal: React.ReactNode;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -137,7 +136,7 @@ export default async function StorefrontLayout({
         accountMinimum={accountMinimum}
         deliveryFee={deliveryFee}
       />
-      {modal}
+      <ProductDetailSheet />
       <footer className="hidden md:block border-t border-black/[0.06] mt-8 bg-white">
         <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
           <div className="col-span-2 md:col-span-1">

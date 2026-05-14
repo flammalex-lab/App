@@ -1,44 +1,51 @@
-import { notFound, redirect } from "next/navigation";
+"use server";
+
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import type { Account, Product } from "@/lib/supabase/types";
 import { isProductVisibleToAccount } from "@/lib/products/queries";
 import { allowedGroupsFor, allowedCategoriesFor, type ProductGroup } from "@/lib/constants";
-import { loadGroupedPacks } from "@/app/(storefront)/catalog/[id]/packs";
-import { ProductModal } from "./ProductModal";
+import { loadGroupedPacks } from "./[id]/packs";
+import type { PackRow } from "./[id]/packs";
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id } = await params;
-  const db = await createClient();
-  const { data } = await db.from("products").select("name").eq("id", id).maybeSingle();
-  const name = (data as { name?: string } | null)?.name;
-  return {
-    title: name
-      ? `${name} — Fingerlakes Farms`
-      : "Product — Fingerlakes Farms",
-  };
-}
+export type ProductDetailPayload =
+  | {
+      ok: true;
+      product: Product;
+      packs: PackRow[];
+      groupedProductCount: number;
+      isB2B: boolean;
+      inGuide: boolean;
+    }
+  | { ok: false; reason: "unauthorized" | "not_found" | "hidden" };
 
-export default async function InterceptedProductDetail({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+/**
+ * Load full product-detail data for the buyer-facing sheet modal.
+ * Mirrors the auth + visibility + grouped-packs flow that used to live in
+ * `/catalog/[id]/page.tsx`, repackaged as a server action so the
+ * client-state ProductDetailSheet can call it without a route push.
+ *
+ * Returns the same shape on every call (no streaming, no Suspense
+ * boundaries); the sheet renders a small skeleton until it resolves.
+ */
+export async function loadProductDetail(productId: string): Promise<ProductDetailPayload> {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) return { ok: false, reason: "unauthorized" };
+
   const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const db = impersonating ? createServiceClient() : await createClient();
 
   const profileId = impersonating ?? session.userId;
   const { data: me } = await db.from("profiles").select("*").eq("id", profileId).maybeSingle();
-  if (!me) redirect("/login");
+  if (!me) return { ok: false, reason: "unauthorized" };
 
-  const { id } = await params;
-  const { data: product } = await db.from("products").select("*").eq("id", id).maybeSingle();
-  if (!product) notFound();
+  const { data: product } = await db
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .maybeSingle();
+  if (!product) return { ok: false, reason: "not_found" };
   const p = product as Product;
 
   const { data: acctRow } = me.account_id
@@ -47,16 +54,19 @@ export default async function InterceptedProductDetail({
   const account = acctRow as Account | null;
   const isB2B = me.role === "b2b_buyer";
 
-  // Visibility gate — mirror /catalog/[id] so a crafted modal URL can't
-  // bypass buyer_type / channel / is_active / private checks.
+  // Visibility gate — same as /catalog/[id]/page.tsx
   if (!impersonating) {
     const buyerType = me.buyer_type ?? account?.buyer_type ?? null;
+    const allowedGroups = allowedGroupsFor(buyerType);
+    const allowedCats = allowedCategoriesFor(buyerType);
     const groupOk = p.product_group
-      ? allowedGroupsFor(buyerType).includes(p.product_group as ProductGroup)
-      : allowedCategoriesFor(buyerType).includes(p.category);
+      ? allowedGroups.includes(p.product_group as ProductGroup)
+      : allowedCats.includes(p.category);
     const channelOk = isB2B ? p.available_b2b : p.available_dtc;
     const visibilityOk = await isProductVisibleToAccount(db, p, account?.id ?? null);
-    if (!p.is_active || !channelOk || !groupOk || !visibilityOk) notFound();
+    if (!p.is_active || !channelOk || !groupOk || !visibilityOk) {
+      return { ok: false, reason: "hidden" };
+    }
   }
 
   const { packs, products: groupedProducts } = await loadGroupedPacks(db, p, {
@@ -65,6 +75,7 @@ export default async function InterceptedProductDetail({
     impersonating: Boolean(impersonating),
   });
 
+  // Is this product already in the buyer's order guide?
   let inGuide = false;
   if (isB2B) {
     const { data: guideRows } = await db
@@ -78,19 +89,18 @@ export default async function InterceptedProductDetail({
         .from("order_guide_items")
         .select("id")
         .eq("order_guide_id", guideId)
-        .eq("product_id", id)
+        .eq("product_id", productId)
         .maybeSingle();
       inGuide = Boolean(existing);
     }
   }
 
-  return (
-    <ProductModal
-      product={p}
-      packs={packs}
-      groupedProductCount={groupedProducts.length}
-      showAddToGuide={isB2B}
-      inGuideInitial={inGuide}
-    />
-  );
+  return {
+    ok: true,
+    product: p,
+    packs,
+    groupedProductCount: groupedProducts.length,
+    isB2B,
+    inGuide,
+  };
 }
