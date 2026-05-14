@@ -45,8 +45,15 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
   const pathname = usePathname() ?? "/";
   const title = titleForPath(pathname);
 
-  const [now, setNow] = useState(() => Date.now());
+  // Two-pass render: SSR + initial CSR use a stable `now` snapshot of 0
+  // (rendering the countdown text as empty), then after mount we swap in
+  // the real Date.now(). Otherwise SSR's `Date.now()` and CSR's
+  // `Date.now()` can fall on opposite sides of a minute boundary,
+  // producing different `countdown(ms)` strings and tripping React
+  // hydration mismatch #418 once per route load. See B4 in the audit.
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(t);
   }, []);
@@ -58,7 +65,7 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
   // cutoff is within 12h. While that's true, the header strip demotes to
   // a quiet delivery-date-only line so urgency isn't double-rendered.
   const cartLineCount = useCart((s) => s.lines.length);
-  const ms = next ? new Date(next.cutoffAt).getTime() - now : null;
+  const ms = next && now != null ? new Date(next.cutoffAt).getTime() - now : null;
   const pillOwnsCountdown =
     cartLineCount > 0 && ms != null && ms > 0 && ms < 12 * 60 * 60 * 1000;
 
@@ -148,7 +155,9 @@ function CutoffLine({
   onOpen,
 }: {
   next: SerializedNextDelivery | null;
-  now: number;
+  /** null = pre-mount (SSR / initial CSR). Suppresses the live countdown
+   *  so SSR and CSR render the same DOM until the effect swaps in real time. */
+  now: number | null;
   onOpen: () => void;
 }) {
   if (!next) {
@@ -158,9 +167,9 @@ function CutoffLine({
       </span>
     );
   }
-  const ms = new Date(next.cutoffAt).getTime() - now;
-  const past = ms <= 0;
-  const urgent = !past && ms < 60 * 60 * 1000;
+  const ms = now != null ? new Date(next.cutoffAt).getTime() - now : null;
+  const past = ms != null && ms <= 0;
+  const urgent = ms != null && !past && ms < 60 * 60 * 1000;
   const dotTone = past || urgent ? "bg-feedback-error animate-pulse" : "bg-accent-gold";
   const timeTone = past || urgent ? "text-feedback-error" : "text-ink-primary";
 
@@ -183,8 +192,8 @@ function CutoffLine({
         {wd} {hour} cutoff
       </span>
       <span aria-hidden className="opacity-60">·</span>
-      <span className={`tabular font-semibold shrink-0 ${timeTone}`}>
-        {past ? "past" : countdown(ms)}
+      <span className={`tabular font-semibold shrink-0 ${timeTone}`} suppressHydrationWarning>
+        {ms == null ? " " : past ? "past" : countdown(ms)}
       </span>
     </button>
   );
@@ -199,7 +208,7 @@ function CutoffSheet({
   open: boolean;
   onClose: () => void;
   next: SerializedNextDelivery | null;
-  now: number;
+  now: number | null;
 }) {
   if (!next) {
     return (
@@ -210,7 +219,12 @@ function CutoffSheet({
       </BottomSheet>
     );
   }
-  const ms = new Date(next.cutoffAt).getTime() - now;
+  // The sheet is only opened by user click (open=true is post-mount), so
+  // `now` is always populated by the time this render path matters. Fall
+  // back to a fresh Date.now() for the pre-mount case so the sheet is
+  // never wrong if it does somehow render.
+  const safeNow = now ?? Date.now();
+  const ms = new Date(next.cutoffAt).getTime() - safeNow;
   const past = ms <= 0;
   const urgent = !past && ms < 60 * 60 * 1000;
   const warn = !past && !urgent && ms < 12 * 60 * 60 * 1000;

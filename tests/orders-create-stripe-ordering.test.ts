@@ -24,14 +24,30 @@ jest.mock("@/lib/auth/impersonation", () => ({
   getImpersonation: jest.fn(async () => null),
 }));
 jest.mock("@/lib/notifications/dispatch", () => ({
-  enqueueAndSend: jest.fn(async () => undefined),
+  enqueueAndSend: jest.fn(async () => ({ ok: true })),
 }));
 jest.mock("@/lib/products/buyer-history", () => ({
   buyerHistoryTag: (id: string) => `buyer-history:${id}`,
 }));
+jest.mock("@/lib/products/queries", () => ({
+  getAllowedPrivateProductIds: jest.fn(async () => []),
+}));
 jest.mock("next/cache", () => ({
   revalidateTag: jest.fn(),
 }));
+// next/server's `after` throws outside a request scope (Jest is one);
+// stub it as eager-call so we can also assert on whatever runs inside.
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    after: (task: () => void | Promise<void>) => {
+      // Fire-and-forget the task synchronously. Tests that need to wait
+      // on it can use `await Promise.resolve()` chains.
+      void Promise.resolve().then(() => task());
+    },
+  };
+});
 
 const mockSvc: any = {
   from: jest.fn(),
@@ -100,7 +116,18 @@ function makeSvc(overrides: { orderInsertError?: { message: string } | null } = 
       return {
         select: () => ({
           in: () => Promise.resolve({
-            data: [{ id: "p_1", name: "Apples", pack_size: "5lb", wholesale_price: 10, retail_price: 12 }],
+            data: [{
+              id: "p_1",
+              name: "Apples",
+              pack_size: "5lb",
+              wholesale_price: 10,
+              retail_price: 12,
+              is_active: true,
+              private: false,
+              available_b2b: true,
+              available_dtc: true,
+              available_this_week: true,
+            }],
             error: null,
           }),
         }),
@@ -244,5 +271,164 @@ describe("orders/create — H5: Stripe-before-DB ordering", () => {
 
     expect(r.status).toBe(200);
     expect(mockCheckoutCreate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * H6 — orders/create must re-check the visibility flags the catalog query
+ * applies. Previously the route only selected (id, name, pack_size, prices)
+ * and ignored is_active / available_b2b / available_dtc /
+ * available_this_week / private, so a stale-cart submit could land an
+ * order line for a hidden or unlaunched SKU.
+ */
+describe("orders/create — H6: visibility re-checks", () => {
+  function makeSvcWithProduct(productOverrides: Record<string, unknown>) {
+    const captured = { insertsByTable: {} as Record<string, any[]> };
+    mockSvc.rpc.mockResolvedValue({ data: "FLF-1", error: null });
+    mockSvc.from.mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({
+                data: { id: "u_buyer", role: "buyer", account_id: null, email: null, phone: null },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "products") {
+        return {
+          select: () => ({
+            in: () => Promise.resolve({
+              data: [{
+                id: "p_1",
+                name: "Apples",
+                pack_size: "5lb",
+                wholesale_price: 10,
+                retail_price: 12,
+                is_active: true,
+                private: false,
+                available_b2b: true,
+                available_dtc: true,
+                available_this_week: true,
+                ...productOverrides,
+              }],
+              error: null,
+            }),
+          }),
+        };
+      }
+      if (table === "orders") {
+        return {
+          insert: (row: any) => {
+            captured.insertsByTable.orders = captured.insertsByTable.orders ?? [];
+            captured.insertsByTable.orders.push(row);
+            return {
+              select: () => ({
+                single: () => Promise.resolve({ data: { ...row, id: "ord_new" }, error: null }),
+              }),
+            };
+          },
+        };
+      }
+      if (table === "order_items") {
+        return {
+          insert: (row: any) => {
+            captured.insertsByTable.order_items = captured.insertsByTable.order_items ?? [];
+            captured.insertsByTable.order_items.push(row);
+            return Promise.resolve({ data: null, error: null });
+          },
+        };
+      }
+      if (table === "messages") {
+        return {
+          insert: () => Promise.resolve({ data: null, error: null }),
+        };
+      }
+      return {} as any;
+    });
+    return captured;
+  }
+
+  it("rejects an order line whose product is no longer active", async () => {
+    const captured = makeSvcWithProduct({ is_active: false });
+    const r = await POST(req({
+      orderType: "dtc",
+      paymentMethod: "invoice",
+      requestedDeliveryDate: null,
+      pickupDate: null,
+      pickupLocationId: null,
+      customerNotes: null,
+      lines: [{ productId: "p_1", quantity: 1, notes: null }],
+    }));
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toMatch(/no longer active/);
+    expect(captured.insertsByTable.orders ?? []).toEqual([]);
+  });
+
+  it("rejects an order line whose product is hidden from B2B for a B2B buyer", async () => {
+    const captured = makeSvcWithProduct({ available_b2b: false });
+    const r = await POST(req({
+      orderType: "b2b",
+      paymentMethod: "invoice",
+      requestedDeliveryDate: null,
+      pickupDate: null,
+      pickupLocationId: null,
+      customerNotes: null,
+      lines: [{ productId: "p_1", quantity: 1, notes: null }],
+    }));
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toMatch(/B2B/);
+    expect(captured.insertsByTable.orders ?? []).toEqual([]);
+  });
+
+  it("rejects an order line whose product is hidden from DTC for a DTC buyer", async () => {
+    const captured = makeSvcWithProduct({ available_dtc: false });
+    const r = await POST(req({
+      orderType: "dtc",
+      paymentMethod: "invoice",
+      requestedDeliveryDate: null,
+      pickupDate: null,
+      pickupLocationId: null,
+      customerNotes: null,
+      lines: [{ productId: "p_1", quantity: 1, notes: null }],
+    }));
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toMatch(/DTC/);
+    expect(captured.insertsByTable.orders ?? []).toEqual([]);
+  });
+
+  it("rejects an order line whose product isn't available this week", async () => {
+    const captured = makeSvcWithProduct({ available_this_week: false });
+    const r = await POST(req({
+      orderType: "dtc",
+      paymentMethod: "invoice",
+      requestedDeliveryDate: null,
+      pickupDate: null,
+      pickupLocationId: null,
+      customerNotes: null,
+      lines: [{ productId: "p_1", quantity: 1, notes: null }],
+    }));
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toMatch(/this week/);
+    expect(captured.insertsByTable.orders ?? []).toEqual([]);
+  });
+
+  it("rejects a private product when the buyer's account isn't allow-listed", async () => {
+    const captured = makeSvcWithProduct({ private: true });
+    const r = await POST(req({
+      orderType: "dtc",
+      paymentMethod: "invoice",
+      requestedDeliveryDate: null,
+      pickupDate: null,
+      pickupLocationId: null,
+      customerNotes: null,
+      lines: [{ productId: "p_1", quantity: 1, notes: null }],
+    }));
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toMatch(/your account/);
+    expect(captured.insertsByTable.orders ?? []).toEqual([]);
   });
 });

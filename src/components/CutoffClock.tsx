@@ -23,10 +23,17 @@ interface SerializedNextDelivery {
  * stays tight.
  */
 export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
-  const [now, setNow] = useState<number>(() => Date.now());
+  // Two-pass render: SSR + initial CSR see `now = null` and skip the
+  // countdown string; the effect below swaps in Date.now() after mount.
+  // Without this, SSR's `Date.now()` snapshot and CSR's hydration-time
+  // `Date.now()` can straddle a minute boundary, producing different
+  // `countdown(ms)` text and tripping React hydration mismatch #418 once
+  // per route load. See B4 in the audit.
+  const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(t);
   }, []);
@@ -39,10 +46,10 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
     );
   }
 
-  const ms = new Date(next.cutoffAt).getTime() - now;
-  const past = ms <= 0;
-  const urgent = !past && ms < 60 * 60 * 1000; // < 1h
-  const warn = !past && !urgent && ms < 12 * 60 * 60 * 1000; // 1–12h
+  const ms = now != null ? new Date(next.cutoffAt).getTime() - now : null;
+  const past = ms != null && ms <= 0;
+  const urgent = ms != null && !past && ms < 60 * 60 * 1000; // < 1h
+  const warn = ms != null && !past && !urgent && ms < 12 * 60 * 60 * 1000; // 1–12h
 
   const tone =
     past || urgent
@@ -53,7 +60,8 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
 
   const deliveryDate = new Date(next.deliveryDate);
   const dayLabel = `${next.deliveryDayName.slice(0, 3)} ${deliveryDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-  const cutoffLabel = past ? "cutoff passed" : `${countdown(ms)} to cutoff`;
+  const cutoffLabel =
+    ms == null ? " " : past ? "cutoff passed" : `${countdown(ms)} to cutoff`;
 
   return (
     <>
