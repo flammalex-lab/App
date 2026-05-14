@@ -492,7 +492,7 @@ export default async function CatalogPage({
   const isDetailView = isProducerView || isSubCategoryView;
 
   return (
-    <div className={`max-w-screen-xl mx-auto pb-8 ${isDetailView ? "animate-slide-in-right" : ""}`}>
+    <div className={`max-w-screen-xl mx-auto pb-8 ${isDetailView ? "sm:animate-slide-in-right" : ""}`}>
       <div className="pt-3">
         {isDetailView ? <BackButton fallbackHref="/catalog" /> : null}
         {isProducerView ? (

@@ -62,7 +62,11 @@ export function StickyCartBar({
 
   const onCartPage = pathname?.startsWith("/cart");
   const navHidden = useScrollHidden();
-  const visible = lines.length > 0 && !onCartPage;
+  const sheetOpen = useSheetOpen();
+  // Hide while any BottomSheet is open so the cart pill doesn't peek out
+  // behind the sheet backdrop. BottomSheet sets html[data-sheet-open]
+  // (see BottomSheet.tsx) and useSheetOpen mirrors that into React state.
+  const visible = lines.length > 0 && !onCartPage && !sheetOpen;
 
   // Tick the countdown locally so the pill swaps to "Cutoff in 4h 12m"
   // smoothly without waiting on a page refresh. 60s is enough — the
@@ -209,6 +213,28 @@ function cutoffDayHour(next: SerializedNextDelivery): string {
     .replace(/\s/g, "")
     .toLowerCase();
   return `${wd} ${hour}`;
+}
+
+/**
+ * Mirrors the `<html data-sheet-open>` flag (set by BottomSheet during its
+ * body-scroll-lock layout effect) into React state via MutationObserver.
+ * Lets the StickyCartBar disappear while any sheet is open so it doesn't
+ * peek out behind the backdrop.
+ */
+function useSheetOpen(): boolean {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const html = document.documentElement;
+    const update = () => setOpen(html.hasAttribute("data-sheet-open"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(html, {
+      attributes: true,
+      attributeFilter: ["data-sheet-open"],
+    });
+    return () => observer.disconnect();
+  }, []);
+  return open;
 }
 
 function ArrowIcon() {
