@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Brand, Category, Product } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/Button";
@@ -65,6 +65,13 @@ export function ProductForm({ product }: { product: Product | null }) {
 
   return (
     <div className="space-y-4">
+      {product ? (
+        <ProductImageEditor product={product} />
+      ) : (
+        <div className="text-xs text-ink-tertiary -mb-1">
+          Save the product first, then a photo control will appear here.
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="SKU"><Input name="sku" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></Field>
         <Field label="Brand">
@@ -124,5 +131,145 @@ export function ProductForm({ product }: { product: Product | null }) {
         {product ? <Button onClick={del} variant="danger">Delete</Button> : null}
       </div>
     </div>
+  );
+}
+
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Inline image control: shows the current product photo, lets the admin
+ * click or drag-and-drop a new file to replace it. Uploads immediately
+ * via the existing /api/admin/image-triage/apply endpoint (Supabase
+ * Storage + image_url update + cache-bust). Independent of the Save
+ * button — replacing the image is its own action, not part of the
+ * form's other fields.
+ */
+function ProductImageEditor({ product }: { product: Product }) {
+  const router = useRouter();
+  const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(product.image_url);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  async function uploadFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.push("Choose an image file (PNG, JPG, WebP)", "error");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.push("Image must be under 10MB", "error");
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    const previousUrl = previewUrl;
+    setPreviewUrl(objectUrl);
+    setUploading(true);
+    const body = new FormData();
+    body.set("image", file);
+    body.set("product_id", product.id);
+    const res = await fetch("/api/admin/image-triage/apply", { method: "POST", body });
+    setUploading(false);
+    URL.revokeObjectURL(objectUrl);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Upload failed" }));
+      toast.push(error ?? "Upload failed", "error");
+      setPreviewUrl(previousUrl);
+      return;
+    }
+    const { image_url } = (await res.json()) as { image_url: string };
+    setPreviewUrl(image_url);
+    toast.push("Image replaced", "success");
+    // Refresh the server component so the page header / surrounding UI
+    // see the new image_url too (not just this form).
+    router.refresh();
+  }
+
+  async function removeImage() {
+    if (!previewUrl) return;
+    if (!confirm("Remove this product's image? Buyers will see the placeholder.")) return;
+    setUploading(true);
+    const res = await fetch(`/api/admin/products/${product.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_url: null }),
+    });
+    setUploading(false);
+    if (!res.ok) {
+      toast.push((await res.json()).error ?? "Remove failed", "error");
+      return;
+    }
+    setPreviewUrl(null);
+    toast.push("Image removed", "success");
+    router.refresh();
+  }
+
+  return (
+    <Field label="Photo" hint="Click or drag-drop to replace. PNG, JPG, or WebP up to 10MB.">
+      <div className="flex items-center gap-3">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+          }}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) void uploadFile(file);
+          }}
+          className={`group relative h-32 w-32 shrink-0 rounded-md border overflow-hidden cursor-pointer transition ${
+            dragOver
+              ? "border-brand-blue bg-brand-blue-tint"
+              : "border-dashed border-black/15 bg-bg-secondary hover:border-brand-blue/40"
+          }`}
+        >
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt=""
+              className="h-full w-full object-contain p-2"
+            />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center text-xs text-ink-tertiary">
+              No image
+            </span>
+          )}
+          <span
+            className={`absolute inset-0 flex items-center justify-center text-xs font-medium text-white bg-black/55 transition-opacity ${
+              uploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+          >
+            {uploading ? "Uploading…" : previewUrl ? "Replace" : "Add image"}
+          </span>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void uploadFile(file);
+            // reset so picking the same file again still fires onChange
+            e.target.value = "";
+          }}
+        />
+        {previewUrl && !uploading ? (
+          <button
+            type="button"
+            onClick={removeImage}
+            className="text-xs text-ink-tertiary hover:text-accent-rust transition"
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+    </Field>
   );
 }
