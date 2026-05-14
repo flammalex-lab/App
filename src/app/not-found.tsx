@@ -21,9 +21,9 @@ export default function NotFound() {
           </p>
           <div className="flex flex-col gap-2">
             <Link href="/" className="btn-primary">Go home</Link>
-            <Link href="/chat" className="text-sm text-brand-blue hover:underline">
-              Message your rep
-            </Link>
+            <a href="mailto:orders@ilovenyfarms.com" className="text-sm text-brand-blue hover:underline">
+              Email any questions to orders@ilovenyfarms.com
+            </a>
           </div>
         </div>
       </div>

@@ -163,8 +163,7 @@ export default async function StorefrontLayout({
               Support
             </div>
             <ul className="space-y-1.5 text-ink-secondary">
-              <li><Link href="/chat" className="hover:text-ink-primary">Chat with your rep</Link></li>
-              <li><a href="mailto:alex@ilovenyfarms.com" className="hover:text-ink-primary">alex@ilovenyfarms.com</a></li>
+              <li><a href="mailto:orders@ilovenyfarms.com" className="hover:text-ink-primary">Email any questions to orders@ilovenyfarms.com</a></li>
             </ul>
           </div>
           <div>
@@ -180,7 +179,7 @@ export default async function StorefrontLayout({
         <div className="border-t border-black/[0.06]">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-4 text-xs text-ink-tertiary flex flex-wrap justify-between gap-2">
             <span>© {new Date().getFullYear()} Fingerlakes Farms · ilovenyfarms.com</span>
-            <span>Made in the Finger Lakes, NY</span>
+            <span>Seneca Falls, NY</span>
           </div>
         </div>
       </footer>

@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Textarea } from "@/components/ui/Input";
 import { money, dateLong } from "@/lib/utils/format";
+import { isDeliveryDateStale } from "@/lib/utils/delivery-date";
 
 interface UpcomingDelivery {
   date: string;
@@ -74,18 +75,39 @@ export function SubmitSheet({
   const totalUnits = lines.reduce((n, l) => n + l.quantity, 0);
 
   const selectedDate = deliveryDate ?? upcomingDeliveries[0]?.date ?? null;
-  const altDeliveries = upcomingDeliveries.filter((u) => u.date !== selectedDate).slice(0, 4);
-  // B1/B10: the selected date is "stale" when it's missing from the
-  // server's fresh upcoming-delivery list. That means the cutoff for
-  // that day already rolled. The first item in `upcomingDeliveries` is
-  // the next valid date — use that for the inline fallback CTA.
-  const selectedDateIsStale = Boolean(
-    selectedDate &&
-      upcomingDeliveries.length > 0 &&
-      !upcomingDeliveries.some((u) => u.date === selectedDate),
+  // B2: render the alternate-day list in chronological order. Sort the
+  // server-provided list defensively (it should already be ascending,
+  // but treat that as a contract we enforce here, not assume).
+  const sortedUpcoming = [...upcomingDeliveries].sort((a, b) =>
+    a.date.localeCompare(b.date),
   );
-  const dateGated = pastCutoff || selectedDateIsStale;
-  const firstFreshDelivery = upcomingDeliveries[0] ?? null;
+  const altDeliveries = sortedUpcoming.filter((u) => u.date !== selectedDate).slice(0, 4);
+  // B1/B10: the selected date is "stale" only when it lands BEFORE the
+  // earliest still-orderable delivery the server gave us — i.e. the
+  // cutoff for that day rolled while the buyer was away. Plain string
+  // compare is safe because both sides are YYYY-MM-DD prefixes.
+  //
+  // The previous implementation gated on "selected date is missing from
+  // upcomingDeliveries", which produced a false negative whenever the
+  // buyer picked a future date that lived past the end of this surface's
+  // list. /cart hands its picker 12 dates, /guide's SubmitSheet only
+  // gets 4, so any cart-side selection beyond the 4th valid delivery
+  // came back as "Pick a valid delivery date" even though the date was
+  // perfectly orderable.
+  const firstFreshDelivery = sortedUpcoming[0] ?? null;
+  const selectedDateIsStale = isDeliveryDateStale(
+    selectedDate,
+    firstFreshDelivery?.date ?? null,
+  );
+  // `pastCutoff` from the server only means "we rolled the soonest
+  // delivery day forward because its cutoff already passed" — the
+  // returned next-delivery date is still a valid future slot. The
+  // selectedDateIsStale check above is the real submit gate (the buyer's
+  // saved date is older than what's still orderable). Keeping the prop
+  // in the signature so callers don't have to change; just don't OR it
+  // into the gate. Reference it once to satisfy `noUnusedParameters`.
+  void pastCutoff;
+  const dateGated = selectedDateIsStale;
 
   async function submit() {
     if (lines.length === 0 || underMinimum || dateGated) return;
@@ -143,6 +165,11 @@ export function SubmitSheet({
             <div className="space-y-1.5">
               {[{ date: selectedDate, dayName: deliveryDayName ?? "" } as UpcomingDelivery, ...altDeliveries]
                 .filter((u) => Boolean(u.date))
+                // B2: ascending by date so the merged list (selected
+                // current date prepended to alts) stays in chronological
+                // order — without the sort, a buyer who picked a later
+                // date would see it sitting above earlier alternates.
+                .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
                 .map((u) => {
                   const isCurrent = u.date === selectedDate;
                   return (

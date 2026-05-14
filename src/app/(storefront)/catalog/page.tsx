@@ -1,11 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
-import type { Product } from "@/lib/supabase/types";
+import type { Category, Product } from "@/lib/supabase/types";
 import { loadPricingContext, priceForProduct, type PricingContext } from "@/lib/utils/pricing";
 import { getAllowedPrivateProductIds, visibleProductsQuery } from "@/lib/products/queries";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -104,15 +103,31 @@ export default async function CatalogPage({
     // is_active / channel / buyer_type / private filter set can never drift.
     const baseOpts = { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds };
 
-    // ---- Tier A: 4 independent queries kicked off in parallel.
+    // M27 — buyer-category default. Buyer feedback: "ALL should start as
+    // the items in the category of the buyer — for example a dairy buyer
+    // would start with seeing dairy in all even though ALL is selected."
+    //
+    // accounts.enabled_categories is the source of truth for which
+    // categories an account has subscribed to (set in admin/account form).
+    // Map those Category enum values onto buyer-facing ProductGroup keys,
+    // intersect with the buyer's allowedGroupsFor (so we never lead with
+    // a group the buyer_type can't see), and treat a strict subset as the
+    // "lead with my categories" signal.
+    const preferredGroups = preferredGroupsFor(account?.enabled_categories ?? null, allowed);
+    const hasPreference = preferredGroups.length > 0 && preferredGroups.length < allowed.length;
+
+    // ---- Tier A: parallel queries.
     // Suggestions are pulled from a cached helper (separate from this
     // tier) so the datalist content survives across navigations until
-    // an admin product/allowlist write invalidates it.
+    // an admin product/allowlist write invalidates it. The all-products
+    // fetch only fires when we actually need the lead-with-my-category
+    // grid (hasPreference) — the strip-only landing doesn't need it.
     const [
       { data: weekRows },
       { data: producerRows },
       { data: counts },
       suggestions,
+      { data: allProductRows },
     ] = await Promise.all([
       // Strip 1: This week
       visibleProductsQuery(db, baseOpts)
@@ -133,6 +148,13 @@ export default async function CatalogPage({
         isB2B,
         allowedPrivateIds,
       }),
+      // M27: full buyer-visible catalog — only needed when we render the
+      // category-leading grid for a buyer with a strict enabled-category
+      // subset. Returns null payload otherwise so the unused result tier
+      // is cheap.
+      hasPreference
+        ? visibleProductsQuery(db, baseOpts).order("name", { ascending: true })
+        : Promise.resolve({ data: null }),
     ]);
 
     const thisWeek = priceProducts(weekRows as Product[] | null, pricingCtx);
@@ -198,35 +220,32 @@ export default async function CatalogPage({
       }))
       .filter((g) => g.count > 0);
 
-    return (
-      <div className="max-w-screen-xl mx-auto pb-8">
-        {/* Editorial hero — kept compact for now since it isn't
-            interactive. Single full-bleed photo with restrained overlay
-            text; will get its own click-through treatment later. */}
-        <section className="relative overflow-hidden md:rounded-2xl mb-4 mx-0 md:mx-0">
-          <div className="relative aspect-[16/4] md:aspect-[24/5]">
-            {/* M23: next/image with fill + priority — LCP candidate on the
-                catalog landing, so eager-load + use the image optimizer. */}
-            <Image
-              src="/images/IMG_7794-scaled-3.jpg"
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/30 to-black/10" />
-            <div className="absolute inset-x-0 bottom-0 p-3 md:p-5 text-white">
-              <p className="display text-lg md:text-2xl tracking-tight leading-tight drop-shadow">
-                This week from Fingerlakes Farms
-              </p>
-              <p className="text-[11px] md:text-sm text-white/85 mt-0.5 drop-shadow">
-                Trust our process. Trust your food.
-              </p>
-            </div>
-          </div>
-        </section>
+    // M27 — partition the buyer-visible catalog into "your categories"
+    // (products whose product_group is in preferredGroups, ordered by the
+    // declared preferredGroups order) followed by "everything else." Only
+    // computed when hasPreference is true; otherwise we render the
+    // editorial scroll-strip landing as before.
+    const preferredProducts: (Product & { unitPrice: number | null })[] = [];
+    const restProducts: (Product & { unitPrice: number | null })[] = [];
+    if (hasPreference && allProductRows) {
+      const allPriced = priceProducts(allProductRows as Product[] | null, pricingCtx);
+      const groupOrder = new Map(preferredGroups.map((g, i) => [g, i] as const));
+      for (const p of allPriced) {
+        const g = (p.product_group as ProductGroup | null) ?? null;
+        if (g && groupOrder.has(g)) preferredProducts.push(p);
+        else restProducts.push(p);
+      }
+      // Stable order: declared category order first, then alpha within each.
+      preferredProducts.sort((a, b) => {
+        const ag = groupOrder.get(a.product_group as ProductGroup) ?? 99;
+        const bg = groupOrder.get(b.product_group as ProductGroup) ?? 99;
+        if (ag !== bg) return ag - bg;
+        return a.name.localeCompare(b.name);
+      });
+    }
 
+    return (
+      <>
         <form action="/catalog" className="mb-3">
           <CatalogSearchInput datalistId="catalog-suggest" />
           <datalist id="catalog-suggest">
@@ -242,34 +261,68 @@ export default async function CatalogPage({
           className="mb-4 "
         />
 
-        <ScrollStrip
-          title="This week"
-          emoji="🌱"
-          href="/catalog?group=explore"
-          subtitle="Fresh off the flyer — available for this delivery."
-          products={thisWeek}
-          inGuideIds={inGuideIds}
-        />
+        {hasPreference ? (
+          /* M27 — buyer-category default. Lead the ALL view with items
+             from this account's enabled_categories, then a soft divider
+             and the rest. Editorial tone — "More from our farms" rather
+             than a corporate "Other categories" label. */
+          <>
+            {preferredProducts.length > 0 ? (
+              <CatalogGrid
+                products={preferredProducts}
+                fromGroup={null}
+                inGuideIds={inGuideIds}
+              />
+            ) : null}
+            {restProducts.length > 0 ? (
+              <>
+                <div className="flex items-center gap-3 my-6 px-3 md:px-0">
+                  <div className="flex-1 h-px bg-black/10" />
+                  <p className="display text-sm md:text-base text-ink-secondary tracking-tight whitespace-nowrap">
+                    More from our farms
+                  </p>
+                  <div className="flex-1 h-px bg-black/10" />
+                </div>
+                <CatalogGrid
+                  products={restProducts}
+                  fromGroup={null}
+                  inGuideIds={inGuideIds}
+                />
+              </>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <ScrollStrip
+              title="This week"
+              emoji="🌱"
+              href="/catalog?group=explore"
+              subtitle="Fresh off the flyer — available for this delivery."
+              products={thisWeek}
+              inGuideIds={inGuideIds}
+            />
 
-        {history.length > 0 ? (
-          <ScrollStrip
-            title="Based on your order history"
-            href="/orders"
-            products={history}
-            inGuideIds={inGuideIds}
-          />
-        ) : null}
+            {history.length > 0 ? (
+              <ScrollStrip
+                title="Based on your order history"
+                href="/orders"
+                products={history}
+                inGuideIds={inGuideIds}
+              />
+            ) : null}
 
-        {featured.length > 0 && featuredProducer ? (
-          <ScrollStrip
-            title={featuredProducer}
-            href={`/catalog?producer=${encodeURIComponent(featuredProducer)}`}
-            subtitle="Featured producer"
-            products={featured}
-            inGuideIds={inGuideIds}
-          />
-        ) : null}
-      </div>
+            {featured.length > 0 && featuredProducer ? (
+              <ScrollStrip
+                title={featuredProducer}
+                href={`/catalog?producer=${encodeURIComponent(featuredProducer)}`}
+                subtitle="Featured producer"
+                products={featured}
+                inGuideIds={inGuideIds}
+              />
+            ) : null}
+          </>
+        )}
+      </>
     );
   }
 
@@ -526,8 +579,17 @@ export default async function CatalogPage({
   const isProducerView = Boolean(producerFilter);
   const isDetailView = isProducerView || isSubCategoryView;
 
+  // M27: keying the wrapper on the active filter triggers a subtle
+  // fade-in when the buyer swaps `?group=`. The hero in catalog/layout.tsx
+  // stays mounted across the swap, so the page change reads as a filter
+  // refresh rather than a route nav. Tasteful, not Shopify-jumpy.
+  const filterKey = `${groupFilter ?? "all"}|${producerFilter}|${subCategoryFilter}|${q}|${isExplore ? "explore" : ""}|${isBest ? "best" : ""}`;
+
   return (
-    <div className={`max-w-screen-xl mx-auto pb-8 ${isDetailView ? "sm:animate-slide-in-right" : ""}`}>
+    <div
+      key={filterKey}
+      className={`animate-fade-in ${isDetailView ? "sm:animate-slide-in-right" : ""}`}
+    >
       <div className="pt-3">
         {isDetailView ? <BackButton fallbackHref="/catalog" /> : null}
         {isProducerView ? (
@@ -677,6 +739,52 @@ async function loadInGuideIds(
     .eq("order_guide_id", guideId);
   return new Set(
     ((items as { product_id: string }[] | null) ?? []).map((i) => i.product_id),
+  );
+}
+
+// Map of buyer-facing ProductGroup → the Category enum values that
+// roll up into it. Mirrors ACCOUNT_GROUP_CATS in the admin AccountForm
+// so accounts.enabled_categories (Category[] in the DB) can be flipped
+// back to ProductGroup keys for catalog ordering.
+//
+//   meat    → ["meat"]
+//   produce → ["produce"]
+//   dairy   → ["dairy"]
+//   cheese  → ["cheese"]
+//   grocery → ["pantry", "beverages"]
+const GROUP_CATEGORIES: Record<ProductGroup, Category[]> = {
+  meat: ["meat"],
+  grocery: ["pantry", "beverages"],
+  produce: ["produce"],
+  dairy: ["dairy"],
+  cheese: ["cheese"],
+};
+
+/**
+ * Map an account's enabled_categories onto the ordered list of
+ * ProductGroup keys the buyer actively subscribes to. Used by the bare
+ * /catalog landing to "lead with my categories" — buyer feedback (M27):
+ * "ALL should start as the items in the category of the buyer."
+ *
+ * - Empty / null enabled_categories → empty list (DTC, prospect, admin).
+ *   Caller falls back to the editorial scroll-strip landing.
+ * - A group is considered "preferred" iff every Category that rolls up
+ *   into it is present in enabled_categories. That matches the admin
+ *   AccountForm's group toggle semantics — toggling "grocery" off in
+ *   the admin form removes pantry+beverages, so half-coverage shouldn't
+ *   re-promote grocery here.
+ * - The intersect with `allowed` (allowedGroupsFor for buyer_type)
+ *   prevents leading with a group the buyer can't see anyway. Order is
+ *   driven by `allowed` so it matches the chip-row order on the page.
+ */
+function preferredGroupsFor(
+  enabledCategories: Category[] | null | undefined,
+  allowed: ProductGroup[],
+): ProductGroup[] {
+  if (!enabledCategories || enabledCategories.length === 0) return [];
+  const enabled = new Set<Category>(enabledCategories);
+  return allowed.filter((g) =>
+    GROUP_CATEGORIES[g].every((c) => enabled.has(c)),
   );
 }
 

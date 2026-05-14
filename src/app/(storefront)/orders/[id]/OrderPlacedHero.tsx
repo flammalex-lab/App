@@ -2,8 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/Brand";
 import { dateLong, money } from "@/lib/utils/format";
+import { useToast } from "@/components/ui/Toast";
+
+const DAY_NAMES_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function dayFromIso(iso: string | null): string {
+  if (!iso) return DAY_NAMES_LONG[new Date().getDay()];
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return DAY_NAMES_LONG[new Date().getDay()];
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return DAY_NAMES_LONG[d.getDay()];
+}
 
 export function OrderPlacedHero({
   orderNumber,
@@ -16,6 +28,45 @@ export function OrderPlacedHero({
   total: number;
   orderId: string;
 }) {
+  const router = useRouter();
+  const toast = useToast();
+  // Post-submit "save as standing" prompt — auto-dismisses after 10s if
+  // ignored. Hidden once dismissed (manually or by save) for the lifetime
+  // of this page render.
+  const [standingPromptOpen, setStandingPromptOpen] = useState(true);
+  const [standingSaving, setStandingSaving] = useState(false);
+  useEffect(() => {
+    if (!standingPromptOpen) return;
+    const id = window.setTimeout(() => setStandingPromptOpen(false), 10_000);
+    return () => window.clearTimeout(id);
+  }, [standingPromptOpen]);
+
+  async function saveAsStanding() {
+    setStandingSaving(true);
+    const res = await fetch("/api/standing/create-from-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        daysOfWeek: [dayFromIso(deliveryDate)],
+        cadence: "weekly",
+      }),
+    });
+    setStandingSaving(false);
+    if (!res.ok) {
+      const msg = await res.json().catch(() => ({ error: "Save failed" }));
+      toast.push(msg.error ?? "Save failed", "error");
+      return;
+    }
+    const { id, created } = (await res.json()) as { id: string; created: boolean };
+    toast.push(
+      created ? "Saved as a standing order" : "Already a standing order",
+      "success",
+    );
+    setStandingPromptOpen(false);
+    router.push(`/standing/${id}`);
+  }
+
   // "Animate on mount" — start with mounted=false so the CSS transitions
   // have an off-state to fade FROM, then flip to true after the first
   // paint. requestAnimationFrame defers the setState past the commit so
@@ -84,10 +135,39 @@ export function OrderPlacedHero({
               <span className="tabular font-semibold">{money(total)}</span>
             </div>
           </div>
-          <p className="mt-4 text-xs opacity-70">
-            We&apos;ll text you when it&apos;s on the way. Final invoice may adjust for actual weight.
-          </p>
         </div>
+
+        {standingPromptOpen ? (
+          <div
+            className={`mt-8 rounded-lg bg-white/12 backdrop-blur border border-white/20 px-4 py-3 transition-all duration-500 delay-300 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
+            role="region"
+            aria-label="Save as standing order"
+          >
+            <p className="text-sm font-medium leading-snug">
+              Want to make this a regular order?
+            </p>
+            <p className="text-xs opacity-80 mt-0.5 leading-snug">
+              We&apos;ll re-send it on a schedule and text you to confirm.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={saveAsStanding}
+                disabled={standingSaving}
+                className="flex-1 rounded-md bg-white text-brand-blue text-sm font-semibold py-2 hover:bg-bg-secondary transition disabled:opacity-60"
+              >
+                {standingSaving ? "Saving…" : "Save as standing"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStandingPromptOpen(false)}
+                className="rounded-md border border-white/30 text-white/90 text-sm py-2 px-3 hover:bg-white/10 transition"
+              >
+                No thanks
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className={`mt-10 flex flex-col gap-2 transition-all duration-700 delay-150 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <Link

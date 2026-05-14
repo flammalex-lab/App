@@ -38,9 +38,17 @@ export default async function OrdersPage({
 
   // Scope by active account when available (multi-location buyers see only the
   // active one); fall back to profile_id for legacy accounts without a link.
+  //
+  // Buyer-feedback fix: a just-placed order is written with
+  // `account_id = profile.account_id` (cart/create derives the account from
+  // the buyer profile, not the active-account cookie). For multi-account
+  // buyers whose active cookie points at a different account, those orders
+  // would silently drop out of the upcoming list. Match by account_id OR
+  // profile_id so a freshly placed order always shows up regardless of which
+  // account was active at place-time.
   const base = db.from("orders").select("*").order("created_at", { ascending: false });
   const { data } = active
-    ? await base.eq("account_id", active.id)
+    ? await base.or(`account_id.eq.${active.id},profile_id.eq.${profileId}`)
     : await base.eq("profile_id", profileId);
 
   const orders = (data as Order[] | null) ?? [];

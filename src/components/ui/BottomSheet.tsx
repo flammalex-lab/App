@@ -35,6 +35,15 @@ export function BottomSheet({
   children,
   /** Max width on desktop (md+). Defaults to 32rem. */
   desktopMaxWidth = "32rem",
+  /**
+   * Skip the entrance slide-up animation. Used by the parallel-route
+   * product modal: its `loading.tsx` skeleton already runs the slide-up
+   * once during route compile, then this real sheet swap-mounts on top
+   * — re-running the animation makes the overlay appear to "expand
+   * twice" on first open. With this flag the real sheet appears in
+   * place where the skeleton was.
+   */
+  suppressEnterAnimation = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -42,6 +51,7 @@ export function BottomSheet({
   ariaLabel?: string;
   children: ReactNode;
   desktopMaxWidth?: string;
+  suppressEnterAnimation?: boolean;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -337,7 +347,7 @@ export function BottomSheet({
           maxWidth: desktopMaxWidth,
           height: heightPx != null ? `${heightPx}px` : `${PEEK_VH * 100}vh`,
         }}
-        className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating animate-sheet-up md:animate-slide-up md:!h-auto md:max-h-[92vh] flex flex-col"
+        className={`relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating ${suppressEnterAnimation ? "" : "animate-sheet-up md:animate-slide-up"} md:!h-auto md:max-h-[92vh] flex flex-col`}
       >
         {/* Drag handle (mobile) — gestures here always control the sheet */}
         <div

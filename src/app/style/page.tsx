@@ -436,7 +436,7 @@ export default function StylePage() {
 
         <footer className="border-t border-black/[0.08] pt-6 text-xs text-ink-tertiary flex items-center justify-between">
           <span>Fingerlakes Farms · design system · v1</span>
-          <span>Made in the Finger Lakes, NY</span>
+          <span>Seneca Falls, NY</span>
         </footer>
       </main>
     </div>
