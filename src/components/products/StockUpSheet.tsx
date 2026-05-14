@@ -165,7 +165,13 @@ export function StockUpSheet({
       open={open}
       onClose={onClose}
       ariaLabel={`Stock up on ${subject}`}
-      desktopMaxWidth="48rem"
+      // Wider than the default 32rem because the Stock-up sheet is a
+      // multi-row list (image + name + price + qty stepper) — at the old
+      // 48rem the sheet only spanned ~half the catalog's content area
+      // (max-w-screen-xl = 80rem) on web, leaving a lot of dead canvas.
+      // 56rem (= Tailwind max-w-4xl) gives each row room to breathe
+      // without making the product list painful to scan.
+      desktopMaxWidth="56rem"
     >
       <div className="flex flex-col h-full md:min-h-[400px] md:max-h-[80vh] md:h-[70vh]">
         {/* Header — display font, no border-bottom (we get one from the

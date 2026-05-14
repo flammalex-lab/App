@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import type { Product } from "@/lib/supabase/types";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
 import { groupBySubCategory } from "@/lib/products/sub-category";
@@ -12,13 +11,7 @@ import { DraftLine, pickSubstitutes } from "./DraftLine";
 import { SubmitSheet } from "./SubmitSheet";
 import { dateLong } from "@/lib/utils/format";
 import type { GuideRow, PricedProductLite } from "./page";
-
-// See CatalogSearchInput for rationale — dynamic-import keeps the
-// camera-modal + @zxing libs out of the guide's initial JS bundle.
-const BarcodeScanner = dynamic(
-  () => import("@/components/BarcodeScanner").then((m) => m.BarcodeScanner),
-  { ssr: false },
-);
+import { SearchBar } from "@/components/catalog/SearchBar";
 
 interface UpcomingDelivery {
   date: string;
@@ -101,7 +94,6 @@ export function GuideClient({
   pastCutoff = false,
 }: Props) {
   const [search, setSearch] = useState("");
-  const [scannerOpen, setScannerOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
 
   const seedRhythm = useCart((s) => s.seedRhythm);
@@ -323,25 +315,22 @@ export function GuideClient({
         ) : null}
       </div>
 
-      {/* ---- Search + scan ---------------------------------------------- */}
-      <div className="mb-3">
-        <div className="relative">
-          <input
-            type="search"
-            placeholder="Search your draft"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input pr-12"
-          />
-          <button
-            type="button"
-            onClick={() => setScannerOpen(true)}
-            aria-label="Scan a barcode"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 inline-flex items-center justify-center rounded-md text-ink-secondary hover:text-ink-primary hover:bg-bg-secondary transition"
-          >
-            <ScanIcon />
-          </button>
-        </div>
+      {/* ---- Search + scan ----------------------------------------------
+          Sticky pill that filters the guide rows client-side (the guide
+          is bounded — typically <100 rows — so a server round-trip would
+          be wasteful). Same component the catalog uses, in local mode.
+          top-0 anchors to the viewport edge; the StoreNav (z-30) sits
+          above and ScrollHideHeader slides it out of the way on mobile
+          scroll-down, so the search reads as the bar pinned to the top
+          while the buyer scans their draft. z-20 keeps it below sheets
+          and the cart pill. */}
+      <div className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2 bg-white/95 backdrop-blur-sm mb-3">
+        <SearchBar
+          mode="local"
+          value={search}
+          onChange={setSearch}
+          placeholder="Search your draft"
+        />
       </div>
 
       {/* ---- Draft body: rhythm-suggested lines grouped by sub-category - */}
@@ -441,12 +430,6 @@ export function GuideClient({
         </div>
       ) : null}
 
-      <BarcodeScanner
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        mode="cart"
-      />
-
       <SubmitSheet
         open={submitOpen}
         onClose={() => setSubmitOpen(false)}
@@ -488,23 +471,3 @@ function shortDate(iso: string | null): string {
   return `${months[Number(m[2]) - 1]} ${Number(m[3])}`;
 }
 
-function ScanIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 7V5a1 1 0 0 1 1-1h2" />
-      <path d="M17 4h2a1 1 0 0 1 1 1v2" />
-      <path d="M20 17v2a1 1 0 0 1-1 1h-2" />
-      <path d="M7 20H5a1 1 0 0 1-1-1v-2" />
-      <path d="M7 9v6M11 9v6M15 9v6" />
-    </svg>
-  );
-}

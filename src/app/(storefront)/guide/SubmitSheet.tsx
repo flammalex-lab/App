@@ -202,7 +202,7 @@ export function SubmitSheet({
                   onClick={() => setEditingDate(true)}
                   className="text-[12px] text-brand-blue underline-offset-2 hover:underline"
                 >
-                  Switch to {altDeliveries[0].dayName.slice(0, 3)} {formatShortDate(altDeliveries[0].date)}
+                  Switch date
                 </button>
               ) : null}
             </div>
@@ -253,7 +253,7 @@ export function SubmitSheet({
           <Textarea
             value={orderNote}
             onChange={(e) => setOrderNote(e.target.value.slice(0, ORDER_NOTE_MAX))}
-            placeholder="Anything for Alex?"
+            placeholder="Add a note"
             rows={2}
             className="text-[14px]"
           />

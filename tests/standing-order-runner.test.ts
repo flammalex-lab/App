@@ -32,6 +32,9 @@ interface Fixture {
   overrides: any[];
   orderNumber: string;
   newOrderId: string;
+  /** Zone row returned for the standing-order's account.delivery_zone lookup.
+   *  null = zoneless account (legacy DTC), so the runner skips the fetch. */
+  zone?: { delivery_fee: number } | null;
   // Failure injection — leave undefined for the happy path.
   failures?: {
     orderItemsInsert?: { message: string };
@@ -85,6 +88,19 @@ function makeSvc(state: Fixture) {
         eq: () => b,
         then: (res: any, rej: any) =>
           Promise.resolve({ data: state.overrides, error: null }).then(res, rej),
+      };
+      return b;
+    },
+    delivery_zones: () => {
+      // The runner looks up `delivery_fee` for the account's zone so it
+      // can stamp the fee onto the generated order. Tests can leave
+      // `state.zone` undefined for a zoneless fixture (runner skips
+      // this call) or set { delivery_fee: N } to exercise the fee path.
+      const b: any = {
+        select: () => b,
+        eq: () => b,
+        maybeSingle: () =>
+          Promise.resolve({ data: state.zone ?? null, error: null }),
       };
       return b;
     },
@@ -239,6 +255,35 @@ describe("runStandingOrder", () => {
     const { svc, captured } = makeSvc(fx);
     await runStandingOrder(svc, "so-1");
     expect(captured.orderInsert.subtotal).toBe(30.13);
+  });
+
+  it("stamps the zone delivery_fee onto the generated order's total", async () => {
+    // Account is zoned → the runner fetches delivery_zones and adds
+    // delivery_fee to the order's `total`. Subtotal stays 32.75 (matches
+    // the standard-tier test above); total = subtotal + 5 fee = 37.75.
+    const fx = baseFixture();
+    fx.standingOrder.account.delivery_zone = "rochester";
+    fx.zone = { delivery_fee: 5 };
+    const { svc, captured } = makeSvc(fx);
+    const res = await runStandingOrder(svc, "so-1");
+    expect(res.ok).toBe(true);
+    expect(captured.orderInsert.subtotal).toBe(32.75);
+    expect(captured.orderInsert.delivery_fee).toBe(5);
+    expect(captured.orderInsert.total).toBe(37.75);
+    // Auto-submit SMS now references the inclusive total.
+    expect(mockedEnqueue).toHaveBeenCalledTimes(1);
+    expect(mockedEnqueue.mock.calls[0][0].body).toMatch(/\$37\.75/);
+  });
+
+  it("leaves delivery_fee = 0 for a zoneless account (legacy DTC path)", async () => {
+    // No account.delivery_zone → runner short-circuits the zone fetch
+    // and the generated order shows zero delivery fee.
+    const fx = baseFixture();
+    const { svc, captured } = makeSvc(fx);
+    const res = await runStandingOrder(svc, "so-1");
+    expect(res.ok).toBe(true);
+    expect(captured.orderInsert.delivery_fee).toBe(0);
+    expect(captured.orderInsert.total).toBe(32.75);
   });
 
   it("honors account_pricing overrides over tier pricing", async () => {

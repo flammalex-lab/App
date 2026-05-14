@@ -130,17 +130,18 @@ export function ChatClient({
     });
   }, [ctxParam]);
 
-  // Auto-grow the textarea between 1–4 rows. We measure scrollHeight
-  // against a one-line baseline and clamp to a max so it never eats the
-  // whole screen on a paragraph-long message.
+  // Auto-grow the textarea between 3–6 rows. We measure scrollHeight
+  // against a 3-row baseline (taller default per buyer feedback) and clamp
+  // to a max so it never eats the whole screen on a paragraph-long message.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
     const lineHeight = 20; // matches text-sm leading-snug
     const padding = 16; // py-2 top+bottom
-    const max = lineHeight * 4 + padding;
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+    const min = lineHeight * 3 + padding; // 76px baseline ≈ min-h-[88px] floor
+    const max = lineHeight * 6 + padding;
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, min), max)}px`;
   }, [body]);
 
   function applyQuickAction(action: (typeof QUICK_ACTIONS)[number]) {
@@ -372,9 +373,9 @@ function Composer({
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSend();
             }}
-            rows={1}
+            rows={3}
             placeholder="Message your rep — replies via SMS too"
-            className="flex-1 resize-none bg-transparent px-3.5 py-2 text-sm leading-snug outline-none placeholder:text-ink-tertiary max-h-[96px] min-h-[36px]"
+            className="flex-1 resize-none bg-transparent px-3.5 py-2 text-sm leading-snug outline-none placeholder:text-ink-tertiary max-h-[160px] min-h-[88px]"
           />
         </div>
         <button

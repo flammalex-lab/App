@@ -1,4 +1,11 @@
 import Image from "next/image";
+import { getSession } from "@/lib/auth/session";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getImpersonation } from "@/lib/auth/impersonation";
+import { resolveActiveAccount } from "@/lib/auth/active-account";
+import { getAllowedPrivateProductIds } from "@/lib/products/queries";
+import { getCatalogSuggestions } from "@/lib/products/suggestions";
+import { StickySearchBar } from "@/components/catalog/StickySearchBar";
 
 /**
  * Catalog layout. Holds the editorial hero so it persists across
@@ -11,12 +18,50 @@ import Image from "next/image";
  * it to flow more seamlessly. I'd prefer it barely look like a page
  * change. Keeping the image there might be enough."
  *
+ * The hoisted `<StickySearchBar>` is buyer feedback in the same vein —
+ * one search input that rides every catalog surface (landing, group,
+ * sub-category, producer) and sticks to the top of the viewport as the
+ * buyer scrolls. The shared `<datalist>` is rendered here too so the
+ * suggestions fetch happens once per request and the autocomplete
+ * binds against the same id from any catalog page.
+ *
  * Detail views (producer drill-in, sub-category drill-in) still render
  * their own centered editorial hero in page.tsx beneath this — that's
  * intentional: the photo hero gives parent context, the editorial title
  * gives the focused subject.
  */
-export default function CatalogLayout({ children }: { children: React.ReactNode }) {
+export default async function CatalogLayout({ children }: { children: React.ReactNode }) {
+  // Pull the suggestion list at layout level. `getCatalogSuggestions` is
+  // wrapped in React.cache() so any page that also calls it in the same
+  // request dedupes against this read.
+  const session = await getSession();
+  let suggestions: string[] = [];
+  if (session) {
+    const impersonating =
+      session.profile.role === "admin" ? await getImpersonation() : null;
+    const db = impersonating ? createServiceClient() : await createClient();
+    const profileId = impersonating ?? session.userId;
+    const { data: me } = await db
+      .from("profiles")
+      .select("buyer_type, account_id, role")
+      .eq("id", profileId)
+      .maybeSingle();
+    if (me && me.role !== "admin") {
+      const { active } = await resolveActiveAccount(profileId, me.account_id);
+      const isB2B = me.role === "b2b_buyer";
+      const allowedPrivateIds = await getAllowedPrivateProductIds(
+        db,
+        active?.id ?? null,
+      );
+      const effectiveBuyerType = me.buyer_type ?? active?.buyer_type ?? null;
+      suggestions = await getCatalogSuggestions({
+        buyerType: effectiveBuyerType,
+        isB2B,
+        allowedPrivateIds,
+      });
+    }
+  }
+
   return (
     <div className="max-w-screen-xl mx-auto pb-8">
       {/* Editorial hero — kept compact for now since it isn't
@@ -46,6 +91,14 @@ export default function CatalogLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
       </section>
+
+      <StickySearchBar datalistId="catalog-suggest" />
+      <datalist id="catalog-suggest">
+        {suggestions.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+
       {children}
     </div>
   );

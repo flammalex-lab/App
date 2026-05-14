@@ -77,6 +77,17 @@ export function BottomSheet({
   const PEEK_VH = 0.75;
   const FULL_VH = 0.92;
   const [heightPx, setHeightPx] = useState<number | null>(null);
+  // Gate the height transition until after first paint. Without this,
+  // the parallel-route modal flashes/expands: the sheet first paints
+  // with `height: 75vh` (heightPx === null fallback below) then the
+  // render-time lastOpen sync immediately switches to `height: Npx`,
+  // and even though the values are equivalent, the `transition: height
+  // 220ms` fires across the change. Buyer reads it as a second open
+  // animation on top of `suppressEnterAnimation`.
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   function vh(v: number) {
     if (typeof window === "undefined") return 600 * v;
@@ -341,9 +352,16 @@ export function BottomSheet({
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
           // No transition while the finger is on the sheet — the user's
           // drag is the source of truth. Smooth snap on release only.
+          // Height transition is gated on `hasMounted` so the first paint
+          // (where heightPx flips from null fallback to a resolved px
+          // value) doesn't animate — that was the "modal expands on
+          // first open" flash buyers reported. After mount, height
+          // changes from user drag animate smoothly as before.
           transition: dragging
             ? "none"
-            : "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
+            : hasMounted
+              ? "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)"
+              : "transform 200ms cubic-bezier(.2,.8,.2,1)",
           maxWidth: desktopMaxWidth,
           height: heightPx != null ? `${heightPx}px` : `${PEEK_VH * 100}vh`,
         }}
