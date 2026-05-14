@@ -54,3 +54,22 @@ jobs:
           cache: 'npm'
       - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm test -- --ci
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run build
+        env:
+          # next.config.js asserts NEXT_PUBLIC_SUPABASE_URL is set in
+          # production builds (otherwise the image optimizer would silently
+          # widen to *.supabase.co). The values below are dummies — the
+          # build never reaches the network — but they have to be valid
+          # URL / key strings so the runtime supabase clients can parse them.
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy

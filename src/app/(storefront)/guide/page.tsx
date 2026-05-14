@@ -304,11 +304,21 @@ export default async function GuidePage() {
   // are independent of each other — run them together. Plus the
   // private-product allow-list, which we'll need to hydrate the
   // SmartShop strip through visibleProductsQuery.
+  // M21: bound the global-rank scan to the last 90 days. We're computing
+  // a "popular this season" signal, not all-time history — letting this
+  // scan grow unbounded as order_items piles up made it the slowest
+  // query on /guide. 90 days covers a full quarter of buying rhythm.
+  // Use new Date().getTime() to mirror the existing twentyOneDaysAgo
+  // pattern below (react-hooks/purity flags `Date.now()` in render).
+  const ninetyDaysAgoIso = new Date(
+    new Date().getTime() - 90 * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const globalRankPromise = guideProducers.length
     ? db
         .from("order_items")
         .select("quantity, product:products!inner(producer)")
         .in("product.producer", guideProducers)
+        .gte("created_at", ninetyDaysAgoIso)
     : Promise.resolve({ data: null as any });
 
   let newProductsPromise: Promise<{ data: any }>;

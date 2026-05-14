@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart/store";
@@ -36,7 +37,8 @@ interface Props {
  *                        "Submit order →".
  *
  *   3. CUTOFF PASSED  — feedback-error red pill. Left meta: "Cutoff
- *                        passed — call Alex". CTA: "Call →" (tel:).
+ *                        passed — message your rep". CTA: "Message →"
+ *                        (links to /chat).
  *
  * Cutoff countdown ownership: when the cutoff is ≤12h away the pill swaps
  * its left meta to "Cutoff in {Xh Ym} · {day} {hour}" so the urgency lives
@@ -116,23 +118,28 @@ export function StickyCartBar({
   }`;
 
   if (pastCutoff) {
+    // Past-cutoff pill routes to /chat (message the rep) rather than a
+    // hardcoded tel: number. The placeholder rep phone that used to live
+    // here would ship to prod for accounts without a real rep_phone
+    // field — message-your-rep is the established contact path in this
+    // app, so we lean on it instead.
     return (
       <div className={wrapperClass}>
         <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
-          <a
-            href="tel:+16071234567"
+          <Link
+            href="/chat"
             className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-feedback-error text-white shadow-floating hover:bg-[#a22a1f] focus:outline-none focus:ring-2 focus:ring-feedback-error/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up"
           >
             <span className="flex-1 min-w-0 leading-tight">
               <span className="block text-sm font-semibold tabular">
-                Cutoff passed — call Alex
+                Cutoff passed — message your rep
               </span>
             </span>
             <span className="inline-flex items-center gap-1 text-sm font-bold shrink-0">
-              Call
+              Message
               <ArrowIcon />
             </span>
-          </a>
+          </Link>
         </div>
       </div>
     );

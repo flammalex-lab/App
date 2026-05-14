@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import type { Message } from "@/lib/supabase/types";
 import { relativeTime, dateShort } from "@/lib/utils/format";
 
@@ -58,6 +59,7 @@ export function ChatClient({
   initial: Message[];
 }) {
   const supabase = createClient();
+  const toast = useToast();
   const [messages, setMessages] = useState<Message[]>(initial);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
@@ -179,7 +181,7 @@ export function ChatClient({
       setBody("");
     } else {
       const { error } = await res.json().catch(() => ({ error: "Send failed" }));
-      alert(error ?? "Send failed");
+      toast.push(error ?? "Send failed", "error");
     }
   }
 

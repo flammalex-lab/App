@@ -3,11 +3,11 @@ module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
   roots: ["<rootDir>/src", "<rootDir>/tests"],
-  testMatch: ["**/*.test.ts"],
+  testMatch: ["**/*.test.{ts,tsx}"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "preserve", esModuleInterop: true } }],
+    "^.+\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }],
   },
 };

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
@@ -204,11 +205,15 @@ export default async function CatalogPage({
             text; will get its own click-through treatment later. */}
         <section className="relative overflow-hidden md:rounded-2xl mb-4 mx-0 md:mx-0">
           <div className="relative aspect-[16/4] md:aspect-[24/5]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            {/* M23: next/image with fill + priority — LCP candidate on the
+                catalog landing, so eager-load + use the image optimizer. */}
+            <Image
               src="/images/IMG_7794-scaled-3.jpg"
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/30 to-black/10" />
             <div className="absolute inset-x-0 bottom-0 p-3 md:p-5 text-white">
@@ -410,10 +415,20 @@ export default async function CatalogPage({
     // Buyer rank is read from the cached pre-aggregated buyerHistory
     // (no per-page order_items round-trip). Global rank still needs its
     // own query — there's no buyer-scoped cache that helps here.
+    // M21: bound by created_at so the scan stays small as order_items
+    // grows. 90 days is enough for "popular this season" catalog ranking
+    // signals without dragging in years of stale history.
+    // react-hooks/purity flags `Date.now()` in render — use the
+    // `new Date().getTime()` form already established elsewhere in the
+    // codebase.
+    const catalogRankSinceIso = new Date(
+      new Date().getTime() - 90 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const { data: allItems } = await db
       .from("order_items")
       .select("product_id, quantity")
-      .in("product_id", pricedIds);
+      .in("product_id", pricedIds)
+      .gte("created_at", catalogRankSinceIso);
     for (const row of buyerHistory) {
       if (!pricedIdSet.has(row.product_id)) continue;
       buyerProductRank[row.product_id] =

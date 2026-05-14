@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/Brand";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { useToast } from "@/components/ui/Toast";
 import { countdown, titleCase } from "@/lib/utils/format";
 import { useCart } from "@/lib/cart/store";
 import type { Account, Profile } from "@/lib/supabase/types";
@@ -320,6 +321,7 @@ function OverflowSheet({
   memberships: Account[];
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [switching, setSwitching] = useState<string | null>(null);
   const multi = memberships.length > 1;
 
@@ -339,7 +341,7 @@ function OverflowSheet({
       onClose();
       router.refresh();
     } else {
-      alert("Could not switch account");
+      toast.push("Could not switch account", "error");
     }
   }
 

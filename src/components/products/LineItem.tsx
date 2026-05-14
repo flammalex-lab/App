@@ -175,7 +175,7 @@ export function LineItem({
           <button
             onClick={() => onQty(data.quantity - 1)}
             disabled={disabled}
-            className="h-9 w-9 rounded-full border border-black/10 flex items-center justify-center hover:bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:opacity-40 transition-colors duration-150"
+            className="h-11 w-11 rounded-full border border-black/10 flex items-center justify-center hover:bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:opacity-40 transition-colors duration-150"
             aria-label="Decrease quantity"
           >
             <span className="text-base leading-none">−</span>
@@ -187,7 +187,7 @@ export function LineItem({
           <button
             onClick={() => onQty(data.quantity + 1)}
             disabled={disabled}
-            className="h-9 w-9 rounded-full bg-brand-blue text-white flex items-center justify-center hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:opacity-40 transition-colors duration-150"
+            className="h-11 w-11 rounded-full bg-brand-blue text-white flex items-center justify-center hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 disabled:opacity-40 transition-colors duration-150"
             aria-label="Increase quantity"
           >
             <span className="text-base leading-none">+</span>
