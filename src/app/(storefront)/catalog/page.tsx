@@ -612,6 +612,11 @@ export default async function CatalogPage({
               ) : null}
             </p>
           </div>
+        ) : groupFilter ? (
+          /* Pure category drill-in: the CategoryChips pill below
+             already shows the category name; don't repeat it in the
+             heading. */
+          null
         ) : (
           <h1 className="display text-xl mt-1 mb-1">{headerTitle}</h1>
         )}
