@@ -175,6 +175,7 @@ export function ProductCard({
         <Link
           href={detailHref}
           aria-label={product.name}
+          scroll={false}
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
@@ -229,6 +230,7 @@ export function ProductCard({
         <Link
           href={detailHref}
           aria-label={product.name}
+          scroll={false}
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
@@ -279,7 +281,7 @@ export function ProductCard({
     <div
       className={`group/card relative flex items-center gap-3 px-4 py-3 bg-white border-b border-black/[0.06] transition-colors duration-150 active:bg-bg-secondary ${paused ? "opacity-70" : ""}`}
     >
-      <Link href={detailHref} aria-label={product.name} className="absolute inset-0 z-0" />
+      <Link href={detailHref} aria-label={product.name} scroll={false} className="absolute inset-0 z-0" />
 
       <div className="relative h-20 w-20 shrink-0 rounded-md overflow-hidden bg-bg-secondary flex items-center justify-center pointer-events-none">
         {photo ? (
