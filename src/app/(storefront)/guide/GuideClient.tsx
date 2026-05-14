@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { Product } from "@/lib/supabase/types";
+import type { OrderGuide, Product } from "@/lib/supabase/types";
 import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
 import { groupBySubCategory } from "@/lib/products/sub-category";
@@ -13,6 +13,7 @@ import { SubmitSheet } from "./SubmitSheet";
 import { dateLong } from "@/lib/utils/format";
 import type { GuideRow, PricedProductLite } from "./page";
 import { SearchBar } from "@/components/catalog/SearchBar";
+import { ListSwitcher } from "./ListSwitcher";
 
 interface UpcomingDelivery {
   date: string;
@@ -73,6 +74,12 @@ interface Props {
   /** Most recent cutoff was already passed (drives the "rolled forward"
    *  note + disables submit in the sheet). */
   pastCutoff?: boolean;
+  /** All of the buyer's order guides — drives the list switcher in the
+   *  header. The DEFAULT view (this component) always corresponds to the
+   *  default guide; the switcher lets the buyer flip to non-default
+   *  side-lists, which render via the simpler `NonDefaultListView`. */
+  allGuides?: OrderGuide[];
+  activeGuideId?: string | null;
 }
 
 type PricedProduct = Product & { unitPrice: number | null; packs?: PackRow[] };
@@ -93,6 +100,8 @@ export function GuideClient({
   lastOrder,
   accountPaused = false,
   pastCutoff = false,
+  allGuides = [],
+  activeGuideId = null,
 }: Props) {
   const [search, setSearch] = useState("");
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -291,9 +300,19 @@ export function GuideClient({
 
       {/* ---- Draft header ------------------------------------------------ */}
       <div className="mb-3 pt-1">
-        <div className="display text-2xl tracking-tight leading-tight">
-          Your draft for {targetDeliveryDayName ?? "next delivery"},{" "}
-          <span className="tabular">{shortDate(targetDeliveryDate)}</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="display text-2xl tracking-tight leading-tight">
+            Your draft for {targetDeliveryDayName ?? "next delivery"},{" "}
+            <span className="tabular">{shortDate(targetDeliveryDate)}</span>
+          </div>
+          {allGuides.length > 0 ? (
+            <div className="pt-1 shrink-0">
+              <ListSwitcher
+                guides={allGuides}
+                activeGuideId={activeGuideId}
+              />
+            </div>
+          ) : null}
         </div>
         <div className="text-[12px] text-ink-secondary mt-0.5">{draftHeaderSub}</div>
         {pastCutoff ? (

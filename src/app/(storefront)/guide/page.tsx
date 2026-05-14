@@ -11,6 +11,7 @@ import type {
   Product,
 } from "@/lib/supabase/types";
 import { GuideClient } from "./GuideClient";
+import { NonDefaultListView } from "./NonDefaultListView";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { buildSelfPacks } from "@/lib/products/build-packs";
 import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
@@ -30,7 +31,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Order guide — Fingerlakes Farms" };
 
-export default async function GuidePage() {
+interface PageProps {
+  searchParams: Promise<{ list?: string }>;
+}
+
+export default async function GuidePage({ searchParams }: PageProps) {
+  const { list: listParam } = await searchParams;
   const session = await getSession();
   if (!session) redirect("/login");
   const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
@@ -50,15 +56,17 @@ export default async function GuidePage() {
   const accountPromise = me.account_id
     ? db.from("accounts").select("*").eq("id", me.account_id).maybeSingle()
     : Promise.resolve({ data: null as Account | null });
+  // Multi-list (v1): load ALL of the buyer's guides at once. The default
+  // list is identified by `is_default=true`. Order is default-first then
+  // alpha so the switcher dropdown renders predictably. We still tolerate
+  // legacy rows with multiple defaults per profile (pre-0010 dedupe) by
+  // taking the oldest `is_default=true` row as canonical.
   const guideRowsPromise = db
     .from("order_guides")
     .select("*")
     .eq("profile_id", profileId)
-    .eq("is_default", true)
-    // limit(1) + order by created_at so legacy rows with multiple defaults
-    // (pre-0010 dedupe) still resolve deterministically.
-    .order("created_at", { ascending: true })
-    .limit(1);
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: true });
   const buyerHistoryPromise = getBuyerHistory(profileId);
   const lastOrderRowPromise = db
     .from("orders")
@@ -88,7 +96,60 @@ export default async function GuidePage() {
     activeAccountPromise,
   ]);
   const account = accountRow as Account | null;
-  const guide = ((guideRows as OrderGuide[] | null) ?? [])[0] ?? null;
+  const allGuides = (guideRows as OrderGuide[] | null) ?? [];
+  // Default guide: first is_default=true row by created_at. Resilient to
+  // legacy data with multiple defaults (pre-0010 dedupe).
+  const defaultGuide = allGuides.find((g) => g.is_default) ?? null;
+  // Resolve the active list from ?list=… — must belong to this buyer.
+  // Falls back to default if unknown / not owned. The page-level view
+  // branches on whether the active list IS the default: default uses the
+  // full rhythm-driven GuideClient; non-default uses the simpler
+  // NonDefaultListView (rename / add / remove items only, no rhythm).
+  const activeListId =
+    listParam && allGuides.some((g) => g.id === listParam)
+      ? listParam
+      : defaultGuide?.id ?? null;
+  const activeGuide =
+    allGuides.find((g) => g.id === activeListId) ?? defaultGuide;
+  const isActiveDefault = activeGuide?.is_default ?? true;
+  // The rest of the page still hydrates the DEFAULT guide's items + rhythm —
+  // the v1 non-default view only needs its own items, hydrated below.
+  const guide = defaultGuide;
+
+  // ---- Non-default list branch ------------------------------------------
+  // The buyer flipped to a side-list ("Monday prep", "Catering Mar 18", …).
+  // We skip the full rhythm-driven render and serve a simple list view:
+  // header switcher, rename/delete actions, item list with remove, "add
+  // items" link to the catalog. The rich draft surface stays anchored to
+  // the default list (canonical "my products").
+  if (activeGuide && !isActiveDefault) {
+    const pricingCtxNonDefault = await loadPricingContext(db, account, true);
+    const { data: nonDefaultItemRows } = await db
+      .from("order_guide_items")
+      .select("*, product:products(*)")
+      .eq("order_guide_id", activeGuide.id)
+      .order("sort_order", { ascending: true });
+    type NonDefaultItemRow = OrderGuideItem & { product: Product };
+    const nonDefaultItems = ((nonDefaultItemRows as NonDefaultItemRow[] | null) ?? []).map(
+      (row) => {
+        const p = row.product;
+        return {
+          id: row.id,
+          product: p,
+          unitPrice: priceForProduct(p, pricingCtxNonDefault),
+        };
+      },
+    );
+    return (
+      <div className="max-w-screen-xl mx-auto pb-8">
+        <NonDefaultListView
+          activeGuide={activeGuide}
+          allGuides={allGuides}
+          items={nonDefaultItems}
+        />
+      </div>
+    );
+  }
 
   // ---- Delivery zone — drives the rhythm target weekday + the
   // submit-sheet's date list. Cached one-row read.
@@ -577,6 +638,8 @@ export default async function GuidePage() {
           lastOrder={lastOrder}
           accountPaused={accountPaused}
           pastCutoff={pastCutoff}
+          allGuides={allGuides}
+          activeGuideId={activeGuide?.id ?? null}
         />
       )}
     </div>
