@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
@@ -59,23 +59,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     };
     const appBody = appBodies[status];
 
-    // SMS (best-effort; missing phone = no SMS, but in-app still posts).
+    // SMS + email dispatch is offloaded to `after()` so a slow Twilio or
+    // Resend call can't blow the Vercel 10s budget after the orders.update
+    // has already succeeded — admin saw a network error on a status change
+    // that actually landed. Promise.allSettled so one channel failing
+    // doesn't compound; failures land in Vercel logs because the response
+    // is already gone.
     const phone = prev.buyer?.phone;
-    if (phone && smsBodies[status]) {
-      await enqueueAndSend({
-        supabase: svc,
-        profileId: prev.profile_id,
-        accountId: prev.account_id,
-        type: "order_status",
-        channel: "sms",
-        toAddress: phone,
-        body: smsBodies[status],
-        relatedOrderId: id,
-      });
-    }
-
-    // Email parallel — same rationale as in /api/orders/create. A buyer
-    // who declined SMS still gets the status update in their inbox.
     const email = prev.buyer?.email;
     const subjectLabels: Record<OrderStatus, string> = {
       draft: "",
@@ -87,22 +77,58 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       delivered: "delivered",
       cancelled: "cancelled",
     };
-    if (email && appBody) {
-      await enqueueAndSend({
-        supabase: svc,
-        profileId: prev.profile_id,
-        accountId: prev.account_id,
-        type: "order_status",
-        channel: "email",
-        toAddress: email,
-        subject: `Order ${prev.order_number} ${subjectLabels[status] || status} — Fingerlakes Farms`,
-        body: appBody,
-        relatedOrderId: id,
+
+    after(async () => {
+      const tasks: Promise<unknown>[] = [];
+      if (phone && smsBodies[status]) {
+        tasks.push(
+          enqueueAndSend({
+            supabase: svc,
+            profileId: prev.profile_id,
+            accountId: prev.account_id,
+            type: "order_status",
+            channel: "sms",
+            toAddress: phone,
+            body: smsBodies[status],
+            relatedOrderId: id,
+          }),
+        );
+      }
+      if (email && appBody) {
+        tasks.push(
+          enqueueAndSend({
+            supabase: svc,
+            profileId: prev.profile_id,
+            accountId: prev.account_id,
+            type: "order_status",
+            channel: "email",
+            toAddress: email,
+            subject: `Order ${prev.order_number} ${subjectLabels[status] || status} — Fingerlakes Farms`,
+            body: appBody,
+            relatedOrderId: id,
+          }),
+        );
+      }
+      const results = await Promise.allSettled(tasks);
+      results.forEach((r, i) => {
+        if (r.status === "rejected") {
+          console.error(
+            `[admin/orders/update] notification ${i} for order ${prev.order_number} threw:`,
+            r.reason,
+          );
+        } else if (r.value && typeof r.value === "object" && "ok" in r.value && !(r.value as { ok: boolean }).ok) {
+          console.warn(
+            `[admin/orders/update] notification ${i} for order ${prev.order_number} not delivered:`,
+            (r.value as { error?: string }).error,
+          );
+        }
       });
-    }
+    });
 
     // In-app system message — same surface as the order_placed bubble,
-    // rendered as a status update pill by ChatClient.
+    // rendered as a status update pill by ChatClient. Kept inline (not in
+    // after) because the chat UI reads from this row immediately on the
+    // admin's redirect back to the order page.
     if (appBody) {
       await svc.from("messages").insert({
         account_id: prev.account_id,

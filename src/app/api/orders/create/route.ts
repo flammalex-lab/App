@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/session";
@@ -10,6 +10,7 @@ import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { buyerHistoryTag } from "@/lib/products/buyer-history";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
+import { getAllowedPrivateProductIds } from "@/lib/products/queries";
 
 interface BodyLine {
   productId: string;
@@ -65,18 +66,81 @@ export async function POST(request: Request) {
 
   // Re-resolve every unit price server-side. Anything the client sent for
   // unitPrice is ignored — the cart submits user-controllable JSON.
+  //
+  // The visibility flags (is_active / private / available_b2b / available_dtc
+  // / available_this_week) mirror the amend route's gates so a buyer can't
+  // bypass the catalog by POSTing a stale or hidden product id. RLS would
+  // catch this for buyer sessions, but admin impersonation uses the service
+  // client which bypasses RLS — so we re-check in code here too.
   const { data: productsData, error: productsErr } = await svc
     .from("products")
-    .select("id, name, pack_size, wholesale_price, retail_price")
+    .select(
+      "id, name, pack_size, wholesale_price, retail_price, is_active, private, available_b2b, available_dtc, available_this_week",
+    )
     .in("id", productIds);
   if (productsErr) return NextResponse.json({ error: productsErr.message }, { status: 500 });
-  type ProductRow = { id: string; name: string; pack_size: string | null; wholesale_price: number | null; retail_price: number | null };
+  type ProductRow = {
+    id: string;
+    name: string;
+    pack_size: string | null;
+    wholesale_price: number | null;
+    retail_price: number | null;
+    is_active: boolean;
+    private: boolean;
+    available_b2b: boolean;
+    available_dtc: boolean;
+    available_this_week: boolean;
+  };
   const productById = new Map(
     ((productsData as ProductRow[] | null) ?? []).map((p) => [p.id, p]),
   );
   for (const id of productIds) {
     if (!productById.has(id)) {
       return NextResponse.json({ error: `product ${id} no longer available` }, { status: 400 });
+    }
+  }
+
+  // Private-product allow-list lookup. DTC and no-account buyers get []
+  // and therefore see no private SKUs (matches the public catalog query).
+  const allowedPrivateIds = await getAllowedPrivateProductIds(
+    svc,
+    effectiveProfile.account_id ?? null,
+  );
+  const allowedPrivateSet = new Set(allowedPrivateIds);
+
+  for (const id of productIds) {
+    const product = productById.get(id)!;
+    if (!product.is_active) {
+      return NextResponse.json(
+        { error: `${product.name} is no longer active` },
+        { status: 400 },
+      );
+    }
+    if (isB2B && !product.available_b2b) {
+      return NextResponse.json(
+        { error: `${product.name} isn't available for B2B` },
+        { status: 400 },
+      );
+    }
+    if (!isB2B && !product.available_dtc) {
+      return NextResponse.json(
+        { error: `${product.name} isn't available for DTC` },
+        { status: 400 },
+      );
+    }
+    if (!product.available_this_week) {
+      return NextResponse.json(
+        { error: `${product.name} isn't available this week` },
+        { status: 400 },
+      );
+    }
+    if (product.private && !allowedPrivateSet.has(product.id)) {
+      // Generic message — don't reveal that a private SKU exists to an
+      // account that isn't on its allow-list.
+      return NextResponse.json(
+        { error: `${product.name} isn't available for your account` },
+        { status: 400 },
+      );
     }
   }
 
@@ -284,51 +348,84 @@ export async function POST(request: Request) {
   // Deliver order confirmation on every available channel. The two are
   // independent — a buyer who opted out of SMS still gets the email
   // paper trail, and vice versa.
+  //
+  // Fire-and-forget via `after()` so a slow Twilio/Resend response can't
+  // blow the Vercel 10s budget after the DB writes have already succeeded.
+  // Previously, sequential awaits here could leave the buyer with a
+  // network-error toast on a successfully-placed order, prompting a
+  // retry → duplicate. Promise.allSettled inside `after` so one channel
+  // failing doesn't compound; failures are surfaced via console.error
+  // (Vercel logs) because the response is long gone and the notifications
+  // row already records its own status on send failure.
   const phone = effectiveProfile.phone;
-  if (phone) {
-    await enqueueAndSend({
-      supabase: svc,
-      profileId: effectiveProfile.id,
-      accountId: effectiveProfile.account_id,
-      type: "order_confirmation",
-      channel: "sms",
-      toAddress: phone,
-      body: `FLF: order ${order_number} received · ${formatMoney(total)}. We'll text you when it's ready.`,
-      relatedOrderId: order.id,
-    });
-  }
   const email = effectiveProfile.email;
-  if (email) {
-    const itemCount = body.lines.reduce((s, l) => s + l.quantity, 0);
-    const emailBody = [
-      `We got your order ${order_number}.`,
-      "",
-      `Items: ${itemCount}`,
-      `Subtotal: ${formatMoney(subtotal)}`,
-      deliveryFee > 0 ? `Delivery: ${formatMoney(deliveryFee)}` : null,
-      `Total: ${formatMoney(total)}`,
-      body.requestedDeliveryDate
-        ? `Delivery: ${formatDateShort(body.requestedDeliveryDate)}`
-        : body.pickupDate
-          ? `Pickup: ${formatDateShort(body.pickupDate)}`
-          : null,
-      "",
-      "We'll let you know when it's confirmed and ready.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-    await enqueueAndSend({
-      supabase: svc,
-      profileId: effectiveProfile.id,
-      accountId: effectiveProfile.account_id,
-      type: "order_confirmation",
-      channel: "email",
-      toAddress: email,
-      subject: `Order ${order_number} received — Fingerlakes Farms`,
-      body: emailBody,
-      relatedOrderId: order.id,
+  const itemCount = body.lines.reduce((s, l) => s + l.quantity, 0);
+  const emailBody = [
+    `We got your order ${order_number}.`,
+    "",
+    `Items: ${itemCount}`,
+    `Subtotal: ${formatMoney(subtotal)}`,
+    deliveryFee > 0 ? `Delivery: ${formatMoney(deliveryFee)}` : null,
+    `Total: ${formatMoney(total)}`,
+    body.requestedDeliveryDate
+      ? `Delivery: ${formatDateShort(body.requestedDeliveryDate)}`
+      : body.pickupDate
+        ? `Pickup: ${formatDateShort(body.pickupDate)}`
+        : null,
+    "",
+    "We'll let you know when it's confirmed and ready.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  after(async () => {
+    const tasks: Promise<unknown>[] = [];
+    if (phone) {
+      tasks.push(
+        enqueueAndSend({
+          supabase: svc,
+          profileId: effectiveProfile.id,
+          accountId: effectiveProfile.account_id,
+          type: "order_confirmation",
+          channel: "sms",
+          toAddress: phone,
+          body: `FLF: order ${order_number} received · ${formatMoney(total)}. We'll text you when it's ready.`,
+          relatedOrderId: order.id,
+        }),
+      );
+    }
+    if (email) {
+      tasks.push(
+        enqueueAndSend({
+          supabase: svc,
+          profileId: effectiveProfile.id,
+          accountId: effectiveProfile.account_id,
+          type: "order_confirmation",
+          channel: "email",
+          toAddress: email,
+          subject: `Order ${order_number} received — Fingerlakes Farms`,
+          body: emailBody,
+          relatedOrderId: order.id,
+        }),
+      );
+    }
+    const results = await Promise.allSettled(tasks);
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        console.error(
+          `[orders/create] notification ${i} for order ${order_number} threw:`,
+          r.reason,
+        );
+      } else if (r.value && typeof r.value === "object" && "ok" in r.value && !(r.value as { ok: boolean }).ok) {
+        // enqueueAndSend swallows errors and returns { ok:false, error } —
+        // still log so we don't silently drop an SMS/email.
+        console.warn(
+          `[orders/create] notification ${i} for order ${order_number} not delivered:`,
+          (r.value as { error?: string }).error,
+        );
+      }
     });
-  }
+  });
 
   return NextResponse.json({ orderId: order.id });
 }

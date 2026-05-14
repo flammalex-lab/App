@@ -324,8 +324,25 @@ export const useCart = create<CartState>()(
       },
     }),
     {
-      name: "flf-cart",
+      // H13 NOTE: see helper `scopeCartToUser` below — that's the
+      // single entry point the storefront layout uses to rebind the
+      // persist key. Don't call `persist.setOptions` from random
+      // components; race conditions there will hydrate the wrong cart.
+      //
+      // The placeholder name below is what zustand uses if no gate ever
+      // runs (e.g. the /login or /admin surfaces, which don't render the
+      // storefront layout and don't read the cart anyway). The gate calls
+      // `useCart.persist.setOptions({ name: \`flf-cart:${userId}\` })` +
+      // `useCart.persist.rehydrate()` once the active session is known,
+      // and migrates any legacy `flf-cart` key into the per-user slot.
+      //
+      // skipHydration: true means components rendering useCart before
+      // the gate runs see the in-memory default (empty cart) rather than
+      // the previous buyer's persisted lines. The gate's rehydrate fills
+      // them in within the same paint cycle on the storefront layout.
+      name: "flf-cart:anon",
       version: 3,
+      skipHydration: true,
       // If an older persisted cart is missing the new fields, backfill so
       // the app doesn't blow up on hydrate.
       migrate: (persisted: any) => {
@@ -352,3 +369,55 @@ export const useCart = create<CartState>()(
     },
   ),
 );
+
+/**
+ * H13: localStorage key was historically a fixed string `"flf-cart"` so
+ * two buyers sharing one device leaked carts across sign-outs. The
+ * storefront layout calls this once it knows the active session's
+ * userId; we rewrite the persist key to `flf-cart:${userId}` (or
+ * `flf-cart:anon` if there isn't one yet), migrate the legacy key on
+ * first run, and rehydrate. Idempotent — re-calling with the same
+ * userId is a no-op aside from the (cheap) rehydrate.
+ *
+ * `setOptions` + manual `rehydrate()` is the supported zustand v4
+ * pattern for swapping persist keys mid-app. We pair it with
+ * `skipHydration: true` in the persist config so no component reads
+ * the wrong key before this runs.
+ *
+ * Returns void; failures are swallowed (localStorage may be blocked,
+ * SSR, etc.) — an empty cart is the right fallback in every case.
+ */
+let lastScopedUserId: string | null = null;
+export function scopeCartToUser(userId: string | null | undefined): void {
+  if (typeof window === "undefined") return;
+  const id = userId ?? "anon";
+  if (lastScopedUserId === id) {
+    // Same user as last call — no key change. Still call rehydrate once
+    // on first mount (lastScopedUserId starts null, so this only really
+    // matters for "anon"->"anon" hot reloads). Cheap.
+    void useCart.persist.rehydrate();
+    return;
+  }
+  const nextName = `flf-cart:${id}`;
+  // One-time migration from the legacy fixed `flf-cart` key. If the
+  // legacy key still holds a cart AND the new per-user slot is empty,
+  // adopt it for this buyer (they're the first to sign in on this
+  // device after the upgrade). Subsequent buyers get a fresh empty
+  // cart. The legacy key is deleted either way so it can't leak again.
+  try {
+    const legacy = window.localStorage.getItem("flf-cart");
+    if (legacy !== null) {
+      const existing = window.localStorage.getItem(nextName);
+      if (existing === null) {
+        window.localStorage.setItem(nextName, legacy);
+      }
+      window.localStorage.removeItem("flf-cart");
+    }
+  } catch {
+    // localStorage may be disabled; rehydrate still attempts read.
+  }
+  useCart.persist.setOptions({ name: nextName });
+  // Promise — fire and forget. Subscribers re-render once it lands.
+  void useCart.persist.rehydrate();
+  lastScopedUserId = id;
+}

@@ -6,6 +6,7 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { StoreNav } from "@/components/layout/StoreNav";
 import { StickyCartBar } from "@/components/layout/StickyCartBar";
+import { CartHydrationGate } from "@/components/CartHydrationGate";
 import { CutoffClock } from "@/components/CutoffClock";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
@@ -68,6 +69,11 @@ export default async function StorefrontLayout({
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* H13: rebind the persisted cart to this buyer's localStorage
+          slot before any cart-reading component reads it. Admin
+          impersonating a buyer? Scope to the impersonated profile so
+          the cart they build belongs to that buyer, not the admin. */}
+      <CartHydrationGate userId={effective.id} />
       {impersonating ? (
         <div className="bg-accent-gold/25 text-[#6a4d06] text-[11px] px-3 py-0.5 flex items-center justify-center gap-2 border-b border-accent-gold/30">
           <span>
