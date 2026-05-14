@@ -100,7 +100,7 @@ export function InstallPrompt() {
     <div
       role="region"
       aria-label="Install Fingerlakes Farms"
-      className="fixed inset-x-0 z-50 px-4 animate-slide-up"
+      className="fixed inset-x-0 z-40 px-4 animate-slide-up"
       style={{
         // Sit above the iOS home indicator / Android nav bar.
         bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
