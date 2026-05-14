@@ -26,6 +26,7 @@ export function ScrollStrip({
   emoji,
   density = "default",
   inGuideIds,
+  isB2B,
 }: {
   title: string;
   href?: string;
@@ -41,6 +42,8 @@ export function ScrollStrip({
    * card is already in-guide (the badge would be noise).
    */
   inGuideIds?: ReadonlySet<string>;
+  /** B2B session flag — see CatalogGrid for details. */
+  isB2B?: boolean;
 }) {
   if (products.length === 0) return null;
 
@@ -61,6 +64,7 @@ export function ScrollStrip({
               product={products[0]}
               variant="compact"
               inGuide={inGuideIds?.has(products[0].id) ?? false}
+              isB2B={isB2B}
             />
           </div>
         </div>
@@ -77,6 +81,7 @@ export function ScrollStrip({
       products={products}
       cardWidth={cardWidth}
       inGuideIds={inGuideIds}
+      isB2B={isB2B}
     />
   );
 }
@@ -89,6 +94,7 @@ function ScrollStripRail({
   products,
   cardWidth,
   inGuideIds,
+  isB2B,
 }: {
   title: string;
   emoji?: string;
@@ -97,6 +103,7 @@ function ScrollStripRail({
   products: PricedProduct[];
   cardWidth: string;
   inGuideIds?: ReadonlySet<string>;
+  isB2B?: boolean;
 }) {
   const railRef = useRef<HTMLDivElement>(null);
   const { canScrollLeft, canScrollRight } = useStripOverflow(railRef);
@@ -181,6 +188,7 @@ function ScrollStripRail({
                   product={p}
                   variant="compact"
                   inGuide={inGuideIds?.has(p.id) ?? false}
+                  isB2B={isB2B}
                 />
               </div>
             ))}

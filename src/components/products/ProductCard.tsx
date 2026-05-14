@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { PackOption, Product } from "@/lib/supabase/types";
+import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { useCart } from "@/lib/cart/store";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
 import { productPhoto } from "@/lib/utils/product-image";
@@ -13,7 +14,18 @@ import { QtyInput } from "@/components/ui/QtyInput";
 import { VariantPickerSheet } from "@/components/products/VariantPickerSheet";
 import { ProductCardFallback } from "@/components/products/ProductCardFallback";
 
-export type PricedProduct = Product & { unitPrice: number | null };
+/**
+ * `packs` is the product's own priced variant list (default pack +
+ * pack_options). Pre-computed by `buildSelfPacks` during the catalog/
+ * guide page render so the client-state detail sheet can render fully-
+ * priced rows at t=0 without waiting on a server action. Optional —
+ * legacy callers can omit it and the sheet falls back to the
+ * server-action loading path.
+ */
+export type PricedProduct = Product & {
+  unitPrice: number | null;
+  packs?: PackRow[];
+};
 
 type Variant = "grid" | "compact" | "row";
 
@@ -49,6 +61,7 @@ export function ProductCard({
   variant,
   fromGroup,
   inGuide = false,
+  isB2B,
 }: {
   product: PricedProduct;
   variant: Variant;
@@ -59,6 +72,13 @@ export function ProductCard({
    * isn't fetched on every page, so callers must opt in.
    */
   inGuide?: boolean;
+  /**
+   * Whether the active session is a B2B buyer. Threaded into the
+   * client-state detail sheet so it can render the "Add to guide"
+   * affordance at t=0 without waiting on the server action. Omit on
+   * legacy callsites — the sheet falls back to the server-action value.
+   */
+  isB2B?: boolean;
 }) {
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
@@ -90,17 +110,23 @@ export function ProductCard({
     : null;
 
   // Tap → open the client-state detail sheet (Pepper-style). The card
-  // already carries the full Product row, so the sheet mounts INSTANTLY
-  // with title + image + description; a server action fills in priced
-  // packs (the only data we don't already have). No route push, no URL
-  // change, no parallel-route fetch, no scroll restoration to fight.
+  // already carries the full Product row AND the pre-computed pack
+  // list (`product.packs`), so the sheet mounts INSTANTLY with title,
+  // image, description, AND priced variant rows. The server action
+  // only fires for sibling-grouped candidates (Whole Milk — Gallon /
+  // Half Gallon) — a most-products fast path with zero round-trips.
   // The buyer trade-off — losing the shareable /catalog/[id] URL and
   // browser-back-to-close — is intentional per product decision; the
   // /catalog/[id] route stays alive for direct URL access (admin links,
   // SMS deep-links).
   const openSheet = useCallback(() => {
-    useProductSheet.getState().open(product, { fromGroup, inGuide });
-  }, [product, fromGroup, inGuide]);
+    useProductSheet.getState().open(product, {
+      fromGroup,
+      inGuide,
+      isB2B,
+      packs: product.packs,
+    });
+  }, [product, fromGroup, inGuide, isB2B]);
 
   function addOne(e: React.MouseEvent) {
     e.preventDefault();
