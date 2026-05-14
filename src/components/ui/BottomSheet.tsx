@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 
 // Use layout effect on the client; fall back to plain effect during SSR
@@ -345,7 +346,19 @@ export function BottomSheet({
 
   if (!open) return null;
 
-  return (
+  // Portal to <body>. If any DOM ancestor of the trigger has
+  // `will-change: transform`, `transform`, `filter`, `perspective`, etc.,
+  // it establishes a new containing block for `position: fixed`
+  // descendants (per CSS spec). Rendering inline would then resolve our
+  // `inset: 0` against that ancestor instead of the viewport. Concrete
+  // regression we caught: the MobileHeader 3-dot trigger lives inside
+  // `.scroll-hide-header` which has `will-change: transform`, so the
+  // dialog rendered at height 0 with the panel positioned above the
+  // viewport — invisible to the user. Portaling to <body> bypasses every
+  // intermediate containing block in one move.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -409,6 +422,7 @@ export function BottomSheet({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
