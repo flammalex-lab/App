@@ -45,17 +45,27 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
   const pathname = usePathname() ?? "/";
   const title = titleForPath(pathname);
 
-  // Two-pass render: SSR + initial CSR use a stable `now` snapshot of 0
-  // (rendering the countdown text as empty), then after mount we swap in
-  // the real Date.now(). Otherwise SSR's `Date.now()` and CSR's
-  // `Date.now()` can fall on opposite sides of a minute boundary,
-  // producing different `countdown(ms)` strings and tripping React
-  // hydration mismatch #418 once per route load. See B4 in the audit.
+  // Two-pass render: SSR + initial CSR render `now = null` (the live
+  // countdown is suppressed and the surrounding markup matches what
+  // SSR produced), then after mount the interval pushes Date.now()
+  // into state and the countdown lights up. Without this, SSR's
+  // `Date.now()` and CSR's hydration-time `Date.now()` can fall on
+  // opposite sides of a minute boundary, producing different
+  // `countdown(ms)` strings and tripping React hydration mismatch
+  // #418 once per route load. See B4 in the audit. The interval
+  // (not a synchronous setState) handles both the first paint and
+  // the per-minute ticks so React 19's no-set-state-in-effect-body
+  // rule stays green.
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    setNow(Date.now());
-    const t = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(t);
+    // First tick is queued for the next macrotask so the initial paint
+    // matches SSR; subsequent ticks fire each minute.
+    const handle = window.setTimeout(() => setNow(Date.now()), 0);
+    const t = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => {
+      window.clearTimeout(handle);
+      window.clearInterval(t);
+    };
   }, []);
 
   const [cutoffOpen, setCutoffOpen] = useState(false);
@@ -219,12 +229,19 @@ function CutoffSheet({
       </BottomSheet>
     );
   }
-  // The sheet is only opened by user click (open=true is post-mount), so
-  // `now` is always populated by the time this render path matters. Fall
-  // back to a fresh Date.now() for the pre-mount case so the sheet is
-  // never wrong if it does somehow render.
-  const safeNow = now ?? Date.now();
-  const ms = new Date(next.cutoffAt).getTime() - safeNow;
+  // The sheet only renders when `open=true`, which is post-mount (the
+  // trigger is a user tap), so `now` is always populated by the time
+  // this render runs. Guard for the impossible null case by returning
+  // empty content rather than calling Date.now() during render (React
+  // 19 flags that as an impure call).
+  if (now == null) {
+    return (
+      <BottomSheet open={open} onClose={onClose} title="Delivery & cutoff">
+        <div className="px-5 py-5 text-sm text-ink-secondary">Loading…</div>
+      </BottomSheet>
+    );
+  }
+  const ms = new Date(next.cutoffAt).getTime() - now;
   const past = ms <= 0;
   const urgent = !past && ms < 60 * 60 * 1000;
   const warn = !past && !urgent && ms < 12 * 60 * 60 * 1000;

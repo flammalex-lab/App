@@ -24,18 +24,24 @@ interface SerializedNextDelivery {
  */
 export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
   // Two-pass render: SSR + initial CSR see `now = null` and skip the
-  // countdown string; the effect below swaps in Date.now() after mount.
-  // Without this, SSR's `Date.now()` snapshot and CSR's hydration-time
-  // `Date.now()` can straddle a minute boundary, producing different
-  // `countdown(ms)` text and tripping React hydration mismatch #418 once
-  // per route load. See B4 in the audit.
+  // countdown string; the timeout/interval below push Date.now() into
+  // state after mount, lighting up the live countdown. Without this,
+  // SSR's `Date.now()` snapshot and CSR's hydration-time `Date.now()`
+  // can straddle a minute boundary, producing different `countdown(ms)`
+  // text and tripping React hydration mismatch #418 once per route
+  // load. See B4 in the audit. Date.now() is only read inside the
+  // effect's queued callbacks — React 19 flags impure calls inside
+  // the effect body directly.
   const [now, setNow] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    setNow(Date.now());
-    const t = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(t);
+    const handle = window.setTimeout(() => setNow(Date.now()), 0);
+    const t = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => {
+      window.clearTimeout(handle);
+      window.clearInterval(t);
+    };
   }, []);
 
   if (!next) {
@@ -116,7 +122,9 @@ export function CutoffClock({ next }: { next: SerializedNextDelivery | null }) {
               <div className="display text-xl tracking-tight">
                 {past
                   ? "Passed"
-                  : `${countdown(ms)} remaining`}
+                  : ms != null
+                    ? `${countdown(ms)} remaining`
+                    : ""}
               </div>
               <div className="text-[12px] text-ink-tertiary mt-0.5">
                 Submit by{" "}
