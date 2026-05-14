@@ -16,6 +16,8 @@ import { LineItem } from "@/components/products/LineItem";
 import Link from "next/link";
 import { OrderPlacedHero } from "./OrderPlacedHero";
 import { AmendOrderSheet, type AmendCandidate } from "./AmendOrderSheet";
+import { SaveAsStandingSheet } from "./SaveAsStandingSheet";
+import { defaultDayFromOrder } from "@/lib/standing-orders/create-from-order";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
@@ -84,6 +86,23 @@ export default async function OrderDetail({
     : rows;
 
   const totalUnits = rows.reduce((s, r) => s + Number(r.quantity), 0);
+
+  // Idempotency probe for "Save as standing order": if a standing order
+  // was already spun off this order (matched by name = "From order …"),
+  // we surface the existing standing order id so the button links there
+  // rather than opening the create-sheet a second time.
+  const standingFromName = `From order ${o.order_number}`;
+  let existingStandingOrderId: string | null = null;
+  if (o.account_id) {
+    const { data: existingStanding } = await db
+      .from("standing_orders")
+      .select("id")
+      .eq("account_id", o.account_id)
+      .eq("name", standingFromName)
+      .maybeSingle();
+    existingStandingOrderId = (existingStanding as { id: string } | null)?.id ?? null;
+  }
+  const standingDefaultDay = defaultDayFromOrder(o);
 
   // ─── Amendability check ─────────────────────────────────────────────
   // Append-only edits are allowed only while the order is still pending
@@ -320,6 +339,21 @@ export default async function OrderDetail({
       </form>
       <p className="mt-2 text-[11px] text-center text-ink-tertiary">
         Copies every line into your cart — adjust qtys before submitting.
+      </p>
+
+      {/* Save-as-standing-order CTA — buyer-feedback fix replacing the
+          old "build a standing order from scratch" /standing/new flow.
+          Available on both upcoming and past orders. */}
+      <div className="mt-3">
+        <SaveAsStandingSheet
+          orderId={o.id}
+          orderNumber={o.order_number}
+          defaultDay={standingDefaultDay}
+          existingStandingOrderId={existingStandingOrderId}
+        />
+      </div>
+      <p className="mt-2 text-[11px] text-center text-ink-tertiary">
+        Auto-send this order on a schedule — we&apos;ll text you to confirm before each one.
       </p>
     </div>
   );
