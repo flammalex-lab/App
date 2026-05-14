@@ -77,7 +77,6 @@ export async function isProductVisibleToAccount(
  */
 // Returns `any` because the select string is dynamic; callers chain
 // further filters and cast the resolved data themselves.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function visibleProductsQuery(
   db: Db,
   opts: {
@@ -86,9 +85,7 @@ export function visibleProductsQuery(
     allowedPrivateIds?: string[];
     select?: string;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q: any = db.from("products").select(opts.select ?? "*").eq("is_active", true);
   q = q.eq(opts.isB2B ? "available_b2b" : "available_dtc", true);
 
