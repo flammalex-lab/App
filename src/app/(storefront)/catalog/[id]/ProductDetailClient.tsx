@@ -16,20 +16,26 @@ export function ProductDetailClient({
   packs,
   showAddToGuide,
   inGuideInitial,
+  onClose,
 }: {
   product: Product;
   packs: PackRow[];
   showAddToGuide: boolean;
   inGuideInitial: boolean;
+  /** Modal-only — close the sheet when navigating to /cart so the
+   *  overlay doesn't stick around behind the cart page. */
+  onClose?: () => void;
 }) {
   const router = useRouter();
   const toast = useToast();
   const add = useCart((s) => s.add);
   const setQty = useCart((s) => s.setQty);
   const lines = useCart((s) => s.lines);
-  const [guideState, setGuideState] = useState<"idle" | "saving" | "saved">(
-    inGuideInitial ? "saved" : "idle",
-  );
+  // Optimistic toggle: flip immediately on click, snap back on error.
+  // `saving` blocks double-fires while the request is in flight; both
+  // directions (add + remove) are reachable from any state.
+  const [inGuide, setInGuide] = useState<boolean>(inGuideInitial);
+  const [saving, setSaving] = useState<boolean>(false);
 
   function qtyFor(p: PackRow): number {
     return lines.find(
@@ -77,29 +83,46 @@ export function ProductDetailClient({
     }
   }
 
-  async function star() {
-    if (guideState !== "idle") return;
-    setGuideState("saving");
-    const res = await fetch("/api/my-guide/add", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_id: product.id }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "Failed to add to guide" }));
-      toast.push(err.error ?? "Failed to add to guide", "error");
-      setGuideState("idle");
-      return;
+  async function toggleGuide() {
+    if (saving) return;
+    const wasIn = inGuide;
+    // Optimistic flip.
+    setInGuide(!wasIn);
+    setSaving(true);
+    const endpoint = wasIn ? "/api/my-guide/remove" : "/api/my-guide/add";
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: product.id }),
+      });
+      if (!res.ok) {
+        const err = await res
+          .json()
+          .catch(() => ({ error: wasIn ? "Failed to remove from guide" : "Failed to add to guide" }));
+        toast.push(
+          err.error ?? (wasIn ? "Failed to remove from guide" : "Failed to add to guide"),
+          "error",
+        );
+        // Snap back on failure so the UI matches server truth.
+        setInGuide(wasIn);
+        return;
+      }
+      // Refresh underlying page so /guide reflects the change when the
+      // modal closes (the catalog rail uses this list to render badges).
+      router.refresh();
+    } catch {
+      toast.push(
+        wasIn ? "Failed to remove from guide" : "Failed to add to guide",
+        "error",
+      );
+      setInGuide(wasIn);
+    } finally {
+      setSaving(false);
     }
-    const body = (await res.json().catch(() => ({}))) as { alreadyExisted?: boolean };
-    setGuideState("saved");
-    toast.push(body.alreadyExisted ? "Already in your guide" : "Added to your guide", "success");
-    // Refresh the underlying page so /guide reflects the new item when the
-    // modal closes.
-    router.refresh();
   }
 
-  const saved = guideState === "saved";
+  const saved = inGuide;
 
   return (
     <div className="mt-5 space-y-3">
@@ -113,12 +136,13 @@ export function ProductDetailClient({
             >
               {showAddToGuide && p.productId === product.id ? (
                 <button
-                  onClick={star}
-                  aria-label={saved ? "Added to your guide" : "Add to your guide"}
+                  onClick={toggleGuide}
+                  aria-label={saved ? "Remove from your guide" : "Add to your guide"}
+                  aria-pressed={saved}
                   className={`h-7 w-7 shrink-0 inline-flex items-center justify-center transition ${
                     saved ? "text-accent-gold" : "text-ink-tertiary hover:text-accent-gold"
                   }`}
-                  disabled={guideState === "saving"}
+                  disabled={saving}
                 >
                   <svg viewBox="0 0 24 24" width="20" height="20" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
                     <path d="M12 2l3 7h7l-5.7 4.3L18 21l-6-4-6 4 1.7-7.7L2 9h7l3-7z" />
@@ -181,7 +205,13 @@ export function ProductDetailClient({
       ) : null}
 
       <button
-        onClick={() => router.push("/cart")}
+        onClick={() => {
+          // Close the overlay first so we don't leave it sitting on top
+          // of the cart page after navigation. Modal close is a no-op on
+          // the full /catalog/[id] page (onClose undefined there).
+          onClose?.();
+          router.push("/cart");
+        }}
         className="btn-ghost text-sm w-full"
       >
         Go to cart →

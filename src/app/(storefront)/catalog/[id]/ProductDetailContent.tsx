@@ -104,6 +104,7 @@ export function ProductDetailContent({
             packs={packs}
             showAddToGuide={isB2B}
             inGuideInitial={inGuide}
+            onClose={onClose}
           />
         ) : (
           <p className="mt-4 text-sm text-ink-secondary">
