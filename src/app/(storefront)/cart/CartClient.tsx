@@ -305,11 +305,6 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
         title="Remove every item?"
       >
         <div className="px-5 py-5 space-y-3">
-          <p className="text-[14px] text-ink-secondary leading-snug">
-            This will empty your cart. You can&apos;t undo it from here — you&apos;d
-            have to re-add items or use <strong>Reorder last</strong> from your
-            orders history.
-          </p>
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => setConfirmRemoveAll(false)}
@@ -522,6 +517,10 @@ function DeliveryDayPicker({
       </div>
     );
   }
+  // B2: render the picker in chronological order. The server contract is
+  // ascending dates, but sort defensively so a future server change can't
+  // surface dates out of order in front of the buyer.
+  const sortedUpcoming = [...upcoming].sort((a, b) => a.date.localeCompare(b.date));
   return (
     <>
       <p className="text-[13px] text-ink-secondary">
@@ -529,7 +528,7 @@ function DeliveryDayPicker({
         already factored in.
       </p>
       <div className="grid grid-cols-3 gap-2">
-        {upcoming.map((u) => {
+        {sortedUpcoming.map((u) => {
           const selected = value === u.date;
           const [, m, d] = u.date.split("-");
           return (
@@ -604,10 +603,6 @@ function NoteRow({
         title="Order note"
       >
         <div className="px-5 py-5 space-y-3">
-          <p className="text-[13px] text-ink-secondary">
-            Anything we should know? Back-of-house delivery, cut thickness,
-            substitution preferences, etc.
-          </p>
           <Textarea
             value={note}
             // Notes bridge to SMS where the practical cap is ~500 chars;

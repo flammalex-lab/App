@@ -135,9 +135,6 @@ export function OrderPlacedHero({
               <span className="tabular font-semibold">{money(total)}</span>
             </div>
           </div>
-          <p className="mt-4 text-xs opacity-70">
-            We&apos;ll text you when it&apos;s on the way. Final invoice may adjust for actual weight.
-          </p>
         </div>
 
         {standingPromptOpen ? (

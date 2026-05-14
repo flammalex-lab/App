@@ -110,7 +110,16 @@ export function StickyCartBar({
   }
 
   // ---- Render shells ---------------------------------------------------
-  const wrapperClass = `fixed inset-x-0 z-20 px-3 md:px-6 pointer-events-none transition-[bottom] duration-200 md:bottom-6 ${
+  // B3: z-30 (was z-20) so the pill sits at the same layer as the
+  // BottomTabs and any in-page sticky/animated section that ends up
+  // creating its own paint layer (catalog producer drill-in, expanded
+  // sub-category sections). The wrapper is `pointer-events-none` and
+  // only the inner button is `pointer-events-auto`, so coexisting at
+  // the same z as BottomTabs (which sits below the pill vertically)
+  // doesn't introduce a click-eat. Stays below BottomSheets (z-50)
+  // so the existing sheet-open dance still hides the pill behind any
+  // open sheet without the two layers fighting.
+  const wrapperClass = `fixed inset-x-0 z-30 px-3 md:px-6 pointer-events-none transition-[bottom] duration-200 md:bottom-6 ${
     navHidden
       ? "bottom-[calc(env(safe-area-inset-bottom,0px)+0.625rem)]"
       : "bottom-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"
