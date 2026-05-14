@@ -81,7 +81,7 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
 
       <button
         type="button"
-        className="shrink-0 h-9 w-9 inline-flex items-center justify-center rounded-md text-ink-primary hover:bg-bg-secondary transition-colors duration-150"
+        className="shrink-0 h-11 w-11 -mr-1 inline-flex items-center justify-center rounded-md text-ink-primary hover:bg-bg-secondary transition-colors duration-150"
         aria-label="More options"
         aria-haspopup="dialog"
         aria-expanded={overflowOpen}
