@@ -40,7 +40,7 @@ export default function ProductModalLoading() {
       <BodyScrollLock />
       <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center bg-black/60 pointer-events-none">
         <div
-          className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating h-[75vh] md:h-auto md:max-h-[92vh] flex flex-col animate-pulse"
+          className="relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating h-[75vh] md:h-auto md:max-h-[92vh] flex flex-col"
           style={{ maxWidth: "64rem" }}
         >
           {/* Drag handle (mobile only — matches BottomSheet) */}
@@ -48,8 +48,13 @@ export default function ProductModalLoading() {
             <span aria-hidden className="block h-1 w-10 rounded-full bg-black/15" />
           </div>
 
-          {/* Scroll region — must match ProductDetailContent's outer container */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Scroll region — must match ProductDetailContent's outer container.
+              `animate-pulse` lives on the inner scroll region rather than the
+              whole panel: when the real content swaps in, the pulse stopping
+              reads as "content arrived" rather than "the whole sheet snapped."
+              The panel itself stays solid (no pulse, no animation flip) through
+              the skeleton→real transition. */}
+          <div className="flex-1 overflow-y-auto animate-pulse">
             <div className="md:grid md:grid-cols-2 md:gap-0">
               {/* LEFT: image hero. Aspect-[4/3] on mobile, min-h-[480px] on md+. */}
               <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-black/[0.04] border-b md:border-b-0 md:border-r border-black/[0.06]" />
