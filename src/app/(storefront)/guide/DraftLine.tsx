@@ -66,6 +66,15 @@ export function DraftLine({ row, substitutes = [] }: Props) {
   const isStockout = !inStock;
   const showSkipped = skipped && !isStockout;
 
+  // Pack qualifier ("GALLON", "HALF GALLON", "12/6 OZ") rendered as an
+  // uppercase eyebrow on the producer line. `displayProductName` strips
+  // a trailing " — {pack_size}" from the name, so without this chip two
+  // rows for the same producer (e.g. milk in gallon vs half-gallon) read
+  // as identical — they only differ by qty pill price. Prefer pack_size
+  // (consumer-facing single unit) over case_pack (B2B case spec). The
+  // chip is hidden when there's nothing to disambiguate.
+  const packQualifier = (product.pack_size ?? product.case_pack ?? "").trim();
+
   function cartLineFromProduct(quantity: number): CartLine {
     return {
       productId: product.id,
@@ -129,6 +138,10 @@ export function DraftLine({ row, substitutes = [] }: Props) {
             {displayProductName(product.name, product.producer, product.pack_size, product.case_pack)}
           </div>
           <div className="text-[12px] text-ink-tertiary truncate">
+            {packQualifier ? (
+              <span className="uppercase tracking-wide">{packQualifier}</span>
+            ) : null}
+            {packQualifier && product.producer ? " · " : ""}
             {product.producer ? `${product.producer} · ` : ""}Out this week
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -175,6 +188,10 @@ export function DraftLine({ row, substitutes = [] }: Props) {
             {displayProductName(product.name, product.producer, product.pack_size, product.case_pack)}
           </div>
           <div className="text-[12px] text-ink-tertiary truncate">
+            {packQualifier ? (
+              <span className="uppercase tracking-wide">{packQualifier}</span>
+            ) : null}
+            {packQualifier && product.producer ? " · " : ""}
             {product.producer ?? ""}
           </div>
         </div>
@@ -190,9 +207,12 @@ export function DraftLine({ row, substitutes = [] }: Props) {
   }
 
   // ---- SUGGESTED / ADJUSTED ---------------------------------------------
-  // Visual treatment lives in the qty pill background.
+  // Visual treatment lives in the qty pill background. The suggested state
+  // adds a hairline brand-blue border so buyers read the pill as tappable
+  // — without it, the tinted-blue fill on a borderless input reads as a
+  // static label.
   const qtyWrapperClass = isSuggested
-    ? "h-10 w-12 rounded-md bg-brand-blue-tint flex items-center justify-center"
+    ? "h-10 w-12 rounded-md bg-brand-blue-tint border border-brand-blue/25 flex items-center justify-center"
     : "h-10 w-12";
   const qtyInputClass = isSuggested
     ? "h-10 w-12 text-center tabular text-[15px] font-semibold rounded-md bg-transparent border-none text-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/30 transition-colors duration-150"
@@ -219,10 +239,14 @@ export function DraftLine({ row, substitutes = [] }: Props) {
           {displayProductName(product.name, product.producer, product.pack_size, product.case_pack)}
         </div>
         <div className="text-[12px] text-ink-tertiary truncate flex items-center gap-1.5">
+          {packQualifier ? (
+            <span className="uppercase tracking-wide shrink-0">{packQualifier}</span>
+          ) : null}
+          {packQualifier && product.producer ? <span aria-hidden>·</span> : null}
           {product.producer ? <span className="truncate">{product.producer}</span> : null}
           {metaLine ? (
             <>
-              {product.producer ? <span aria-hidden>·</span> : null}
+              {(packQualifier || product.producer) ? <span aria-hidden>·</span> : null}
               <span className={isSuggested ? "italic" : "font-medium text-ink-secondary"}>
                 {metaLine}
               </span>
