@@ -3,9 +3,9 @@
 import { useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { PackOption, Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
+import { useProductSheet } from "@/lib/products/detail-sheet-store";
 import { productPhoto } from "@/lib/utils/product-image";
 import { displayProductName } from "@/lib/utils/product-display";
 import { money } from "@/lib/utils/format";
@@ -81,7 +81,6 @@ export function ProductCard({
   const hasVariants = packOptions.length > 0;
 
   const [variantOpen, setVariantOpen] = useState(false);
-  const router = useRouter();
 
   const detailHref = fromGroup
     ? `/catalog/${product.id}?from=${fromGroup}`
@@ -90,18 +89,18 @@ export function ProductCard({
     ? `/catalog?producer=${encodeURIComponent(product.producer)}`
     : null;
 
-  // Hover-prefetch on desktop. `<Link prefetch>` (the default) prefetches
-  // the loading.tsx shell on viewport intersection, but the modal's
-  // page.tsx data fetch (product row + packs from Supabase) doesn't run
-  // until route push. A Playwright trace measured that data fetch at
-  // ~475ms (desktop) / ~800ms (mobile) post-click. Kicking off
-  // router.prefetch on mouseenter warms the full RSC payload — Next
-  // dedupes its own prefetch cache so calling repeatedly on the same
-  // URL is cheap. Hover doesn't fire on touch devices so mobile users
-  // pay nothing here; desktop click→open shrinks toward instant.
-  const prefetchDetail = useCallback(() => {
-    router.prefetch(detailHref);
-  }, [router, detailHref]);
+  // Tap → open the client-state detail sheet (Pepper-style). The card
+  // already carries the full Product row, so the sheet mounts INSTANTLY
+  // with title + image + description; a server action fills in priced
+  // packs (the only data we don't already have). No route push, no URL
+  // change, no parallel-route fetch, no scroll restoration to fight.
+  // The buyer trade-off — losing the shareable /catalog/[id] URL and
+  // browser-back-to-close — is intentional per product decision; the
+  // /catalog/[id] route stays alive for direct URL access (admin links,
+  // SMS deep-links).
+  const openSheet = useCallback(() => {
+    useProductSheet.getState().open(product, { fromGroup, inGuide });
+  }, [product, fromGroup, inGuide]);
 
   function addOne(e: React.MouseEvent) {
     e.preventDefault();
@@ -185,13 +184,12 @@ export function ProductCard({
     return (
       <>
       <div
-        onMouseEnter={prefetchDetail}
         className={`group/card relative w-full h-full flex flex-col rounded-xl border border-black/10 bg-white overflow-hidden snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${paused ? "opacity-70" : ""}`}
       >
-        <Link
-          href={detailHref}
+        <button
+          type="button"
+          onClick={openSheet}
           aria-label={product.name}
-          scroll={false}
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
@@ -241,13 +239,12 @@ export function ProductCard({
     return (
       <>
       <div
-        onMouseEnter={prefetchDetail}
         className={`group/card relative rounded-xl border border-black/10 bg-white overflow-hidden flex flex-col transition-all duration-150 [@media(hover:hover)]:hover:-translate-y-px [@media(hover:hover)]:hover:border-black/20 [@media(hover:hover)]:hover:shadow-card focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${paused ? "opacity-70" : ""}`}
       >
-        <Link
-          href={detailHref}
+        <button
+          type="button"
+          onClick={openSheet}
           aria-label={product.name}
-          scroll={false}
           className="absolute inset-x-0 top-0 bottom-[64px] z-0"
         />
 
@@ -296,10 +293,9 @@ export function ProductCard({
   // ───────── Row variant (full-width list row) ─────────
   return (
     <div
-      onMouseEnter={prefetchDetail}
       className={`group/card relative flex items-center gap-3 px-4 py-3 bg-white border-b border-black/[0.06] transition-colors duration-150 active:bg-bg-secondary ${paused ? "opacity-70" : ""}`}
     >
-      <Link href={detailHref} aria-label={product.name} scroll={false} className="absolute inset-0 z-0" />
+      <button type="button" onClick={openSheet} aria-label={product.name} className="absolute inset-0 z-0" />
 
       <div className="relative h-20 w-20 shrink-0 rounded-md overflow-hidden bg-bg-secondary flex items-center justify-center pointer-events-none">
         {photo ? (
