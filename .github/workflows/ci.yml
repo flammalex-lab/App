@@ -73,3 +73,9 @@ jobs:
           # URL / key strings so the runtime supabase clients can parse them.
           NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
+          # src/lib/auth/impersonation-token.ts throws at module load if
+          # NODE_ENV=production && !IMPERSONATION_SECRET. The build's page
+          # data collection step imports every route, so this throws before
+          # bundling completes. Provide a dummy — the build never signs or
+          # verifies a real cookie.
+          IMPERSONATION_SECRET: dummy-build-time-not-a-real-secret
