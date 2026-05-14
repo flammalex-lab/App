@@ -19,6 +19,19 @@ export function useScrollHidden(): boolean {
 
   useEffect(() => {
     function onScroll() {
+      // Bail while a BottomSheet has body-locked the page. The lock pins
+      // body at `position: fixed; top: -<scrollY>`, which makes
+      // window.scrollY read as 0 synthetically. Without this guard the
+      // listener fires once with `y=0, dy=-<scrollY>`, the
+      // `dy < -4 || y < 40` branch runs, hidden flips false, and the
+      // previously-hidden header pops back into view — instantly adding
+      // 52px to the top of the layout that wasn't there before. The
+      // catalog reference card behind the sheet visually jumps 52px up;
+      // on close, scrollTo restores scroll, dy flips positive, header
+      // animates back out over 200ms — the "revert" the buyer saw.
+      // Holding the listener while data-sheet-open keeps the header's
+      // pre-open state pinned across the sheet's lifecycle.
+      if (document.documentElement.hasAttribute("data-sheet-open")) return;
       const y = window.scrollY;
       const dy = y - lastY.current;
       if (y > 80 && dy > 6) setHidden(true);

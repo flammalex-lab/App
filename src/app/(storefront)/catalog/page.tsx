@@ -7,6 +7,7 @@ import { resolveActiveAccount } from "@/lib/auth/active-account";
 import type { Category, Product } from "@/lib/supabase/types";
 import { loadPricingContext, priceForProduct, type PricingContext } from "@/lib/utils/pricing";
 import { getAllowedPrivateProductIds, visibleProductsQuery } from "@/lib/products/queries";
+import { buildSelfPacks } from "@/lib/products/build-packs";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   GROUP_LABELS,
@@ -17,7 +18,6 @@ import {
 import { CatalogGrid } from "./CatalogGrid";
 import { ScrollStrip } from "./ScrollStrip";
 import { SortSheet, type SortKey } from "./SortSheet";
-import { CatalogSearchInput } from "./CatalogSearchInput";
 import { CategoryChips } from "./CategoryChips";
 import { ProducerChips } from "./ProducerChips";
 import { StockUpButton } from "./StockUpButton";
@@ -25,15 +25,23 @@ import { BackButton } from "@/components/layout/BackButton";
 import { groupBySubCategory, subCategoryOf } from "@/lib/products/sub-category";
 import { compareProducersByRank, rankProducers } from "@/lib/products/producer-rank";
 import { getBuyerHistory } from "@/lib/products/buyer-history";
-import { getCatalogSuggestions } from "@/lib/products/suggestions";
 
 export const metadata = { title: "Catalog — Fingerlakes Farms" };
 
 function priceProducts(
   rows: Product[] | null | undefined,
   ctx: PricingContext,
-): (Product & { unitPrice: number | null })[] {
-  return (rows ?? []).map((p) => ({ ...p, unitPrice: priceForProduct(p, ctx) }));
+): (Product & { unitPrice: number | null; packs: ReturnType<typeof buildSelfPacks> })[] {
+  // packs are pre-computed here so the client-state detail sheet can
+  // paint a fully-priced variant list at t=0 when the buyer taps a
+  // card. The PricingContext was already loaded once per render, so
+  // this is zero new DB queries — just walks pack_options + overrides
+  // + price-list rows already in memory.
+  return (rows ?? []).map((p) => ({
+    ...p,
+    unitPrice: priceForProduct(p, ctx),
+    packs: buildSelfPacks(p, ctx),
+  }));
 }
 
 export default async function CatalogPage({
@@ -117,16 +125,16 @@ export default async function CatalogPage({
     const hasPreference = preferredGroups.length > 0 && preferredGroups.length < allowed.length;
 
     // ---- Tier A: parallel queries.
-    // Suggestions are pulled from a cached helper (separate from this
-    // tier) so the datalist content survives across navigations until
-    // an admin product/allowlist write invalidates it. The all-products
-    // fetch only fires when we actually need the lead-with-my-category
-    // grid (hasPreference) — the strip-only landing doesn't need it.
+    // The all-products fetch only fires when we actually need the
+    // lead-with-my-category grid (hasPreference) — the strip-only
+    // landing doesn't need it. Search suggestions are fetched in
+    // catalog/layout.tsx (hoisted with the sticky search bar) and
+    // memoised through React.cache so this surface no longer fetches
+    // them separately.
     const [
       { data: weekRows },
       { data: producerRows },
       { data: counts },
-      suggestions,
       { data: allProductRows },
     ] = await Promise.all([
       // Strip 1: This week
@@ -142,12 +150,6 @@ export default async function CatalogPage({
       ),
       // Group counts for the fallback tile grid
       visibleProductsQuery(db, { ...baseOpts, select: "product_group" }),
-      // Search autocomplete suggestions — Vercel data cache
-      getCatalogSuggestions({
-        buyerType: effectiveBuyerType,
-        isB2B,
-        allowedPrivateIds,
-      }),
       // M27: full buyer-visible catalog — only needed when we render the
       // category-leading grid for a buyer with a strict enabled-category
       // subset. Returns null payload otherwise so the unused result tier
@@ -246,15 +248,6 @@ export default async function CatalogPage({
 
     return (
       <>
-        <form action="/catalog" className="mb-3">
-          <CatalogSearchInput datalistId="catalog-suggest" />
-          <datalist id="catalog-suggest">
-            {suggestions.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-        </form>
-
         <CategoryChips
           groups={groupCounts}
           active={null}
@@ -272,6 +265,7 @@ export default async function CatalogPage({
                 products={preferredProducts}
                 fromGroup={null}
                 inGuideIds={inGuideIds}
+                isB2B={isB2B}
               />
             ) : null}
             {restProducts.length > 0 ? (
@@ -287,6 +281,7 @@ export default async function CatalogPage({
                   products={restProducts}
                   fromGroup={null}
                   inGuideIds={inGuideIds}
+                  isB2B={isB2B}
                 />
               </>
             ) : null}
@@ -300,6 +295,7 @@ export default async function CatalogPage({
               subtitle="Fresh off the flyer — available for this delivery."
               products={thisWeek}
               inGuideIds={inGuideIds}
+              isB2B={isB2B}
             />
 
             {history.length > 0 ? (
@@ -308,6 +304,7 @@ export default async function CatalogPage({
                 href="/orders"
                 products={history}
                 inGuideIds={inGuideIds}
+                isB2B={isB2B}
               />
             ) : null}
 
@@ -318,6 +315,7 @@ export default async function CatalogPage({
                 subtitle="Featured producer"
                 products={featured}
                 inGuideIds={inGuideIds}
+                isB2B={isB2B}
               />
             ) : null}
           </>
@@ -375,21 +373,17 @@ export default async function CatalogPage({
     !isExplore &&
     !subCategoryFilter;
 
-  // Main query, search-suggestions (cached), and producer-chip rows
-  // are all independent — run them in parallel so they share one
-  // round-trip tier. The producer-chip query is conditional and stubs
-  // to a null payload when not needed.
+  // Main query and producer-chip rows are independent — run them in
+  // parallel so they share one round-trip tier. The producer-chip query
+  // is conditional and stubs to a null payload when not needed. Search
+  // suggestions used to fetch here too; they now live in catalog/
+  // layout.tsx (hoisted with the sticky search bar) and dedupe through
+  // React.cache when both layout + page render in the same request.
   const [
     { data: products },
-    suggestionsList,
     { data: producerRows },
   ] = await Promise.all([
     query,
-    getCatalogSuggestions({
-      buyerType: effectiveBuyerType,
-      isB2B,
-      allowedPrivateIds,
-    }),
     showProducerChips
       ? visibleProductsQuery(db, {
           buyerType: effectiveBuyerType,
@@ -633,6 +627,11 @@ export default async function CatalogPage({
               ) : null}
             </p>
           </div>
+        ) : groupFilter ? (
+          /* Pure category drill-in: the CategoryChips pill below
+             already shows the category name; don't repeat it in the
+             heading. */
+          null
         ) : (
           <h1 className="display text-xl mt-1 mb-1">{headerTitle}</h1>
         )}
@@ -651,23 +650,6 @@ export default async function CatalogPage({
             className="mb-3"
           />
         ) : null}
-        {!isSubCategoryView ? (
-          <form action="/catalog" className="mb-3 flex gap-2">
-            <CatalogSearchInput
-              defaultValue={q}
-              placeholder="Search name or farm"
-              datalistId="catalog-suggest-list"
-            />
-            <datalist id="catalog-suggest-list">
-              {suggestionsList.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-            {groupFilter ? <input type="hidden" name="group" value={groupFilter} /> : null}
-            <button className="btn-secondary text-sm">Search</button>
-          </form>
-        ) : null}
-
         {!isBest && !showSubCategorySections && !isSubCategoryView ? (
           <div className="flex items-center gap-2 mb-4">
             <SortSheet current={sort} />
@@ -699,6 +681,7 @@ export default async function CatalogPage({
               href={`/catalog?group=${groupFilter}&subCategory=${encodeURIComponent(subCategory)}`}
               products={items}
               inGuideIds={inGuideIds}
+              isB2B={isB2B}
             />
           ))}
         </div>
@@ -707,6 +690,7 @@ export default async function CatalogPage({
           products={visibleProducts}
           fromGroup={fromGroupLabel}
           inGuideIds={inGuideIds}
+          isB2B={isB2B}
         />
       )}
     </div>

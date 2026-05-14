@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 
 // Use layout effect on the client; fall back to plain effect during SSR
@@ -77,6 +78,18 @@ export function BottomSheet({
   const PEEK_VH = 0.75;
   const FULL_VH = 0.92;
   const [heightPx, setHeightPx] = useState<number | null>(null);
+  // Gate the height transition until after first paint. Without this,
+  // the parallel-route modal flashes/expands: the sheet first paints
+  // with `height: 75vh` (heightPx === null fallback below) then the
+  // render-time lastOpen sync immediately switches to `height: Npx`,
+  // and even though the values are equivalent, the `transition: height
+  // 220ms` fires across the change. Buyer reads it as a second open
+  // animation on top of `suppressEnterAnimation`.
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setHasMounted(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   function vh(v: number) {
     if (typeof window === "undefined") return 600 * v;
@@ -232,12 +245,24 @@ export function BottomSheet({
   // Reset drag + height every time the sheet opens. Render-time sync
   // instead of useEffect so React 19's set-state-in-effect lint stays
   // green (no derivable source — open's transition is the trigger).
+  //
+  // We also seed `effectiveHeightPx` so the FIRST paint after open has
+  // the resolved px value already applied. Without this, the first
+  // paint uses the CSS fallback `${PEEK_VH * 100}vh` and the second
+  // paint switches to px. On iOS Safari those disagree (vh includes
+  // the URL bar height, window.innerHeight doesn't) so the panel
+  // visibly shrinks one frame in — buyer reported it as "takes a
+  // second, then jumps in." The setHeightPx state still rides along
+  // so drag handlers see a stable value across renders.
   const [lastOpen, setLastOpen] = useState(open);
+  let effectiveHeightPx = heightPx;
   if (lastOpen !== open) {
     setLastOpen(open);
     if (open) {
+      const resolved = vh(PEEK_VH);
       setDragOffset(0);
-      setHeightPx(vh(PEEK_VH));
+      setHeightPx(resolved);
+      effectiveHeightPx = resolved;
     }
   }
 
@@ -321,7 +346,19 @@ export function BottomSheet({
 
   if (!open) return null;
 
-  return (
+  // Portal to <body>. If any DOM ancestor of the trigger has
+  // `will-change: transform`, `transform`, `filter`, `perspective`, etc.,
+  // it establishes a new containing block for `position: fixed`
+  // descendants (per CSS spec). Rendering inline would then resolve our
+  // `inset: 0` against that ancestor instead of the viewport. Concrete
+  // regression we caught: the MobileHeader 3-dot trigger lives inside
+  // `.scroll-hide-header` which has `will-change: transform`, so the
+  // dialog rendered at height 0 with the panel positioned above the
+  // viewport — invisible to the user. Portaling to <body> bypasses every
+  // intermediate containing block in one move.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -341,11 +378,18 @@ export function BottomSheet({
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
           // No transition while the finger is on the sheet — the user's
           // drag is the source of truth. Smooth snap on release only.
+          // Height transition is gated on `hasMounted` so the first paint
+          // (where heightPx flips from null fallback to a resolved px
+          // value) doesn't animate — that was the "modal expands on
+          // first open" flash buyers reported. After mount, height
+          // changes from user drag animate smoothly as before.
           transition: dragging
             ? "none"
-            : "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
+            : hasMounted
+              ? "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)"
+              : "transform 200ms cubic-bezier(.2,.8,.2,1)",
           maxWidth: desktopMaxWidth,
-          height: heightPx != null ? `${heightPx}px` : `${PEEK_VH * 100}vh`,
+          height: effectiveHeightPx != null ? `${effectiveHeightPx}px` : `${PEEK_VH * 100}vh`,
         }}
         className={`relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating ${suppressEnterAnimation ? "" : "animate-sheet-up md:animate-slide-up"} md:!h-auto md:max-h-[92vh] flex flex-col`}
       >
@@ -378,6 +422,7 @@ export function BottomSheet({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import type { Product } from "@/lib/supabase/types";
+import type { OrderGuide, Product } from "@/lib/supabase/types";
+import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
 import { groupBySubCategory } from "@/lib/products/sub-category";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,13 +12,8 @@ import { DraftLine, pickSubstitutes } from "./DraftLine";
 import { SubmitSheet } from "./SubmitSheet";
 import { dateLong } from "@/lib/utils/format";
 import type { GuideRow, PricedProductLite } from "./page";
-
-// See CatalogSearchInput for rationale — dynamic-import keeps the
-// camera-modal + @zxing libs out of the guide's initial JS bundle.
-const BarcodeScanner = dynamic(
-  () => import("@/components/BarcodeScanner").then((m) => m.BarcodeScanner),
-  { ssr: false },
-);
+import { SearchBar } from "@/components/catalog/SearchBar";
+import { ListSwitcher } from "./ListSwitcher";
 
 interface UpcomingDelivery {
   date: string;
@@ -79,9 +74,15 @@ interface Props {
   /** Most recent cutoff was already passed (drives the "rolled forward"
    *  note + disables submit in the sheet). */
   pastCutoff?: boolean;
+  /** All of the buyer's order guides — drives the list switcher in the
+   *  header. The DEFAULT view (this component) always corresponds to the
+   *  default guide; the switcher lets the buyer flip to non-default
+   *  side-lists, which render via the simpler `NonDefaultListView`. */
+  allGuides?: OrderGuide[];
+  activeGuideId?: string | null;
 }
 
-type PricedProduct = Product & { unitPrice: number | null };
+type PricedProduct = Product & { unitPrice: number | null; packs?: PackRow[] };
 
 export function GuideClient({
   items,
@@ -99,9 +100,10 @@ export function GuideClient({
   lastOrder,
   accountPaused = false,
   pastCutoff = false,
+  allGuides = [],
+  activeGuideId = null,
 }: Props) {
   const [search, setSearch] = useState("");
-  const [scannerOpen, setScannerOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
 
   const seedRhythm = useCart((s) => s.seedRhythm);
@@ -245,7 +247,7 @@ export function GuideClient({
       out.push(p);
     }
     for (const it of items) {
-      push({ ...it.product, unitPrice: it.unitPrice });
+      push({ ...it.product, unitPrice: it.unitPrice, packs: it.packs });
     }
     for (const p of recentBuys) push(p);
     for (const p of newFromProducers) push(p);
@@ -298,9 +300,19 @@ export function GuideClient({
 
       {/* ---- Draft header ------------------------------------------------ */}
       <div className="mb-3 pt-1">
-        <div className="display text-2xl tracking-tight leading-tight">
-          Your draft for {targetDeliveryDayName ?? "next delivery"},{" "}
-          <span className="tabular">{shortDate(targetDeliveryDate)}</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="display text-2xl tracking-tight leading-tight">
+            Your draft for {targetDeliveryDayName ?? "next delivery"},{" "}
+            <span className="tabular">{shortDate(targetDeliveryDate)}</span>
+          </div>
+          {allGuides.length > 0 ? (
+            <div className="pt-1 shrink-0">
+              <ListSwitcher
+                guides={allGuides}
+                activeGuideId={activeGuideId}
+              />
+            </div>
+          ) : null}
         </div>
         <div className="text-[12px] text-ink-secondary mt-0.5">{draftHeaderSub}</div>
         {pastCutoff ? (
@@ -317,31 +329,28 @@ export function GuideClient({
               type="submit"
               className="text-[12px] text-brand-blue underline-offset-2 hover:underline"
             >
-              Or clone last {lastOrder.deliveryLabel ? lastOrder.deliveryLabel.split(" ")[0] : "order"}&apos;s order →
+              Or clone last {lastOrder.deliveryLabel ? lastOrder.deliveryLabel.split(" ")[0].replace(/,$/, "") : "order"}&apos;s order →
             </button>
           </form>
         ) : null}
       </div>
 
-      {/* ---- Search + scan ---------------------------------------------- */}
-      <div className="mb-3">
-        <div className="relative">
-          <input
-            type="search"
-            placeholder="Search your draft"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input pr-12"
-          />
-          <button
-            type="button"
-            onClick={() => setScannerOpen(true)}
-            aria-label="Scan a barcode"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 inline-flex items-center justify-center rounded-md text-ink-secondary hover:text-ink-primary hover:bg-bg-secondary transition"
-          >
-            <ScanIcon />
-          </button>
-        </div>
+      {/* ---- Search + scan ----------------------------------------------
+          Sticky pill that filters the guide rows client-side (the guide
+          is bounded — typically <100 rows — so a server round-trip would
+          be wasteful). Same component the catalog uses, in local mode.
+          top-0 anchors to the viewport edge; the StoreNav (z-30) sits
+          above and ScrollHideHeader slides it out of the way on mobile
+          scroll-down, so the search reads as the bar pinned to the top
+          while the buyer scans their draft. z-20 keeps it below sheets
+          and the cart pill. */}
+      <div className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2 bg-white/95 backdrop-blur-sm mb-3">
+        <SearchBar
+          mode="local"
+          value={search}
+          onChange={setSearch}
+          placeholder="Search your draft"
+        />
       </div>
 
       {/* ---- Draft body: rhythm-suggested lines grouped by sub-category - */}
@@ -398,6 +407,7 @@ export function GuideClient({
             products={recentBuys}
             density="dense"
             inGuideIds={inGuideSet}
+            isB2B
           />
         </div>
       ) : null}
@@ -411,6 +421,7 @@ export function GuideClient({
             const products: PricedProduct[] = filtered.map((r) => ({
               ...r.product,
               unitPrice: r.unitPrice,
+              packs: r.packs,
             }));
             const parentGroup = filtered[0]?.product.category ?? null;
             const seeAllHref = parentGroup
@@ -423,6 +434,8 @@ export function GuideClient({
                 href={seeAllHref}
                 products={products}
                 density="dense"
+                inGuideIds={inGuideSet}
+                isB2B
               />
             );
           })}
@@ -437,15 +450,10 @@ export function GuideClient({
             products={newFromProducers}
             density="dense"
             inGuideIds={inGuideSet}
+            isB2B
           />
         </div>
       ) : null}
-
-      <BarcodeScanner
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        mode="cart"
-      />
 
       <SubmitSheet
         open={submitOpen}
@@ -488,23 +496,3 @@ function shortDate(iso: string | null): string {
   return `${months[Number(m[2]) - 1]} ${Number(m[3])}`;
 }
 
-function ScanIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 7V5a1 1 0 0 1 1-1h2" />
-      <path d="M17 4h2a1 1 0 0 1 1 1v2" />
-      <path d="M20 17v2a1 1 0 0 1-1 1h-2" />
-      <path d="M7 20H5a1 1 0 0 1-1-1v-2" />
-      <path d="M7 9v6M11 9v6M15 9v6" />
-    </svg>
-  );
-}

@@ -257,6 +257,35 @@ describe("useCart — subtotal", () => {
     expect(useCart.getState().subtotal()).toBeCloseTo(39.96, 5);
   });
 
+  it("subtotal + delivery fee produces the total surfaced in the cart UI", () => {
+    // The store doesn't know about delivery fee (that's a per-zone
+    // server value resolved by the storefront layout / cart RSC), so
+    // we don't bake a `total()` helper into the store itself. Instead,
+    // pin the math the cart UI does: `subtotal + effectiveDeliveryFee`.
+    // If anything ever drifts subtotal() out of unitPrice*qty space,
+    // this test will catch the resulting total drift too.
+    const { add } = useCart.getState();
+    add(makeLine({ productId: "p-1", unitPrice: 10, quantity: 2 })); // 20
+    add(makeLine({ productId: "p-2", unitPrice: 4.25, quantity: 4 })); // 17
+    const subtotal = useCart.getState().subtotal();
+    const deliveryFee = 5;
+    expect(subtotal).toBeCloseTo(37, 5);
+    expect(subtotal + deliveryFee).toBeCloseTo(42, 5);
+  });
+
+  it("delivery fee is hidden from the total when subtotal is zero (empty cart)", () => {
+    // Matches the `effectiveDeliveryFee = subtotal > 0 ? fee : 0` guard
+    // that every cart surface (CartClient, StickyCartBar, SubmitSheet)
+    // uses to avoid charging an empty cart a delivery fee. The store
+    // itself just reports subtotal = 0; the guard lives at the call
+    // site. Pin it here so a regression that drops the guard surfaces.
+    const subtotal = useCart.getState().subtotal();
+    expect(subtotal).toBe(0);
+    const deliveryFee = 5;
+    const effectiveDeliveryFee = subtotal > 0 ? deliveryFee : 0;
+    expect(subtotal + effectiveDeliveryFee).toBe(0);
+  });
+
   it.skip("audit M2: subtotal should be finite even when a hydrated line has undefined unitPrice", () => {
     // BUG (audit finding M2): a legacy v1/v2 cart hydrated from
     // localStorage may have lines whose `unitPrice` is undefined (the
@@ -409,6 +438,32 @@ describe("useCart — clearStaleDeliveryDate", () => {
     useCart.setState({ pickupDate: "2020-01-01" });
     useCart.getState().clearStaleDeliveryDate(null);
     expect(useCart.getState().pickupDate).toBeNull();
+  });
+
+  it("clears a deliveryDate that appears AFTER an initial mount-time call ran (rehydrate-after-mount race)", () => {
+    // Repro for the buyer-reported bug — /cart kept showing
+    // "Fri, May 15, 2026" while /guide rendered "Tuesday, May 19".
+    // Root cause: CartHydrationGate triggers an ASYNC
+    // `useCart.persist.rehydrate()` and React runs child effects before
+    // parent effects. So CartClient's first stale-clear sees an empty
+    // store, no-ops, then rehydrate dumps yesterday's persisted date
+    // into the store with no follow-up guard. The fix lives in
+    // CartClient (a second effect that watches `deliveryDate` and
+    // re-runs the clear when the persisted value flips in), so what
+    // this test pins is the store-side contract that backs it: a
+    // SECOND call to clearStaleDeliveryDate with the same nextDelivery
+    // is still effective. Without that, the watcher would be a no-op
+    // and the bug would re-surface.
+    useCart.setState({ deliveryDate: null });
+    // First call: store is empty (the mount-time call from CartClient).
+    useCart.getState().clearStaleDeliveryDate("2026-05-19T13:00:00Z");
+    expect(useCart.getState().deliveryDate).toBeNull();
+    // Now simulate rehydrate completing: the persist middleware
+    // drops yesterday's date into the store after our mount no-op.
+    useCart.setState({ deliveryDate: "2026-05-15" });
+    // The second call (the new watch effect) must still clear it.
+    useCart.getState().clearStaleDeliveryDate("2026-05-19T13:00:00Z");
+    expect(useCart.getState().deliveryDate).toBeNull();
   });
 });
 

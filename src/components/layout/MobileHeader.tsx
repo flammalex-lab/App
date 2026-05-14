@@ -81,7 +81,7 @@ export function MobileHeader({ home, profile, activeAccount, memberships, next }
     cartLineCount > 0 && ms != null && ms > 0 && ms < 12 * 60 * 60 * 1000;
 
   return (
-    <header className="md:hidden bg-white border-b border-black/[0.06] h-[52px] flex items-center gap-2.5 px-3.5">
+    <header className="scroll-hide-header md:hidden bg-white border-b border-black/[0.06] h-[52px] flex items-center gap-2.5 px-3.5">
       <Link href={home} aria-label="Home" className="shrink-0 inline-flex">
         <BrandLogo size={28} />
       </Link>

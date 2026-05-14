@@ -109,15 +109,15 @@ export default function PrivacyPage() {
           <ul>
             <li>
               <strong>Opt out of SMS:</strong> reply <strong>STOP</strong> to any
-              message from us. You can also email us to disable SMS on your account.
+              message from us. You can also email orders@ilovenyfarms.com to disable SMS on your account.
               Opting out will prevent SMS-based login; you can switch to email login.
             </li>
             <li>
-              <strong>Access or correct your data:</strong> email us and we will
+              <strong>Access or correct your data:</strong> email orders@ilovenyfarms.com and we will
               respond within 30 days.
             </li>
             <li>
-              <strong>Delete your account:</strong> email us to request deletion,
+              <strong>Delete your account:</strong> email orders@ilovenyfarms.com to request deletion,
               subject to record-keeping obligations.
             </li>
           </ul>
