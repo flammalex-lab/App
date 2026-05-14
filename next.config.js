@@ -75,23 +75,17 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // staleTimes disabled to fix B3 — `TypeError: Cannot read properties
-  // of null (reading 'parentNode')` from Next's inline $RS() streaming
-  // helper, firing once per item on catalog pages (193x on
-  // /catalog?group=dairy). The warm router cache held now-unmounted
-  // Suspense placeholder trees alive long enough that $RS tried to
-  // reconcile against a parentNode that React had already detached
-  // during soft-nav stream resolve. See
-  // docs/audits/2026-05-14-full-code-audit.md (Wave 2 row #12).
-  // If we miss the perceived-snappy nav this gave us, the right
-  // re-introduction is per-route loading.tsx + explicit <Suspense>
+  // Note: experimental.staleTimes is intentionally NOT set. Next 16's
+  // default (0 / 0) avoids the warm router cache holding now-unmounted
+  // Suspense placeholder trees alive long enough that $RS() tries to
+  // reconcile against a parentNode React has already detached during
+  // soft-nav stream resolve — fix for B3, see
+  // docs/audits/2026-05-14-full-code-audit.md (Wave 2 row #12). The
+  // schema also rejects {static: 0}; minimum accepted value is 30, so
+  // we just omit the block entirely to land on the default. If we miss
+  // the perceived-snappy nav an earlier version had, the right re-
+  // introduction is per-route loading.tsx + explicit <Suspense>
   // boundaries, not a global cache extension.
-  experimental: {
-    staleTimes: {
-      dynamic: 0,
-      static: 0,
-    },
-  },
   images: {
     remotePatterns: [
       ...supabaseImagePatterns(),
