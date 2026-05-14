@@ -86,7 +86,8 @@ export function BottomSheet({
   // animation on top of `suppressEnterAnimation`.
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
-    setHasMounted(true);
+    const raf = requestAnimationFrame(() => setHasMounted(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   function vh(v: number) {
