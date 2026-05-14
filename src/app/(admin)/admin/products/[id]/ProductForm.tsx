@@ -29,6 +29,7 @@ export function ProductForm({ product }: { product: Product | null }) {
     available_this_week: product?.available_this_week ?? true,
     is_active: product?.is_active ?? true,
     private: product?.private ?? false,
+    is_peak: (product as { is_peak?: boolean } | null)?.is_peak ?? false,
   });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
@@ -118,6 +119,7 @@ export function ProductForm({ product }: { product: Product | null }) {
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.available_dtc} onChange={(e) => setForm({ ...form, available_dtc: e.target.checked })} /> Available DTC</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.available_this_week} onChange={(e) => setForm({ ...form, available_this_week: e.target.checked })} /> In stock this week</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active</label>
+        <label className="flex items-center gap-2" title='Show a "Peak" badge on the catalog card. Use for products at their seasonal best.'><input type="checkbox" checked={form.is_peak} onChange={(e) => setForm({ ...form, is_peak: e.target.checked })} /> Peak</label>
       </div>
       <label className="flex items-start gap-2 text-sm pt-1" title="Hidden from the catalog except for accounts you've added to its allow-list">
         <input type="checkbox" className="mt-0.5" checked={form.private} onChange={(e) => setForm({ ...form, private: e.target.checked })} />

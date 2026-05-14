@@ -40,6 +40,7 @@ const PRODUCT_EDITABLE_FIELDS = [
   "in_season",
   "available_this_week",
   "is_active",
+  "is_peak",
   "private",
   "image_url",
   "producer",
