@@ -1,6 +1,6 @@
 import { revalidateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { StandingOrder, StandingOrderItem, Product, Account, Profile } from "@/lib/supabase/types";
+import type { StandingOrder, StandingOrderItem, Product, Account, Profile, DeliveryZoneRow } from "@/lib/supabase/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
@@ -53,6 +53,23 @@ export async function runStandingOrder(
   }
   const subtotal = round2(priced.reduce((acc, it) => acc + (it.unitPrice as number) * Number(it.quantity), 0));
 
+  // Stamp the zone delivery fee onto the generated order so its receipt
+  // matches what /api/orders/create produces for a buyer-submitted order
+  // and so order detail + chat summaries show the same number the buyer
+  // would see at submit. delivery_fee lives on `delivery_zones` only —
+  // no account-level override exists today. Zoneless accounts (legacy
+  // DTC, etc.) keep deliveryFee = 0.
+  let deliveryFee = 0;
+  if (s.account?.delivery_zone) {
+    const { data: zone } = await svc
+      .from("delivery_zones")
+      .select("delivery_fee")
+      .eq("zone", s.account.delivery_zone)
+      .maybeSingle();
+    deliveryFee = Number((zone as Pick<DeliveryZoneRow, "delivery_fee"> | null)?.delivery_fee ?? 0);
+  }
+  const total = round2(subtotal + deliveryFee);
+
   const { data: numRow, error: numErr } = await svc.rpc("generate_order_number");
   if (numErr) return { ok: false, error: `order number rpc failed: ${numErr.message ?? String(numErr)}` };
   const order_number = (numRow as unknown as string) ?? `FLF-${Date.now()}`;
@@ -67,7 +84,8 @@ export async function runStandingOrder(
       account_id: s.account_id,
       standing_order_id: s.id,
       subtotal,
-      total: subtotal,
+      delivery_fee: deliveryFee,
+      total,
       payment_method: "invoice",
     })
     .select("id")
@@ -137,7 +155,7 @@ export async function runStandingOrder(
       toAddress: s.buyer.phone,
       body: s.require_confirmation
         ? `FLF: standing order ${order_number} is staged — reply CONFIRM to submit or visit ${process.env.NEXT_PUBLIC_APP_URL}/orders/${newOrderId}`
-        : `FLF: standing order ${order_number} submitted automatically ($${subtotal.toFixed(2)}).`,
+        : `FLF: standing order ${order_number} submitted automatically ($${total.toFixed(2)}).`,
       relatedOrderId: newOrderId,
       relatedStandingOrderId: s.id,
     });

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/supabase/types";
 import { type PackRow } from "@/app/(storefront)/catalog/[id]/ProductDetailClient";
 import { ProductDetailContent } from "@/app/(storefront)/catalog/[id]/ProductDetailContent";
@@ -21,20 +20,16 @@ export function ProductModal({
   inGuideInitial: boolean;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const close = () => router.back();
 
-  // Belt-and-braces: if the URL ever changes to something that isn't
-  // this modal route, dismiss the overlay. The "Go to cart" button now
-  // calls onClose explicitly (primary fix), but a stray Link/router.push
-  // from inside the sheet body would otherwise leave the overlay
-  // floating above the new page.
-  const initialPath = useRef(pathname);
-  useEffect(() => {
-    if (pathname !== initialPath.current) {
-      router.back();
-    }
-  }, [pathname, router]);
+  // Earlier this component had a pathname-watch effect that called
+  // router.back() whenever pathname changed away from /catalog/[id].
+  // It actively defeated the "Go to cart" fix: replacing the URL with
+  // /cart fired the watcher → back() → buyer landed somewhere upstream
+  // of /cart instead of on /cart. The parallel-route slot already
+  // collapses to default.tsx (null) on navigation to any route that
+  // doesn't match @modal/(.)catalog/[id], so the watcher was redundant
+  // belt-and-braces anyway. Removed.
 
   return (
     <BottomSheet open onClose={close} ariaLabel={product.name} desktopMaxWidth="64rem" suppressEnterAnimation>

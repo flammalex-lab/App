@@ -119,7 +119,7 @@ export default async function ProfileSheetPage() {
       <Section title="Support">
         <div className="space-y-1 -mx-1">
           <SupportRow href="sms:+16178660763" label="Text your rep" trail="(617) 866-0763" />
-          <SupportRow href="mailto:alex@ilovenyfarms.com" label="Email us" trail="alex@ilovenyfarms.com" />
+          <SupportRow href="mailto:orders@ilovenyfarms.com" label="Email us" trail="orders@ilovenyfarms.com" />
           <SupportRow
             href="https://ilovenyfarms.com"
             label="About Fingerlakes Farms"
