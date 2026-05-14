@@ -77,11 +77,24 @@ export function StickyCartBar({
   // Tick the countdown locally so the pill swaps to "Cutoff in 4h 12m"
   // smoothly without waiting on a page refresh. 60s is enough — the
   // countdown is rendered in minutes.
-  const [now, setNow] = useState(() => Date.now());
+  //
+  // B3 hydration: `now` starts null so SSR and the first CSR paint agree
+  // on the not-yet-ticking state — `pastCutoff`/`underMin`/`countdownActive`
+  // are all derived from `now`, so a lazy `Date.now()` initializer would
+  // make SSR and CSR pick different render branches when the clock crosses
+  // the cutoff between page-build and hydration. Mirrors the MobileHeader
+  // and CutoffClock fix for React error #418. First real tick is queued
+  // for the next macrotask via setTimeout(0) so the initial paint matches
+  // SSR; subsequent ticks fire each minute.
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     if (!visible) return;
+    const handle = setTimeout(() => setNow(Date.now()), 0);
     const t = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(handle);
+      clearInterval(t);
+    };
   }, [visible]);
 
   // Expose own height as a CSS var so toasts can offset above the bar.
@@ -96,10 +109,14 @@ export function StickyCartBar({
   if (!visible) return null;
 
   // ---- Determine the three states ---------------------------------------
-  const pastCutoff = next ? new Date(next.cutoffAt).getTime() - now <= 0 : false;
+  // While `now` is null (SSR + first hydration paint) we render the pill
+  // in its non-cutoff "ready" baseline so SSR and CSR markup agree. As
+  // soon as the post-mount tick lands, the cutoff branches activate.
+  const pastCutoff =
+    next && now != null ? new Date(next.cutoffAt).getTime() - now <= 0 : false;
   const underMin =
     accountMinimum > 0 && !pastCutoff && total < accountMinimum;
-  const ms = next ? new Date(next.cutoffAt).getTime() - now : null;
+  const ms = next && now != null ? new Date(next.cutoffAt).getTime() - now : null;
   const countdownActive = ms != null && ms > 0 && ms < 12 * 60 * 60 * 1000;
 
   // CTA + click handler vary by state.

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart, type CartLine } from "@/lib/cart/store";
 import { money, dateLong } from "@/lib/utils/format";
+import { isDeliveryDateStale } from "@/lib/utils/delivery-date";
 import { meetsMinimum, shortfall } from "@/lib/utils/order-minimum";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
@@ -93,6 +94,34 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-run the stale-clear whenever the persisted dates change. The
+  // mount useEffect above can fire BEFORE the cart's persist middleware
+  // finishes rehydrating from localStorage — the parent CartHydrationGate
+  // calls `useCart.persist.rehydrate()` (a Promise), and React runs child
+  // effects before parent effects. So when CartClient mounts on a buyer
+  // who already has `deliveryDate=2026-05-15` persisted, the initial
+  // clearStaleDeliveryDate sees an empty store, exits as a no-op, and
+  // then rehydrate dumps yesterday's date into the store with no further
+  // guard. This effect re-fires whenever deliveryDate/pickupDate flip
+  // (including post-rehydrate null → stale), and replaces the stale
+  // value with the freshly-computed next-delivery so /cart never shows
+  // a date older than /guide / SubmitSheet / the upcoming list.
+  const nextDeliveryIso = nextDelivery?.deliveryDate ?? null;
+  useEffect(() => {
+    if (!nextDeliveryIso) return;
+    const earliest = nextDeliveryIso.slice(0, 10);
+    if (isB2B && isDeliveryDateStale(deliveryDate, nextDeliveryIso)) {
+      // Replace (don't null) so the cart never flickers through "Pick
+      // a delivery date". The buyer never picked the stale value
+      // explicitly — it's just a leftover from an earlier session.
+      if (!nextDelivery?.pastCutoff) setDeliveryDate(earliest);
+      else setDeliveryDate(null);
+    }
+    if (!isB2B && isDeliveryDateStale(pickupDate, nextDeliveryIso)) {
+      setPickup(earliest, pickupLocationId);
+    }
+  }, [deliveryDate, pickupDate, nextDeliveryIso, isB2B, nextDelivery?.pastCutoff, pickupLocationId, setDeliveryDate, setPickup]);
+
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [lines]);
   // "Cart count" means total cases across the cart (matches the
   // floating pill + the top-bar badge). `lines.length` is the distinct-
@@ -126,11 +155,38 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
   const [dateOpen, setDateOpen] = useState(false);
   const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
 
+  // Render-time guard: never show a date older than the server-computed
+  // nextDelivery. The store may still hold a stale persisted value for
+  // the paint between rehydrate-resolves and the stale-clear effect
+  // running; this short-circuit makes sure the buyer never sees it.
+  // We display the freshly-computed earliest date instead, matching
+  // what /guide and the SubmitSheet show. The store gets corrected in
+  // the effect above on the next paint.
+  const earliestIso = nextDelivery?.deliveryDate ?? null;
+  const earliest = earliestIso ? earliestIso.slice(0, 10) : null;
+  const displayedDeliveryDate =
+    isB2B && isDeliveryDateStale(deliveryDate, earliestIso)
+      ? (nextDelivery?.pastCutoff ? null : earliest)
+      : deliveryDate;
+  const displayedPickupDate =
+    !isB2B && isDeliveryDateStale(pickupDate, earliestIso)
+      ? earliest
+      : pickupDate;
+
   const router = useRouter();
   function goToReview() {
     if (lines.length === 0) return;
-    if (isB2B && !deliveryDate) { setDateOpen(true); return; }
-    if (!isB2B && (!pickupDate || !pickupLocationId)) { setDateOpen(true); return; }
+    // Block checkout if the stored date is missing OR stale relative
+    // to the server's nextDelivery. The stale-clear effect will have
+    // run by the next paint, but a buyer who taps "Review" immediately
+    // after rehydrate would otherwise sail through with yesterday's
+    // date, then fail server-side. Open the date picker instead.
+    const deliveryReady =
+      !!deliveryDate && !isDeliveryDateStale(deliveryDate, nextDelivery?.deliveryDate ?? null);
+    const pickupReady =
+      !!pickupDate && !isDeliveryDateStale(pickupDate, nextDelivery?.deliveryDate ?? null);
+    if (isB2B && !deliveryReady) { setDateOpen(true); return; }
+    if (!isB2B && (!pickupReady || !pickupLocationId)) { setDateOpen(true); return; }
     if (underMinimum) return;
     router.push("/cart/review");
   }
@@ -209,12 +265,17 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
         </div>
       ) : null}
 
-      {/* Delivery / Note rows */}
+      {/* Delivery / Note rows.
+          Pass `displayed*Date` (not the raw persisted values) so even
+          the single paint between rehydrate-completes and the
+          stale-clear effect can't show a date older than what the
+          server returned as nextDelivery. The store still holds the
+          persisted value briefly — but the buyer never sees it. */}
       <div className="card divide-y divide-black/[0.06] overflow-hidden">
         <DeliveryRow
           isB2B={isB2B}
-          deliveryDate={deliveryDate}
-          pickupDate={pickupDate}
+          deliveryDate={displayedDeliveryDate}
+          pickupDate={displayedPickupDate}
           pickupLocationId={pickupLocationId}
           pickupLocations={pickupLocations}
           nextDelivery={nextDelivery}

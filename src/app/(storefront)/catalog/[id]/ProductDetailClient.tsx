@@ -174,11 +174,11 @@ export function ProductDetailClient({
                   <QtyInput
                     value={qty}
                     onSet={(n) => setDirectQty(p, n)}
-                    className="h-8 w-12 text-center tabular text-sm font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/30 transition-colors duration-150"
+                    className="h-8 w-12 text-center tabular text-sm font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 transition-colors duration-150"
                   />
                   <button
                     onClick={() => addOne(p)}
-                    className="h-8 w-8 rounded-full bg-brand-green text-white flex items-center justify-center hover:bg-brand-green-dark transition"
+                    className="h-8 w-8 rounded-full bg-brand-blue text-white flex items-center justify-center hover:bg-brand-blue-dark transition"
                     aria-label="Add one"
                   >
                     +
@@ -187,7 +187,7 @@ export function ProductDetailClient({
               ) : (
                 <button
                   onClick={() => addOne(p)}
-                  className="h-9 w-9 rounded-full bg-brand-green text-white text-lg flex items-center justify-center hover:bg-brand-green-dark transition shrink-0"
+                  className="h-9 w-9 rounded-full bg-brand-blue text-white text-lg flex items-center justify-center hover:bg-brand-blue-dark transition shrink-0"
                   aria-label="Add to cart"
                 >
                   +

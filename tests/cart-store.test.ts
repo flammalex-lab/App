@@ -439,6 +439,32 @@ describe("useCart — clearStaleDeliveryDate", () => {
     useCart.getState().clearStaleDeliveryDate(null);
     expect(useCart.getState().pickupDate).toBeNull();
   });
+
+  it("clears a deliveryDate that appears AFTER an initial mount-time call ran (rehydrate-after-mount race)", () => {
+    // Repro for the buyer-reported bug — /cart kept showing
+    // "Fri, May 15, 2026" while /guide rendered "Tuesday, May 19".
+    // Root cause: CartHydrationGate triggers an ASYNC
+    // `useCart.persist.rehydrate()` and React runs child effects before
+    // parent effects. So CartClient's first stale-clear sees an empty
+    // store, no-ops, then rehydrate dumps yesterday's persisted date
+    // into the store with no follow-up guard. The fix lives in
+    // CartClient (a second effect that watches `deliveryDate` and
+    // re-runs the clear when the persisted value flips in), so what
+    // this test pins is the store-side contract that backs it: a
+    // SECOND call to clearStaleDeliveryDate with the same nextDelivery
+    // is still effective. Without that, the watcher would be a no-op
+    // and the bug would re-surface.
+    useCart.setState({ deliveryDate: null });
+    // First call: store is empty (the mount-time call from CartClient).
+    useCart.getState().clearStaleDeliveryDate("2026-05-19T13:00:00Z");
+    expect(useCart.getState().deliveryDate).toBeNull();
+    // Now simulate rehydrate completing: the persist middleware
+    // drops yesterday's date into the store after our mount no-op.
+    useCart.setState({ deliveryDate: "2026-05-15" });
+    // The second call (the new watch effect) must still clear it.
+    useCart.getState().clearStaleDeliveryDate("2026-05-19T13:00:00Z");
+    expect(useCart.getState().deliveryDate).toBeNull();
+  });
 });
 
 describe("useCart — bulkSet", () => {

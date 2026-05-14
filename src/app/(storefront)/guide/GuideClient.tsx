@@ -309,7 +309,7 @@ export function GuideClient({
               type="submit"
               className="text-[12px] text-brand-blue underline-offset-2 hover:underline"
             >
-              Or clone last {lastOrder.deliveryLabel ? lastOrder.deliveryLabel.split(" ")[0] : "order"}&apos;s order →
+              Or clone last {lastOrder.deliveryLabel ? lastOrder.deliveryLabel.split(" ")[0].replace(/,$/, "") : "order"}&apos;s order →
             </button>
           </form>
         ) : null}
