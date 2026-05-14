@@ -75,6 +75,18 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Note: we intentionally do NOT set `assetPrefix` keyed on
+  // VERCEL_GIT_COMMIT_SHA. Next.js already serves `/_next/static/<build-id>/...`
+  // with hashed filenames, and Vercel appends `?dpl=<deploy-id>` for an
+  // extra CDN-level cache key — so static asset paths self-invalidate on
+  // every deploy. The remaining "I don't see my changes" failure mode is
+  // a stale service worker holding the *previous* shell, which is
+  // already addressed in `src/app/sw.js/route.ts`: the SW name embeds
+  // VERCEL_GIT_COMMIT_SHA so each deploy gets a fresh cache, the install
+  // step calls `skipWaiting()`, and `activate` calls `clients.claim()`
+  // so the new SW takes over on first navigation. An assetPrefix here
+  // would just change the URL surface without fixing anything the
+  // existing infrastructure doesn't already cover.
   // Note: experimental.staleTimes is intentionally NOT set. Next 16's
   // default (0 / 0) avoids the warm router cache holding now-unmounted
   // Suspense placeholder trees alive long enough that $RS() tries to
@@ -108,4 +120,26 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Sentry wraps the Next config to inject the build-time webpack plugin
+// (source-map upload, release tagging). With no DSN configured the
+// plugin still runs but produces no network calls — safe to ship even
+// before Alex provisions Sentry env vars.
+const { withSentryConfig } = require("@sentry/nextjs");
+
+module.exports = withSentryConfig(nextConfig, {
+  // Quiet build output unless something actually fails.
+  silent: true,
+  // Some browsers (and ad blockers) drop requests to `/static/chunks/`
+  // hash filenames; widening the upload pattern means errors from those
+  // chunks still get symbolicated. Trades a small build-time cost for
+  // far better stack traces.
+  widenClientFileUpload: true,
+  // Don't expose source maps publicly. Sentry still gets the upload via
+  // its build-time plugin (auth token) and can symbolicate server-side.
+  hideSourceMaps: true,
+  // Org / project / authToken are intentionally not hard-coded here.
+  // When Alex sets SENTRY_ORG, SENTRY_PROJECT, and SENTRY_AUTH_TOKEN as
+  // build-time env vars on Vercel, the plugin picks them up and starts
+  // uploading source maps. Until then, runtime reporting still works
+  // (events just lack symbolicated stacks for minified code).
+});
