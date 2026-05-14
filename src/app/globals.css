@@ -133,6 +133,21 @@ html[data-sheet-open="true"] .scroll-hide-header {
   z-index: 40;
 }
 
+/* Layout-flow placeholder for .scroll-hide-header. The rescue above
+   takes the wrapper OUT of flow (sticky → fixed). Without this, every
+   sibling beneath shifts up by header-height (52px) — buyer saw
+   "page jumps up on sheet open, back down on close" regardless of
+   whether the header was visible or scroll-hidden. The placeholder
+   takes the wrapper's slot while a sheet is open so layout flow is
+   preserved. Hidden by default — sticky already reserves the space. */
+.scroll-hide-header-placeholder {
+  display: none;
+  height: 52px;
+}
+html[data-sheet-open="true"] .scroll-hide-header-placeholder {
+  display: block;
+}
+
 /* Print: buyers print order confirmations from /orders/[id]. Strip every
    piece of app chrome (top cutoff strip, header, sticky cart bar, footer,
    floating buttons) so the printed page is just the receipt — order

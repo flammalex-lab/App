@@ -62,10 +62,20 @@ export function useScrollHidden(): boolean {
 export function ScrollHideHeader({ children }: { children: React.ReactNode }) {
   const hidden = useScrollHidden();
   return (
-    <div
-      className={`scroll-hide-header sticky top-0 z-30 transition-transform duration-200 will-change-transform md:!translate-y-0 ${hidden ? "-translate-y-full" : ""}`}
-    >
-      {children}
-    </div>
+    <>
+      <div
+        className={`scroll-hide-header sticky top-0 z-30 transition-transform duration-200 will-change-transform md:!translate-y-0 ${hidden ? "-translate-y-full" : ""}`}
+      >
+        {children}
+      </div>
+      {/* Layout-flow placeholder. While position: sticky, the wrapper above
+          reserves header-height in flow; while a BottomSheet is open the
+          rescue rule in globals.css swaps it to position: fixed, which
+          takes it out of flow and would let every sibling beneath shift up
+          by header-height. This placeholder takes the wrapper's 52px slot
+          while data-sheet-open is set so content stays put on open + close.
+          Hidden by default (sticky already reserves space). */}
+      <div aria-hidden className="scroll-hide-header-placeholder" />
+    </>
   );
 }
