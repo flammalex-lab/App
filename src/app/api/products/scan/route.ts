@@ -9,6 +9,26 @@ import { resolvePrice } from "@/lib/utils/pricing";
 import { isProductVisibleToAccount } from "@/lib/products/queries";
 
 /**
+ * Validate a scanned barcode / SKU string before it hits PostgREST.
+ *
+ * The lookup uses `.or("upc.ilike.<code>,sku.ilike.<code>")`, where `<code>`
+ * is interpolated raw into the filter expression. PostgREST treats `,` and
+ * `)` as clause separators and `*` as an ilike wildcard, so an unsanitized
+ * value lets a caller inject additional filter clauses (e.g.
+ * `?code=foo,id.eq.<uuid>`) or short-circuit visibility scoping with `*`.
+ *
+ * Real product codes in this codebase are alphanumeric SKUs like
+ * `BF-STR-001` (max 17 chars in current seed data) and numeric retail
+ * barcodes (UPC-A 12 digits, EAN-13 13 digits, GS1-128 up to ~48). The
+ * 32-char ceiling here gives comfortable headroom while still being tight
+ * enough to reject pasted SQL fragments. Hyphen and underscore are the
+ * only punctuation we ever expect to see.
+ */
+export function isValidBarcode(code: string): boolean {
+  return /^[A-Za-z0-9_\-]{1,32}$/.test(code);
+}
+
+/**
  * Look up a product by scanned barcode. Matches UPC first, SKU second.
  * Respects the buyer's allowed product groups so a buyer who can only
  * see produce can't accidentally add a random meat item by scanning it.
@@ -20,6 +40,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = (searchParams.get("code") ?? "").trim();
   if (!code) return NextResponse.json({ error: "missing code" }, { status: 400 });
+  if (!isValidBarcode(code)) {
+    return NextResponse.json({ error: "invalid code" }, { status: 400 });
+  }
 
   const impersonating = session.profile.role === "admin" ? await getImpersonation() : null;
   const profileId = impersonating ?? session.userId;

@@ -108,6 +108,16 @@ export function GuideClient({
   const setDeliveryDate = useCart((s) => s.setDeliveryDate);
   const persistedDeliveryDate = useCart((s) => s.deliveryDate);
   const lineCount = useCart((s) => s.lines.length);
+  const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
+
+  // ---- B1: drop any stale persisted delivery date on every mount.
+  // Runs *before* the rhythm-seed effect so the default-date branch
+  // below picks the freshly-computed `targetDeliveryDate` instead of
+  // honoring a stored date that's already past today's cutoff.
+  // Idempotent — no-op when the stored date is still valid.
+  useEffect(() => {
+    clearStaleDeliveryDate(targetDeliveryDate);
+  }, [targetDeliveryDate, clearStaleDeliveryDate]);
 
   // ---- Seed the cart with rhythm-suggested lines once, on first mount.
   // Idempotent — `seedRhythm` skips products already in the cart so a

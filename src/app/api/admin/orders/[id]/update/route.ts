@@ -3,12 +3,15 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import type { Order, OrderStatus } from "@/lib/supabase/types";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 type PrevOrder = Pick<Order, "status" | "order_number" | "profile_id" | "account_id"> & {
   buyer: { phone: string | null; email: string | null } | null;
 };
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const { id } = await params;
   const { status, internal_notes } = (await request.json()) as {

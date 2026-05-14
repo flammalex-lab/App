@@ -61,12 +61,17 @@ export function StickyCartBar({
   const total = subtotal + effectiveDeliveryFee;
 
   const onCartPage = pathname?.startsWith("/cart");
+  // Hide on /chat — the message composer is bottom-anchored and the pill
+  // (fixed at ~bottom: 120px on mobile) would otherwise occlude the input
+  // for any buyer with cart contents. /chat isn't a BottomSheet so the
+  // sheetOpen guard below doesn't cover it. Bug B2 from the audit pass.
+  const onChatPage = pathname === "/chat";
   const navHidden = useScrollHidden();
   const sheetOpen = useSheetOpen();
   // Hide while any BottomSheet is open so the cart pill doesn't peek out
   // behind the sheet backdrop. BottomSheet sets html[data-sheet-open]
   // (see BottomSheet.tsx) and useSheetOpen mirrors that into React state.
-  const visible = lines.length > 0 && !onCartPage && !sheetOpen;
+  const visible = lines.length > 0 && !onCartPage && !onChatPage && !sheetOpen;
 
   // Tick the countdown locally so the pill swaps to "Cutoff in 4h 12m"
   // smoothly without waiting on a page refresh. 60s is enough — the

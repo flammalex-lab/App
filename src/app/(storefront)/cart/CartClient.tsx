@@ -52,12 +52,19 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
   const setPickup = useCart((s) => s.setPickup);
   const orderNote = useCart((s) => s.orderNote);
   const setOrderNote = useCart((s) => s.setOrderNote);
+  const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
 
   // Seed the cart with reorder items once, on first mount
   const hydrated = useRef(false);
   useEffect(() => {
     if (hydrated.current) return;
     hydrated.current = true;
+    // B1: drop any stale stored date BEFORE we read it for defaulting.
+    // The server already re-computed `nextDelivery` for the current
+    // moment; if a persisted cart still points at last-Friday's date,
+    // null it so we fall back to the computed next-delivery instead of
+    // diverging from every other surface that says Tue 5/19.
+    clearStaleDeliveryDate(nextDelivery?.deliveryDate ?? null);
     if (reorder && reorder.length) {
       const byId = new Map<string, CartLine>();
       for (const l of lines) byId.set(l.productId, l);
@@ -70,13 +77,18 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
         /* ignore — cookie expires in 5min anyway */
       });
     }
-    // Default delivery date to the earliest available if none picked
-    if (isB2B && !deliveryDate && nextDelivery && !nextDelivery.pastCutoff) {
+    // Default delivery date to the earliest available if none picked.
+    // Note: `deliveryDate` here is the snapshot before the stale-clear
+    // ran, so we re-read from the store to avoid clobbering a fresh
+    // null with the now-cleared stale value.
+    const freshDelivery = useCart.getState().deliveryDate;
+    if (isB2B && !freshDelivery && nextDelivery && !nextDelivery.pastCutoff) {
       setDeliveryDate(nextDelivery.deliveryDate.slice(0, 10));
     }
     // Default pickup location to first available for DTC
     if (!isB2B && pickupLocations.length && !pickupLocationId) {
-      setPickup(pickupDate, pickupLocations[0].id);
+      const freshPickup = useCart.getState().pickupDate;
+      setPickup(freshPickup, pickupLocations[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

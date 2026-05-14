@@ -64,6 +64,15 @@ interface CartState {
   setDeliveryDate: (d: string | null) => void;
   setPickup: (date: string | null, locationId: string | null) => void;
   setOrderNote: (note: string) => void;
+  /**
+   * Drop a stale stored delivery/pickup date when the buyer comes back
+   * after the cutoff has rolled. Pass the freshly-computed earliest
+   * available delivery date (YYYY-MM-DD or full ISO); if our stored
+   * date is older than that or older than `now`, we null it so the UI
+   * falls back to the computed next-delivery rather than showing a
+   * date the buyer can't actually submit against. Lines are untouched.
+   */
+  clearStaleDeliveryDate: (nextDeliveryIso: string | null | undefined) => void;
   count: () => number;
   subtotal: () => number;
   // Draft-mode helpers — null-safe so legacy callers can ignore them.
@@ -175,6 +184,55 @@ export const useCart = create<CartState>()(
       setDeliveryDate: (d) => set({ deliveryDate: d }),
       setPickup: (date, locationId) => set({ pickupDate: date, pickupLocationId: locationId }),
       setOrderNote: (note) => set({ orderNote: note }),
+      /**
+       * B1 fix: a cart that was saved on May 14 had pickupDate=May 15
+       * for a Friday route. The 11am Thursday cutoff passes, every
+       * server-rendered surface re-computes next-delivery (now Tue
+       * May 19), but the cart store still holds May 15 and the
+       * /cart UI happily renders it. Null any stored date that is
+       * before the server-computed next available delivery — the UI
+       * already has a fallback path that picks the computed date.
+       *
+       * Compare on calendar-date prefixes (first 10 chars of the ISO)
+       * so a `2026-05-15` stored vs `2026-05-19T13:00:00Z` next works
+       * — we never want to keep a stored date strictly older than the
+       * next available one. Also null if the stored date is older
+       * than today's calendar date — handles cases where we somehow
+       * didn't get a fresh nextDelivery (zone misconfig etc.).
+       */
+      clearStaleDeliveryDate: (nextDeliveryIso) =>
+        set((state) => {
+          const datePrefix = (s: string | null | undefined): string | null => {
+            if (!s) return null;
+            // Accept either YYYY-MM-DD or a full ISO; we only care
+            // about the calendar date portion.
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+            return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+          };
+          const next = datePrefix(nextDeliveryIso);
+          // Local "today" in YYYY-MM-DD. Server is the source of truth
+          // for "what counts as past cutoff," but if the buyer comes
+          // back online days later and the parent forgot to pass a
+          // nextDelivery (zoneless account, etc.), this still wipes
+          // anything in the past.
+          const todayDate = new Date();
+          const y = todayDate.getFullYear();
+          const mo = String(todayDate.getMonth() + 1).padStart(2, "0");
+          const da = String(todayDate.getDate()).padStart(2, "0");
+          const today = `${y}-${mo}-${da}`;
+          function isStale(stored: string | null): boolean {
+            const sp = datePrefix(stored);
+            if (!sp) return false;
+            if (next && sp < next) return true;
+            if (sp < today) return true;
+            return false;
+          }
+          const patch: Partial<CartState> = {};
+          if (isStale(state.deliveryDate)) patch.deliveryDate = null;
+          if (isStale(state.pickupDate)) patch.pickupDate = null;
+          if (Object.keys(patch).length === 0) return state;
+          return patch as CartState;
+        }),
       count: () => get().lines.reduce((s, l) => s + (l.quantity > 0 ? 1 : 0), 0),
       subtotal: () => get().lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
 

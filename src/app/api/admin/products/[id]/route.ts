@@ -3,8 +3,11 @@ import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SUGGESTIONS_TAG } from "@/lib/products/suggestions";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const { id } = await params;
   const body = await request.json();
@@ -21,7 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json({ id });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const { id } = await params;
   const svc = createServiceClient();

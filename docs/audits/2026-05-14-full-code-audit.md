@@ -116,13 +116,85 @@ Everything else is meaningful but not on the path that breaks the app or leaks d
 
 ---
 
-## Suggested order of operations
+---
 
-1. **C1, C2, C3** in one PR (security trust-boundary). Add `requireSameOrigin()` helper, fix scan filter, fix Stripe metadata trust. Tests for each.
-2. **C4, C5, H9** in one PR (standing-order observability + error propagation). Add cart-store unit tests (M14) at the same time — same area of code.
-3. **H1** as its own PR (migration rename + squash). High coordination cost; do it standalone.
-4. **H7, H8, M15, M16** as one RLS-coverage PR.
-5. **H10, H11, H12, H13** as a frontend-trust PR.
-6. **M5, M21, M22, M23** as a perf PR — all small, all visible.
+## Dynamic browser audit (Claude Desktop, Playwright)
 
-> ⚠ **Migration reminder:** none of the SQL fixes above will land until the migration is applied in Supabase. The recommended H1 fix (rename + squash 0020–0023) is itself a migration; treat that as the marker.
+Real-user pass against head `63e495f` as `brent@ilovenyfarms.com / Test Store` on desktop 1440 + mobile 390. Items here are buyer-visible bugs that the static audit largely missed; many should ship first.
+
+### High (breaks real flows)
+
+| ID | Where | What |
+|---|---|---|
+| **B1** | `/cart` vs `/guide` Submit sheet | Cart DELIVERY DATE shows `Fri May 15` while top strip, cart pill, `/orders` empty state, and Submit-sheet title say `Tue May 19`. Submit sheet has a manual "Switch to Tue 5/19" escape hatch — cart's stored `pickupDate` never auto-rolled when the May 15 cutoff passed. Buyer who hits Submit before noticing places an order against a past-cutoff delivery. Fix in `src/lib/cart/store.ts`: on hydrate, if stored `pickupDate < nextDeliveryDate()` for the active zone, refresh it. |
+| **B2** | `/chat` on mobile 390 | Sticky cart pill (`z=20`, fixed `y=744–784`) fully occludes the chat compose input (`y=743–779`). Buyer with anything in cart can't see or use the message-rep input. #109 hides the pill behind `BottomSheet`s but `/chat`'s compose isn't a `BottomSheet`. Fix: reserve `pb-[var(--cart-bar-h)]` on the chat compose container, OR have `StickyCartBar` hide on `pathname === '/chat'`. |
+| **B3** | Every authed route | `TypeError: Cannot read properties of null (reading 'parentNode')` thrown by inline `$RS` function. Fires once per item rendered: 2 on `/guide`, 2 on `/catalog`, **193 on `/catalog?group=dairy`** (one per card). Page still renders but the spam suggests a hydration/streaming reconciliation bug — likely ScrollStrip v2 or fade-peek code reads a DOM node whose parent was unmounted. |
+| **B4** | Every page | React minified error `#418` (hydration text-node mismatch) fires once per route. Likely a date / relative-time string formatted differently SSR vs CSR — countdown ("10h 37m to cutoff") is the prime suspect. Render the countdown client-only or freeze the SSR string. |
+| **B5** | `/catalog` search | Trigram search isn't fuzzy. `kefr` (one-letter typo for "kefir") → "No products match." `kefir` exact → 1 match. The trigram index (`0036_catalog_search_trigram.sql`) is in place but the query is doing substring/exact, not `pg_trgm` similarity. Swap `ILIKE '%q%'` for `WHERE name % $1 ORDER BY similarity(name, $1) DESC` and set threshold ~0.25–0.35. |
+| **B6** | `/standing/new` mobile 390 | Save button sits below the bottom tab nav, off the safe area — hidden under iOS home indicator on real devices. Reserve `pb-[var(--tab-nav-h)] + safe-area-inset-bottom` on the form footer. |
+| **B7** | `/standing/new` | No day-of-week selected by default and no validation — form accepts Save with zero days, creating a standing order that never fires. Either pre-select today's matching weekday or block Save with inline error. |
+
+### Medium
+
+| ID | Where | What |
+|---|---|---|
+| **B8** | Sticky cart pill everywhere | Total truncates to `$658....` on the pill for 4-figure totals. Buyers can't read their own total from the most-visible chrome. Shorten the label ("Subtotal $658.40 →"), drop the qty, or allow a second line on the pill. |
+| **B9** | `/guide` header | Reads `0 lines · pulled from your last 4 Tuesdays` while the page renders × 5, × 1, × 6 quantity badges and the cart pill says `20 lines`. "0 lines" is meant to mean "0 changes from your usual" but is indistinguishable from "0 items in your draft." Reword to `0 changes from your usual` or `usual draft (no edits)`. |
+| **B10** | `/guide` Submit sheet | Submit button renders in muted/light green (looks disabled) when the sheet's delivery date is stale. Subtotal $658 > Min $300 so the gate is the date, but the button gives no signal which constraint is blocking. Message should say "Date is past cutoff — switch to Tue 5/19 to submit." |
+
+### Low
+
+| ID | Where | What |
+|---|---|---|
+| **B11** | Stock-up sheet | Each row prefixes product name with `GRASSLAND FARMS BEEF` — same producer that's already in the sheet title. Strip the redundant producer prefix from rows. |
+| **B12** | Stock-up sheet | Stepper increments update footer total ($498.67 → $506.66 on +1 of a $7.99 item) but the "38 items" counter doesn't move beyond 1/each. Reconcile "lines vs units" — either count lines (38 stays) or count units (incrementing should move it). |
+| **B13** | `/guide` preload | `link rel="preload"` for `/images/IMG_7794-scaled-3.jpg` fires but the asset isn't used within the load window. Drop the preload tag or fix the consumer. |
+| **B14** | Catalog `ProductCard` after add | Two pieces of chrome encode the same fact: × N badge top-right AND inline −/N/+ stepper below. Keep the stepper, drop the badge (or vice versa). |
+
+---
+
+## Fix plan — phased
+
+The static + dynamic findings are partitioned into waves so parallel agents can work on disjoint files.
+
+### Wave 1 — ship first (highest user impact / security)
+| # | Bucket | Static IDs | Dynamic IDs | Key files |
+|---|---|---|---|---|
+| 1 | Cart delivery-date auto-refresh + Submit gate copy | M2 | B1, B10 | `src/lib/cart/store.ts`, `src/app/(storefront)/cart/CartClient.tsx`, `src/app/(storefront)/guide/GuideClient.tsx` |
+| 2 | Chat compose vs cart pill | — | B2 | `src/app/(storefront)/chat/ChatClient.tsx`, `src/components/layout/StickyCartBar.tsx` |
+| 3 | PostgREST scan filter injection | C1 | — | `src/app/api/products/scan/route.ts` |
+| 4 | Same-origin helper + apply to admin POSTs | C2, H2 | — | new `src/lib/auth/same-origin.ts` + admin/auth/account routes |
+| 5 | Stripe webhook: verify metadata + reorder session→insert | C3, H5 | — | `src/app/api/stripe/webhook/route.ts` |
+| 6 | Standing-order runner error propagation + run-now | C4, C5, H9 | — | `src/lib/standing-orders/run.ts`, `src/app/api/standing/[id]/run-now/route.ts`, `src/lib/cron/observability.ts` |
+| 7 | Trigram fuzzy catalog search | — | B5 | catalog search query handler, possibly new SQL fn |
+| 8 | `/standing/new` safe area + day validation | — | B6, B7 | `src/app/(storefront)/standing/new/...` |
+
+### Wave 2 — ship next
+| # | Bucket | Static IDs | Dynamic IDs | Key files |
+|---|---|---|---|---|
+| 9 | Stock-up sheet (producer prefix, counter) | — | B11, B12 | stock-up sheet component |
+| 10 | Cart pill total truncation | — | B8 | `src/components/layout/StickyCartBar.tsx` |
+| 11 | `/guide` "0 lines" copy + ProductCard dup badge | — | B9, B14 | `src/app/(storefront)/guide/...`, `src/components/products/ProductCard.tsx` |
+| 12 | Hydration / `$RS parentNode` investigation | — | B3, B4 | ScrollStrip code, any relative-time renderer |
+| 13 | BottomSheet focus trap | H12 | — | `src/components/ui/BottomSheet.tsx` |
+| 14 | `localStorage` cart key scoped by user | H13 | — | `src/lib/cart/store.ts`, sign-out path |
+| 15 | Service-worker: drop HTML caching | H10 | — | `src/app/sw.js/route.ts` |
+| 16 | `createServiceClient` → `createClient` in storefront layout | H11 | — | `src/app/(storefront)/layout.tsx` |
+| 17 | Drop `/images/IMG_7794-scaled-3.jpg` preload | — | B13 | layout / page where the `<link rel=preload>` lives |
+| 18 | Admin allowlist for products/accounts upserts | H3 | — | admin routes |
+| 19 | orders/create visibility gates | H6 | — | `src/app/api/orders/create/route.ts` |
+| 20 | Async dispatch in orders/create + admin/orders update | H4 | — | orders/create, admin/orders/update |
+
+### Wave 3 — schema & infra
+| # | Bucket | Static IDs |
+|---|---|---|
+| 21 | RLS — activities buyer policies; messages/notifications via `profile_accounts`; order_items owner-delete | H7, H8, M15, M16 |
+| 22 | Migration rename/squash for duplicate `0020_*`/`0022_*` | H1 (risky — only do on a fresh tree; for an applied prod we add forward-only migrations) |
+| 23 | Indexes: `orders.placed_by_id`, `products.lower(upc)`, `accounts.enabled_categories` GIN | M17, M18, M19 |
+| 24 | `eslint-plugin-react-hooks` declared; `jest` tsconfig path; CI build job; engines pin | M9, M10, M13 |
+| 25 | `server-only` guards on Twilio/Stripe/service client; SMS daily-cap race; cron parallelism | M1, M5, M6, M7 |
+| 26 | Cart-store tests | M14 |
+| 27 | Perf — storefront layout caching, unbounded order_items scans, hero/logo image | M20, M21, M22, M23 |
+| 28 | Lows | L1–L16 |
+
+> ⚠ **Migration reminder:** none of Wave 3's SQL fixes will land until the migration is applied in Supabase. Apply each new migration before testing buyer-visible features that depend on it.

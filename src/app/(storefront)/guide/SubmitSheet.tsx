@@ -75,9 +75,20 @@ export function SubmitSheet({
 
   const selectedDate = deliveryDate ?? upcomingDeliveries[0]?.date ?? null;
   const altDeliveries = upcomingDeliveries.filter((u) => u.date !== selectedDate).slice(0, 4);
+  // B1/B10: the selected date is "stale" when it's missing from the
+  // server's fresh upcoming-delivery list. That means the cutoff for
+  // that day already rolled. The first item in `upcomingDeliveries` is
+  // the next valid date — use that for the inline fallback CTA.
+  const selectedDateIsStale = Boolean(
+    selectedDate &&
+      upcomingDeliveries.length > 0 &&
+      !upcomingDeliveries.some((u) => u.date === selectedDate),
+  );
+  const dateGated = pastCutoff || selectedDateIsStale;
+  const firstFreshDelivery = upcomingDeliveries[0] ?? null;
 
   async function submit() {
-    if (lines.length === 0 || underMinimum || pastCutoff) return;
+    if (lines.length === 0 || underMinimum || dateGated) return;
     if (!selectedDate) {
       toast.push("Pick a delivery date first.", "error");
       return;
@@ -244,6 +255,31 @@ export function SubmitSheet({
           </p>
         ) : null}
 
+        {/* B10: when the submit gate is the date (not the minimum or
+            empty lines), call it out inline so the muted button has a
+            visible reason. Without this, the only hint the buyer has
+            is the "Switch to..." link buried in the delivery row. */}
+        {dateGated && !underMinimum && lines.length > 0 ? (
+          <p className="text-[12px] text-accent-rust leading-snug">
+            Date is past cutoff
+            {firstFreshDelivery
+              ? (
+                <>
+                  {" — "}
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryDate(firstFreshDelivery.date)}
+                    className="underline underline-offset-2 font-medium hover:text-accent-rust/80"
+                  >
+                    switch to {firstFreshDelivery.dayName.slice(0, 3)} {formatShortDate(firstFreshDelivery.date)}
+                  </button>{" "}
+                  to submit.
+                </>
+              )
+              : "."}
+          </p>
+        ) : null}
+
         {/* ---- Submit -------------------------------------------------- */}
         {/* Brand-green is the commit moment — the ONLY place it appears in
             the repeat-buyer order loop. Inline classes instead of Button's
@@ -252,11 +288,15 @@ export function SubmitSheet({
         <button
           type="button"
           onClick={submit}
-          disabled={lines.length === 0 || underMinimum || pastCutoff || placing}
+          disabled={lines.length === 0 || underMinimum || dateGated || placing}
           className="btn w-full bg-brand-green text-white hover:bg-brand-green-dark active:scale-[0.99] focus:ring-2 focus:ring-brand-green/40 px-5 py-3 text-base"
         >
-          {placing ? "Placing order" : "Submit order"}
-          {!placing ? <span aria-hidden>→</span> : null}
+          {placing
+            ? "Placing order"
+            : dateGated && lines.length > 0 && !underMinimum
+              ? "Pick a valid delivery date"
+              : "Submit order"}
+          {!placing && !(dateGated && lines.length > 0 && !underMinimum) ? <span aria-hidden>→</span> : null}
         </button>
         <p className="text-[12px] text-ink-tertiary text-center -mt-1">
           You can amend until cutoff — just open the order.
