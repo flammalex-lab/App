@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface PatchBody {
   name?: string;
@@ -12,6 +13,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {
@@ -34,9 +37,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {

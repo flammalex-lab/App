@@ -3,12 +3,15 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { findDefaultGuide, getOrCreateDefaultGuide } from "@/lib/order-guides/default-guide";
 import { seedGuideFromTemplates } from "@/lib/order-guides/templates";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 /** Add one or more templates as seed sources for a buyer's default guide. */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {
@@ -47,6 +50,8 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {

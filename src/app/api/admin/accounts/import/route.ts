@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizePhone } from "@/lib/utils/phone";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface Row {
   name: string;
@@ -15,6 +16,8 @@ interface Row {
 }
 
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const { rows } = (await request.json()) as { rows: Row[] };
   const svc = createServiceClient();

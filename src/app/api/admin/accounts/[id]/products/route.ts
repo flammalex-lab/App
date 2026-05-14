@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SUGGESTIONS_TAG } from "@/lib/products/suggestions";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface Input {
   productIds: string[];
@@ -12,6 +13,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {

@@ -13,7 +13,6 @@ export default function LoginPage() {
         src="/images/IMG_7794-scaled-3.jpg"
         alt=""
         fill
-        priority
         sizes="100vw"
         className="object-cover object-center -z-20"
       />

@@ -14,6 +14,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (row.profile_id !== session.userId && session.profile.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  await runStandingOrder(svc, id);
-  return NextResponse.redirect(new URL("/standing", request.url), { status: 303 });
+  const result = await runStandingOrder(svc, id);
+  const redirectUrl = new URL("/standing", request.url);
+  if (!result.ok) {
+    // Pass the failure reason through the redirect so the standing-orders
+    // page can surface it instead of pretending the run succeeded.
+    redirectUrl.searchParams.set("error", "run_failed");
+    redirectUrl.searchParams.set("reason", result.error.slice(0, 200));
+  }
+  return NextResponse.redirect(redirectUrl, { status: 303 });
 }

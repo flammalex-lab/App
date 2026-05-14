@@ -64,6 +64,15 @@ interface CartState {
   setDeliveryDate: (d: string | null) => void;
   setPickup: (date: string | null, locationId: string | null) => void;
   setOrderNote: (note: string) => void;
+  /**
+   * Drop a stale stored delivery/pickup date when the buyer comes back
+   * after the cutoff has rolled. Pass the freshly-computed earliest
+   * available delivery date (YYYY-MM-DD or full ISO); if our stored
+   * date is older than that or older than `now`, we null it so the UI
+   * falls back to the computed next-delivery rather than showing a
+   * date the buyer can't actually submit against. Lines are untouched.
+   */
+  clearStaleDeliveryDate: (nextDeliveryIso: string | null | undefined) => void;
   count: () => number;
   subtotal: () => number;
   // Draft-mode helpers — null-safe so legacy callers can ignore them.
@@ -175,6 +184,55 @@ export const useCart = create<CartState>()(
       setDeliveryDate: (d) => set({ deliveryDate: d }),
       setPickup: (date, locationId) => set({ pickupDate: date, pickupLocationId: locationId }),
       setOrderNote: (note) => set({ orderNote: note }),
+      /**
+       * B1 fix: a cart that was saved on May 14 had pickupDate=May 15
+       * for a Friday route. The 11am Thursday cutoff passes, every
+       * server-rendered surface re-computes next-delivery (now Tue
+       * May 19), but the cart store still holds May 15 and the
+       * /cart UI happily renders it. Null any stored date that is
+       * before the server-computed next available delivery — the UI
+       * already has a fallback path that picks the computed date.
+       *
+       * Compare on calendar-date prefixes (first 10 chars of the ISO)
+       * so a `2026-05-15` stored vs `2026-05-19T13:00:00Z` next works
+       * — we never want to keep a stored date strictly older than the
+       * next available one. Also null if the stored date is older
+       * than today's calendar date — handles cases where we somehow
+       * didn't get a fresh nextDelivery (zone misconfig etc.).
+       */
+      clearStaleDeliveryDate: (nextDeliveryIso) =>
+        set((state) => {
+          const datePrefix = (s: string | null | undefined): string | null => {
+            if (!s) return null;
+            // Accept either YYYY-MM-DD or a full ISO; we only care
+            // about the calendar date portion.
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+            return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+          };
+          const next = datePrefix(nextDeliveryIso);
+          // Local "today" in YYYY-MM-DD. Server is the source of truth
+          // for "what counts as past cutoff," but if the buyer comes
+          // back online days later and the parent forgot to pass a
+          // nextDelivery (zoneless account, etc.), this still wipes
+          // anything in the past.
+          const todayDate = new Date();
+          const y = todayDate.getFullYear();
+          const mo = String(todayDate.getMonth() + 1).padStart(2, "0");
+          const da = String(todayDate.getDate()).padStart(2, "0");
+          const today = `${y}-${mo}-${da}`;
+          function isStale(stored: string | null): boolean {
+            const sp = datePrefix(stored);
+            if (!sp) return false;
+            if (next && sp < next) return true;
+            if (sp < today) return true;
+            return false;
+          }
+          const patch: Partial<CartState> = {};
+          if (isStale(state.deliveryDate)) patch.deliveryDate = null;
+          if (isStale(state.pickupDate)) patch.pickupDate = null;
+          if (Object.keys(patch).length === 0) return state;
+          return patch as CartState;
+        }),
       count: () => get().lines.reduce((s, l) => s + (l.quantity > 0 ? 1 : 0), 0),
       subtotal: () => get().lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
 
@@ -266,8 +324,25 @@ export const useCart = create<CartState>()(
       },
     }),
     {
-      name: "flf-cart",
+      // H13 NOTE: see helper `scopeCartToUser` below — that's the
+      // single entry point the storefront layout uses to rebind the
+      // persist key. Don't call `persist.setOptions` from random
+      // components; race conditions there will hydrate the wrong cart.
+      //
+      // The placeholder name below is what zustand uses if no gate ever
+      // runs (e.g. the /login or /admin surfaces, which don't render the
+      // storefront layout and don't read the cart anyway). The gate calls
+      // `useCart.persist.setOptions({ name: \`flf-cart:${userId}\` })` +
+      // `useCart.persist.rehydrate()` once the active session is known,
+      // and migrates any legacy `flf-cart` key into the per-user slot.
+      //
+      // skipHydration: true means components rendering useCart before
+      // the gate runs see the in-memory default (empty cart) rather than
+      // the previous buyer's persisted lines. The gate's rehydrate fills
+      // them in within the same paint cycle on the storefront layout.
+      name: "flf-cart:anon",
       version: 3,
+      skipHydration: true,
       // If an older persisted cart is missing the new fields, backfill so
       // the app doesn't blow up on hydrate.
       migrate: (persisted: any) => {
@@ -294,3 +369,55 @@ export const useCart = create<CartState>()(
     },
   ),
 );
+
+/**
+ * H13: localStorage key was historically a fixed string `"flf-cart"` so
+ * two buyers sharing one device leaked carts across sign-outs. The
+ * storefront layout calls this once it knows the active session's
+ * userId; we rewrite the persist key to `flf-cart:${userId}` (or
+ * `flf-cart:anon` if there isn't one yet), migrate the legacy key on
+ * first run, and rehydrate. Idempotent — re-calling with the same
+ * userId is a no-op aside from the (cheap) rehydrate.
+ *
+ * `setOptions` + manual `rehydrate()` is the supported zustand v4
+ * pattern for swapping persist keys mid-app. We pair it with
+ * `skipHydration: true` in the persist config so no component reads
+ * the wrong key before this runs.
+ *
+ * Returns void; failures are swallowed (localStorage may be blocked,
+ * SSR, etc.) — an empty cart is the right fallback in every case.
+ */
+let lastScopedUserId: string | null = null;
+export function scopeCartToUser(userId: string | null | undefined): void {
+  if (typeof window === "undefined") return;
+  const id = userId ?? "anon";
+  if (lastScopedUserId === id) {
+    // Same user as last call — no key change. Still call rehydrate once
+    // on first mount (lastScopedUserId starts null, so this only really
+    // matters for "anon"->"anon" hot reloads). Cheap.
+    void useCart.persist.rehydrate();
+    return;
+  }
+  const nextName = `flf-cart:${id}`;
+  // One-time migration from the legacy fixed `flf-cart` key. If the
+  // legacy key still holds a cart AND the new per-user slot is empty,
+  // adopt it for this buyer (they're the first to sign in on this
+  // device after the upgrade). Subsequent buyers get a fresh empty
+  // cart. The legacy key is deleted either way so it can't leak again.
+  try {
+    const legacy = window.localStorage.getItem("flf-cart");
+    if (legacy !== null) {
+      const existing = window.localStorage.getItem(nextName);
+      if (existing === null) {
+        window.localStorage.setItem(nextName, legacy);
+      }
+      window.localStorage.removeItem("flf-cart");
+    }
+  } catch {
+    // localStorage may be disabled; rehydrate still attempts read.
+  }
+  useCart.persist.setOptions({ name: nextName });
+  // Promise — fire and forget. Subscribers re-render once it lands.
+  void useCart.persist.rehydrate();
+  lastScopedUserId = id;
+}

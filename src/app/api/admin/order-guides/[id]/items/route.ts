@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface ItemInput {
   product_id: string;
@@ -15,6 +16,8 @@ interface ItemInput {
  * revisit.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {

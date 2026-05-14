@@ -80,12 +80,24 @@ export async function POST(request: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const id = session.metadata?.order_id;
         if (id) {
-          const { error } = await svc.from("orders").update({
+          // Ownership check: the order's stored stripe_payment_id was set to
+          // the session id at /api/orders/create time. Scope the update by
+          // BOTH the metadata-supplied order_id AND the matching session id
+          // so a forged metadata.order_id targeting someone else's order
+          // can't flip its status. Done in the WHERE clause (not a select-
+          // then-update) so the check is atomic at the DB.
+          const { data: updated, error } = await svc.from("orders").update({
             status: "confirmed",
             payment_status: "paid",
             stripe_payment_id: (session.payment_intent as string) ?? session.id,
-          }).eq("id", id);
+          }).eq("id", id).eq("stripe_payment_id", session.id).select("id");
           if (error) mutationError = error.message;
+          else if (!updated || updated.length === 0) {
+            // metadata.order_id didn't match the order this session belongs
+            // to. Log and 200 — returning 500 would make Stripe retry an
+            // unwinnable mutation. Mutation is intentionally skipped.
+            console.warn("[stripe webhook] checkout.session.completed: metadata.order_id does not match order's stripe_payment_id", { eventId: event.id, sessionId: session.id, metadataOrderId: id });
+          }
         }
         break;
       }
@@ -197,30 +209,57 @@ function looksLikeEnumViolation(message: string): boolean {
 }
 
 async function orderIdForPaymentIntent(svc: Svc, pi: Stripe.PaymentIntent): Promise<string | null> {
+  // Ownership-safe lookup: prefer the stripe_payment_id index (set when
+  // checkout.session.completed wrote the PI id into the row). Falling
+  // back to metadata.order_id alone would let an attacker with API-key
+  // access mark an arbitrary order as failed by crafting a PI with that
+  // metadata; verify the metadata-claimed order actually points back at
+  // this PI before trusting it.
+  const byPI = await orderIdByStripePaymentId(svc, pi.id);
+  if (byPI) return byPI;
   const fromMeta = pi.metadata?.order_id;
-  if (fromMeta) return fromMeta;
-  return orderIdByStripePaymentId(svc, pi.id);
+  if (fromMeta) return orderIdIfMatchesStripeId(svc, fromMeta, pi.id);
+  return null;
 }
 
 async function orderIdForCharge(svc: Svc, charge: Stripe.Charge): Promise<string | null> {
-  const fromMeta = charge.metadata?.order_id;
-  if (fromMeta) return fromMeta;
   const piId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
-  if (piId) return orderIdByStripePaymentId(svc, piId);
+  if (piId) {
+    const byPI = await orderIdByStripePaymentId(svc, piId);
+    if (byPI) return byPI;
+    const fromMeta = charge.metadata?.order_id;
+    if (fromMeta) return orderIdIfMatchesStripeId(svc, fromMeta, piId);
+  }
   return null;
 }
 
 async function orderIdForDispute(svc: Svc, dispute: Stripe.Dispute): Promise<string | null> {
-  const fromMeta = (dispute.metadata as Record<string, string> | undefined)?.order_id;
-  if (fromMeta) return fromMeta;
   const piId = typeof dispute.payment_intent === "string"
     ? dispute.payment_intent
     : dispute.payment_intent?.id;
-  if (piId) return orderIdByStripePaymentId(svc, piId);
+  if (piId) {
+    const byPI = await orderIdByStripePaymentId(svc, piId);
+    if (byPI) return byPI;
+    const fromMeta = (dispute.metadata as Record<string, string> | undefined)?.order_id;
+    if (fromMeta) return orderIdIfMatchesStripeId(svc, fromMeta, piId);
+  }
   return null;
 }
 
 async function orderIdByStripePaymentId(svc: Svc, paymentId: string): Promise<string | null> {
   const { data } = await svc.from("orders").select("id").eq("stripe_payment_id", paymentId).maybeSingle();
   return (data as { id: string } | null)?.id ?? null;
+}
+
+/**
+ * Verify that a metadata-supplied order id actually belongs to the given
+ * Stripe payment. Guards against forged metadata.order_id targeting a
+ * different account's order. Returns the id only if the row's
+ * stripe_payment_id matches.
+ */
+async function orderIdIfMatchesStripeId(svc: Svc, orderId: string, stripeId: string): Promise<string | null> {
+  const { data } = await svc.from("orders").select("id").eq("id", orderId).eq("stripe_payment_id", stripeId).maybeSingle();
+  if ((data as { id: string } | null)?.id) return orderId;
+  console.warn("[stripe webhook] metadata.order_id does not match stripe_payment_id on row — skipping", { orderId, stripeId });
+  return null;
 }

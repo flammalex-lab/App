@@ -8,6 +8,15 @@ import type { ReactNode } from "react";
 // and before paint to avoid the page briefly snapping to top on open.
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
+// Standard focusables selector for the focus trap. Excludes disabled,
+// hidden inputs, and elements with tabindex=-1.
+const FOCUSABLES =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Reference count of currently-open sheets so we don't strip aria-hidden
+// off <main> while a nested sheet is still open.
+let openSheetCount = 0;
+
 /**
  * Mobile-first bottom sheet. Slides up from the bottom edge, supports
  * touch drag-to-dismiss, locks body scroll while open. On md+ it
@@ -36,6 +45,9 @@ export function BottomSheet({
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // The element that was focused before the sheet opened, so we can
+  // hand focus back when it closes.
+  const previouslyFocused = useRef<HTMLElement | null>(null);
   const startY = useRef<number | null>(null);
   // Source of the gesture: drag handle (always treats as sheet drag) vs
   // inner scroll area (only treats as sheet drag while inner is at top
@@ -114,6 +126,98 @@ export function BottomSheet({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  // Focus management:
+  //  - capture document.activeElement on open so we can restore later
+  //  - move focus into the sheet (autoFocus element wins, else first focusable)
+  //  - on cleanup, restore focus to the captured element if still in DOM
+  useEffect(() => {
+    if (!open) return;
+    previouslyFocused.current =
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+
+    // Defer to a microtask so the sheet's mount animation doesn't fight
+    // a synchronous focus call (some browsers scroll the focused element
+    // into view mid-animation and the layout flickers).
+    const id = window.setTimeout(() => {
+      const root = sheetRef.current;
+      if (!root) return;
+      const auto = root.querySelector<HTMLElement>("[autofocus], [autoFocus]");
+      if (auto) {
+        auto.focus({ preventScroll: true });
+        return;
+      }
+      const first = root.querySelector<HTMLElement>(FOCUSABLES);
+      if (first) first.focus({ preventScroll: true });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(id);
+      const prev = previouslyFocused.current;
+      previouslyFocused.current = null;
+      if (prev && document.contains(prev)) {
+        // preventScroll so closing a sheet doesn't jump the page back to
+        // wherever the trigger sits in the viewport.
+        prev.focus({ preventScroll: true });
+      }
+    };
+  }, [open]);
+
+  // Focus trap: keep Tab/Shift+Tab cycling inside the sheet root.
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const root = sheetRef.current;
+      if (!root) return;
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLES)).filter(
+        (n) => !n.hasAttribute("disabled") && n.tabIndex !== -1
+      );
+      if (nodes.length === 0) {
+        // Degenerate sheet (no focusables) — let Tab through rather than
+        // creating a black-hole focus state.
+        return;
+      }
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      // If focus has escaped the sheet entirely (browser focused something
+      // behind the backdrop), pull it back in on the next Tab.
+      if (!active || !root.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus({ preventScroll: true });
+        return;
+      }
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  // Hide page content from assistive tech while the sheet is open.
+  // Refcount across sheets so a nested sheet's cleanup doesn't strip
+  // aria-hidden from <main> while an outer sheet is still open.
+  useEffect(() => {
+    if (!open) return;
+    const main = document.querySelector("main");
+    openSheetCount += 1;
+    if (main && openSheetCount === 1) {
+      main.setAttribute("aria-hidden", "true");
+    }
+    return () => {
+      openSheetCount = Math.max(0, openSheetCount - 1);
+      if (openSheetCount === 0) {
+        const m = document.querySelector("main");
+        if (m) m.removeAttribute("aria-hidden");
+      }
+    };
+  }, [open]);
 
   // Reset drag + height every time the sheet opens. Render-time sync
   // instead of useEffect so React 19's set-state-in-effect lint stays

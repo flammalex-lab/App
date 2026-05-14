@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizePhone } from "@/lib/utils/phone";
 import { seedGuideFromTemplates } from "@/lib/order-guides/templates";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface InviteBody {
   phone: string;
@@ -15,6 +16,8 @@ interface InviteBody {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try {
     await requireAdmin();
   } catch {

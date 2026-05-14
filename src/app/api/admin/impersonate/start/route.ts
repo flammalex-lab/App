@@ -2,54 +2,12 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { setImpersonation } from "@/lib/auth/impersonation";
+import { isSameOrigin, requireSameOrigin } from "@/lib/auth/same-origin";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * Anti-CSRF: only accept POSTs that we can prove originate same-origin.
- *
- * Three signals, in priority order:
- *   1. Origin header — modern browsers send this on every POST.
- *   2. Referer header — older browsers / odd clients.
- *   3. Sec-Fetch-Site=same-origin — Fetch Metadata header that browsers
- *      send untouched even when overzealous corporate proxies / privacy
- *      extensions strip Origin and Referer.
- *
- * If all three are missing the request is rejected as suspicious — that's
- * the right default for a state-mutating admin endpoint, but it can bite
- * legitimate admins behind unusual proxies. The error response says
- * "cross-origin request rejected" so an operator seeing it can recognize
- * the cause.
- */
-function originOk(request: Request): boolean {
-  const reqUrl = new URL(request.url);
-  const origin = request.headers.get("origin");
-  if (origin) {
-    try {
-      return new URL(origin).host === reqUrl.host;
-    } catch {
-      return false;
-    }
-  }
-  const referer = request.headers.get("referer");
-  if (referer) {
-    try {
-      return new URL(referer).host === reqUrl.host;
-    } catch {
-      return false;
-    }
-  }
-  // Fetch Metadata fallback for proxies that strip Origin + Referer.
-  // browsers send this header on every fetch they originate; an attacker
-  // site cannot forge "same-origin" for a cross-site POST.
-  if (request.headers.get("sec-fetch-site") === "same-origin") {
-    return true;
-  }
-  return false;
-}
-
 export async function POST(request: Request) {
-  if (!originOk(request)) {
+  if (!isSameOrigin(request)) {
     // Log the missing-headers case so an admin reporting a 403 they don't
     // understand can be diagnosed quickly: usually a corporate proxy or
     // privacy extension that strips Origin / Referer / Sec-Fetch-Site.
@@ -61,7 +19,7 @@ export async function POST(request: Request) {
         secFetchSite: request.headers.get("sec-fetch-site"),
       },
     );
-    return NextResponse.json({ error: "cross-origin request rejected" }, { status: 403 });
+    return requireSameOrigin(request)!;
   }
 
   let admin;
