@@ -54,7 +54,19 @@ export const viewport: Viewport = {
   themeColor: "#1763B5",
   width: "device-width",
   initialScale: 1,
+  // Lock pinch-zoom. This is a B2B portal where the design is the
+  // design and accidental zooms during one-handed scrolling were
+  // creating buyer confusion. A11y caveat: turns off user scaling,
+  // which is iOS's default behavior anyway when `userScalable: false`.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
+  // Tell mobile browsers to resize the layout viewport (not just the
+  // visual viewport) when the URL bar / virtual keyboard expands.
+  // Without this, on iOS Safari the URL bar expanding on scroll-up
+  // covers our fixed-bottom tab nav — buyer reported the nav
+  // "disappearing behind the URL bar."
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
