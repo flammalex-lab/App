@@ -172,6 +172,15 @@ export function StickyCartBar({
 
   if (underMin) {
     const shortfall = Math.max(0, accountMinimum - total);
+    // Round up so the buyer sees a whole-dollar gap to close, never a
+    // false "you only need $0.79 more" that the cart can't actually
+    // satisfy with real prices. `Math.ceil` matches the warm framing —
+    // "add a bit more" reads better than "add $63.31".
+    const shortfallDollars = Math.ceil(shortfall);
+    const dayName = next?.deliveryDayName ?? null;
+    const headline = dayName
+      ? `Add $${shortfallDollars} to ship ${dayName}`
+      : `Add $${shortfallDollars} to submit`;
     return (
       <div className={wrapperClass}>
         <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
@@ -184,7 +193,7 @@ export function StickyCartBar({
             <span aria-hidden className="h-8 w-1 rounded-full bg-accent-gold shrink-0" />
             <span className="flex-1 min-w-0 leading-tight">
               <span className="block text-sm font-semibold tabular">
-                {money(shortfall)} to your {money(accountMinimum)} minimum
+                {headline}
               </span>
               {countdownActive ? (
                 <span className="block text-[11px] text-[#8a690f]/70 tabular truncate">
@@ -193,7 +202,6 @@ export function StickyCartBar({
               ) : null}
             </span>
             <span className="inline-flex items-center gap-1 text-sm font-bold shrink-0 text-brand-blue">
-              Review
               <ArrowIcon />
             </span>
           </button>

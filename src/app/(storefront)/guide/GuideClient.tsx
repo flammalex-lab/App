@@ -110,6 +110,7 @@ export function GuideClient({
   const setDeliveryDate = useCart((s) => s.setDeliveryDate);
   const persistedDeliveryDate = useCart((s) => s.deliveryDate);
   const lineCount = useCart((s) => s.lines.length);
+  const adjustedKeys = useCart((s) => s.adjustedKeys);
   const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
 
   // ---- B1: drop any stale persisted delivery date on every mount.
@@ -271,7 +272,19 @@ export function GuideClient({
   const dateLabel = targetDeliveryDate
     ? dateLong(targetDeliveryDate)
     : "your next delivery";
-  const draftHeaderSub = `${draftRows.length} ${draftRows.length === 1 ? "edit" : "edits"} · pulled from your last 4 ${targetDeliveryDayName ? `${targetDeliveryDayName}s` : "deliveries"}`;
+  // Count rhythm rows the buyer has personally diverged from. `adjustedKeys`
+  // is a superset of `skippedKeys` (skipLine flags both) — so quantity
+  // tweaks, skips, and add-backs all count as "edits." Keys use the
+  // draft-default `variantKey = null`, mirroring how lines are seeded.
+  const editCount = useMemo(() => {
+    const set = new Set(adjustedKeys);
+    let n = 0;
+    for (const r of draftRows) {
+      if (set.has(`${r.product.id}::`)) n += 1;
+    }
+    return n;
+  }, [adjustedKeys, draftRows]);
+  const draftHeaderSub = `${draftRows.length} ${draftRows.length === 1 ? "line" : "lines"} · pulled from your last 4 ${targetDeliveryDayName ? `${targetDeliveryDayName}s` : "deliveries"} · ${editCount} ${editCount === 1 ? "edit" : "edits"}`;
 
   return (
     <>
