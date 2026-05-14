@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendSms } from "@/lib/twilio/client";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 /** Admin sends a message — writes to thread AND delivers via SMS to buyer's phone. */
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   let admin;
   try { admin = await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const { accountId, body } = (await request.json()) as { accountId: string; body: string };

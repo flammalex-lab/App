@@ -3,8 +3,11 @@ import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { setActiveAccountCookie } from "@/lib/auth/active-account";
 import type { ProfileAccount } from "@/lib/supabase/types";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 

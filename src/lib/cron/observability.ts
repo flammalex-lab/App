@@ -17,11 +17,29 @@ export async function recordCronRun<T>(
   fn: (ctx: { setRowsAffected: (n: number) => void }) => Promise<T>,
 ): Promise<T> {
   let rowsAffected: number | null = null;
-  const { data: inserted } = await svc
+  const { data: inserted, error: insertErr } = await svc
     .from("cron_runs")
     .insert({ job, status: "ok" })
     .select("id")
     .single();
+  if (insertErr) {
+    // Without a runId we lose all observability for this invocation. Log it
+    // loudly so it shows up in Vercel logs even when the schema is missing
+    // (e.g. migration 0031 not yet applied).
+    console.error(
+      `[cron] failed to insert cron_runs row for job="${job}" — observability will be degraded:`,
+      insertErr,
+    );
+    // In dev, fail fast so the missing migration / schema mismatch is
+    // impossible to ignore. In prod, degrade gracefully — running with no
+    // observability beats not running at all.
+    if (process.env.NODE_ENV === "development") {
+      throw new Error(
+        `cron_runs insert failed for job="${job}": ${insertErr.message ?? String(insertErr)}. ` +
+          `Did migration 0031_cron_runs.sql get applied?`,
+      );
+    }
+  }
   const runId = (inserted as { id: string } | null)?.id ?? null;
 
   try {

@@ -9,6 +9,7 @@ import { meetsMinimum, effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { buyerHistoryTag } from "@/lib/products/buyer-history";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface BodyLine {
   productId: string;
@@ -29,6 +30,8 @@ interface Body {
 }
 
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -140,27 +143,88 @@ export async function POST(request: Request) {
   if (numErr) return NextResponse.json({ error: numErr.message }, { status: 500 });
   const order_number = (orderNumRow as unknown as string) ?? `FLF-${Date.now()}`;
 
+  // For Stripe-paid orders: create the checkout session BEFORE the orders
+  // insert. If Stripe throws we abort with no DB writes (no stranded draft
+  // order, no misleading "order placed" system message). We pre-generate
+  // the order id locally so we can both pass it as session metadata AND
+  // populate the insert row's stripe_payment_id atomically.
+  let preGeneratedOrderId: string | null = null;
+  let stripeCheckoutUrl: string | null = null;
+  let stripeSessionId: string | null = null;
+  if (body.paymentMethod === "stripe") {
+    try {
+      const stripe = getStripe();
+      const lineItems = pricedLines.map((l) => ({
+        quantity: l.quantity,
+        price_data: {
+          currency: "usd",
+          unit_amount: Math.round((l.unitPrice as number) * 100),
+          product_data: {
+            name: l.productName,
+            description: l.packSize ?? undefined,
+          },
+        },
+      }));
+      if (deliveryFee > 0) {
+        lineItems.push({
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: Math.round(deliveryFee * 100),
+            product_data: { name: "Delivery fee", description: undefined },
+          },
+        });
+      }
+      preGeneratedOrderId = crypto.randomUUID();
+      const checkout = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: lineItems,
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${preGeneratedOrderId}?paid=1`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
+        metadata: { order_id: preGeneratedOrderId },
+      });
+      stripeCheckoutUrl = checkout.url;
+      stripeSessionId = checkout.id;
+    } catch (e: any) {
+      return NextResponse.json({ error: `Stripe: ${e.message}` }, { status: 500 });
+    }
+  }
+
+  const orderInsertRow: Record<string, unknown> = {
+    order_number,
+    order_type: body.orderType,
+    status: body.paymentMethod === "stripe" ? "draft" : "pending",
+    profile_id: effectiveProfile.id,
+    account_id: effectiveProfile.account_id,
+    placed_by_id: placedById,
+    requested_delivery_date: body.requestedDeliveryDate,
+    pickup_date: body.pickupDate,
+    pickup_location_id: body.pickupLocationId,
+    subtotal,
+    delivery_fee: deliveryFee,
+    total,
+    payment_method: body.paymentMethod,
+    customer_notes: body.customerNotes,
+  };
+  if (preGeneratedOrderId) orderInsertRow.id = preGeneratedOrderId;
+  if (stripeSessionId) orderInsertRow.stripe_payment_id = stripeSessionId;
+
   const { data: order, error: orderErr } = await svc
     .from("orders")
-    .insert({
-      order_number,
-      order_type: body.orderType,
-      status: body.paymentMethod === "stripe" ? "draft" : "pending",
-      profile_id: effectiveProfile.id,
-      account_id: effectiveProfile.account_id,
-      placed_by_id: placedById,
-      requested_delivery_date: body.requestedDeliveryDate,
-      pickup_date: body.pickupDate,
-      pickup_location_id: body.pickupLocationId,
-      subtotal,
-      delivery_fee: deliveryFee,
-      total,
-      payment_method: body.paymentMethod,
-      customer_notes: body.customerNotes,
-    })
+    .insert(orderInsertRow)
     .select("*")
     .single();
-  if (orderErr || !order) return NextResponse.json({ error: orderErr?.message ?? "order failed" }, { status: 500 });
+  if (orderErr || !order) {
+    // Stripe succeeded but the DB write failed — best-effort expire the
+    // session so the buyer can't pay against a now-orphaned checkout.
+    // We swallow any expire error: the session will time out on its own
+    // and the webhook's ownership check refuses to mutate an order it
+    // can't find by stripe_payment_id, so a late payment is contained.
+    if (stripeSessionId) {
+      try { await getStripe().checkout.sessions.expire(stripeSessionId); } catch { /* tolerated */ }
+    }
+    return NextResponse.json({ error: orderErr?.message ?? "order failed" }, { status: 500 });
+  }
 
   const itemRows = pricedLines.map((l) => ({
     order_id: order.id,
@@ -213,43 +277,8 @@ export async function POST(request: Request) {
     });
   }
 
-  // Stripe checkout if DTC card
   if (body.paymentMethod === "stripe") {
-    try {
-      const stripe = getStripe();
-      const lineItems = pricedLines.map((l) => ({
-        quantity: l.quantity,
-        price_data: {
-          currency: "usd",
-          unit_amount: Math.round((l.unitPrice as number) * 100),
-          product_data: {
-            name: l.productName,
-            description: l.packSize ?? undefined,
-          },
-        },
-      }));
-      if (deliveryFee > 0) {
-        lineItems.push({
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: Math.round(deliveryFee * 100),
-            product_data: { name: "Delivery fee", description: undefined },
-          },
-        });
-      }
-      const checkout = await stripe.checkout.sessions.create({
-        mode: "payment",
-        line_items: lineItems,
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${order.id}?paid=1`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
-        metadata: { order_id: order.id },
-      });
-      await svc.from("orders").update({ stripe_payment_id: checkout.id }).eq("id", order.id);
-      return NextResponse.json({ orderId: order.id, stripeUrl: checkout.url });
-    } catch (e: any) {
-      return NextResponse.json({ error: `Stripe: ${e.message}` }, { status: 500 });
-    }
+    return NextResponse.json({ orderId: order.id, stripeUrl: stripeCheckoutUrl });
   }
 
   // Deliver order confirmation on every available channel. The two are

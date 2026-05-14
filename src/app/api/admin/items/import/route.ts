@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SUGGESTIONS_TAG } from "@/lib/products/suggestions";
 import type { Category, Brand } from "@/lib/supabase/types";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface Row {
   sku: string;
@@ -59,6 +60,8 @@ function deriveProductGroup(category: Category, _name: string): ProductGroup {
 type ProductGroup = "meat" | "grocery" | "produce" | "dairy" | "cheese";
 
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   try { await requireAdmin(); } catch { return NextResponse.json({ error: "admin only" }, { status: 403 }); }
   const { rows } = (await request.json()) as { rows: Row[] };
   const svc = createServiceClient();

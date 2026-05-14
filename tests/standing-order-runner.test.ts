@@ -32,6 +32,12 @@ interface Fixture {
   overrides: any[];
   orderNumber: string;
   newOrderId: string;
+  // Failure injection — leave undefined for the happy path.
+  failures?: {
+    orderItemsInsert?: { message: string };
+    standingOrdersUpdate?: { message: string };
+    ordersDelete?: { message: string };
+  };
 }
 
 function makeSvc(state: Fixture) {
@@ -40,6 +46,7 @@ function makeSvc(state: Fixture) {
     orderItemsInsert?: any[];
     standingOrderUpdate?: any;
     updatedStandingOrderId?: string;
+    deletedOrderId?: string;
   } = {};
 
   const handlers: Record<string, () => any> = {
@@ -64,6 +71,8 @@ function makeSvc(state: Fixture) {
           if (mode === "update") {
             captured.standingOrderUpdate = updatePayload;
             captured.updatedStandingOrderId = updateId;
+            const err = state.failures?.standingOrdersUpdate ?? null;
+            return Promise.resolve({ data: null, error: err }).then(res, rej);
           }
           return Promise.resolve({ data: null, error: null }).then(res, rej);
         },
@@ -81,10 +90,16 @@ function makeSvc(state: Fixture) {
     },
     orders: () => {
       let inserted: any;
+      let mode: "insert" | "delete" = "insert";
       const b: any = {
         insert: (v: any) => {
+          mode = "insert";
           inserted = v;
           captured.orderInsert = v;
+          return b;
+        },
+        delete: () => {
+          mode = "delete";
           return b;
         },
         select: () => b,
@@ -93,6 +108,17 @@ function makeSvc(state: Fixture) {
             data: { id: state.newOrderId, ...inserted },
             error: null,
           }),
+        eq: (_col: string, val: any) => {
+          if (mode === "delete") captured.deletedOrderId = val;
+          return b;
+        },
+        then: (res: any, rej: any) => {
+          if (mode === "delete") {
+            const err = state.failures?.ordersDelete ?? null;
+            return Promise.resolve({ data: null, error: err }).then(res, rej);
+          }
+          return Promise.resolve({ data: null, error: null }).then(res, rej);
+        },
       };
       return b;
     },
@@ -100,9 +126,10 @@ function makeSvc(state: Fixture) {
       const b: any = {
         insert: (v: any) => {
           captured.orderItemsInsert = v;
+          const err = state.failures?.orderItemsInsert ?? null;
           return {
             then: (res: any, rej: any) =>
-              Promise.resolve({ data: null, error: null }).then(res, rej),
+              Promise.resolve({ data: null, error: err }).then(res, rej),
           };
         },
       };
@@ -293,5 +320,71 @@ describe("runStandingOrder", () => {
     const { svc } = makeSvc(fx);
     await runStandingOrder(svc, "so-1");
     expect(mockedEnqueue).not.toHaveBeenCalled();
+  });
+
+  describe("failure paths (C4 — no silent swallow)", () => {
+    let consoleErrorSpy: jest.SpyInstance;
+    beforeEach(() => {
+      consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    });
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("returns ok:false when order_items.insert fails, and attempts a compensating order delete", async () => {
+      const fx: Fixture = {
+        ...baseFixture(),
+        failures: { orderItemsInsert: { message: "constraint violation" } },
+      };
+      const { svc, captured } = makeSvc(fx);
+      const res = await runStandingOrder(svc, "so-1");
+
+      expect(res.ok).toBe(false);
+      if (res.ok) throw new Error("unreachable");
+      expect(res.error).toMatch(/order_items insert failed/);
+      expect(res.error).toMatch(/constraint violation/);
+      // standing_orders.update(last_run_date) must NOT have run.
+      expect(captured.standingOrderUpdate).toBeUndefined();
+      // SMS must NOT have fired — we rolled back.
+      expect(mockedEnqueue).not.toHaveBeenCalled();
+      // Compensating delete should have targeted the just-inserted order.
+      expect(captured.deletedOrderId).toBe("order-xyz");
+    });
+
+    it("surfaces orderId in the error result when order_items insert AND cleanup delete both fail", async () => {
+      const fx: Fixture = {
+        ...baseFixture(),
+        failures: {
+          orderItemsInsert: { message: "constraint violation" },
+          ordersDelete: { message: "rls denied" },
+        },
+      };
+      const { svc } = makeSvc(fx);
+      const res = await runStandingOrder(svc, "so-1");
+
+      expect(res.ok).toBe(false);
+      if (res.ok) throw new Error("unreachable");
+      expect(res.orderId).toBe("order-xyz");
+      expect(res.error).toMatch(/cleanup delete failed/);
+    });
+
+    it("returns ok:false when standing_orders.update(last_run_date) fails", async () => {
+      const fx: Fixture = {
+        ...baseFixture(),
+        failures: { standingOrdersUpdate: { message: "deadlock detected" } },
+      };
+      const { svc, captured } = makeSvc(fx);
+      const res = await runStandingOrder(svc, "so-1");
+
+      expect(res.ok).toBe(false);
+      if (res.ok) throw new Error("unreachable");
+      expect(res.error).toMatch(/last_run_date update failed/);
+      expect(res.orderId).toBe("order-xyz");
+      // Order + items should have been written; we don't roll those back.
+      expect(captured.orderInsert).toBeDefined();
+      expect(captured.orderItemsInsert).toBeDefined();
+      // Failure must have been logged for observability.
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
   });
 });

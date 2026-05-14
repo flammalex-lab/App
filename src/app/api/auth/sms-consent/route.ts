@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 /**
  * Record SMS opt-in (or revoke it) for the authenticated user.
@@ -15,6 +16,8 @@ import { createServiceClient } from "@/lib/supabase/server";
  * /register) can opt in/out from inside the app.
  */
 export async function POST(request: Request) {
+  const originGate = requireSameOrigin(request);
+  if (originGate) return originGate;
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

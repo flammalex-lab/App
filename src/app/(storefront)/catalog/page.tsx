@@ -10,6 +10,7 @@ import { getAllowedPrivateProductIds, visibleProductsQuery } from "@/lib/product
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   GROUP_LABELS,
+  allowedCategoriesFor,
   allowedGroupsFor,
   type ProductGroup,
 } from "@/lib/constants";
@@ -270,20 +271,39 @@ export default async function CatalogPage({
   // =====================================================================
   // LIST VIEW (group / search / producer / explore / best)
   // =====================================================================
-  let query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds });
-  // Group filter: match the primary product_group OR an entry in
-  // additional_groups so cross-listed products (e.g. Hawthorne Valley
-  // krauts listed in both produce + dairy) surface in either browse.
-  if (groupFilter) query = query.or(`product_group.eq.${groupFilter},additional_groups.cs.{${groupFilter}}`);
-  if (q) query = query.or(`name.ilike.%${q}%,producer.ilike.%${q}%`);
-  if (producerFilter) query = query.ilike("producer", producerFilter);
+  // When a search query is present we route through the catalog_search RPC
+  // (migration 0038) so trigram similarity matches typos like "kefr" ->
+  // "Kefir". The RPC mirrors visibleProductsQuery's visibility filters
+  // (is_active, channel, private allow-list, buyer_type group/category
+  // scope) plus the same group/producer narrow the ilike branch applied,
+  // and orders by similarity desc. For non-search browses we keep the
+  // PostgREST chain so the price/name sort options stay client-driven.
+  let query: any;
+  if (q) {
+    query = db.rpc("catalog_search", {
+      q,
+      is_b2b: isB2B,
+      allowed_private_ids: allowedPrivateIds,
+      allowed_groups: allowedGroupsFor(effectiveBuyerType),
+      allowed_categories: allowedCategoriesFor(effectiveBuyerType),
+      group_filter: groupFilter,
+      producer_filter: producerFilter || null,
+    });
+  } else {
+    query = visibleProductsQuery(db, { buyerType: effectiveBuyerType, isB2B, allowedPrivateIds });
+    // Group filter: match the primary product_group OR an entry in
+    // additional_groups so cross-listed products (e.g. Hawthorne Valley
+    // krauts listed in both produce + dairy) surface in either browse.
+    if (groupFilter) query = query.or(`product_group.eq.${groupFilter},additional_groups.cs.{${groupFilter}}`);
+    if (producerFilter) query = query.ilike("producer", producerFilter);
 
-  if (isBest) query = query.order("sort_order", { ascending: true });
-  else if (sort === "price_asc") query = query.order("wholesale_price", { ascending: true, nullsFirst: false });
-  else if (sort === "price_desc") query = query.order("wholesale_price", { ascending: false, nullsFirst: false });
-  else if (sort === "best") query = query.order("sort_order", { ascending: true });
-  else if (sort === "name_desc") query = query.order("name", { ascending: false });
-  else query = query.order("name", { ascending: true });
+    if (isBest) query = query.order("sort_order", { ascending: true });
+    else if (sort === "price_asc") query = query.order("wholesale_price", { ascending: true, nullsFirst: false });
+    else if (sort === "price_desc") query = query.order("wholesale_price", { ascending: false, nullsFirst: false });
+    else if (sort === "best") query = query.order("sort_order", { ascending: true });
+    else if (sort === "name_desc") query = query.order("name", { ascending: false });
+    else query = query.order("name", { ascending: true });
+  }
 
   // Producer chips row — shown on category pages (?group=X) so loyalists
   // can one-tap narrow to a single producer. Stays visible when a producer
