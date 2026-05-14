@@ -340,7 +340,11 @@ export function ProductCard({
       <div className="flex-1 min-w-0 pointer-events-none">
         <div className="flex items-center gap-1.5 min-w-0">
           <ProducerEyebrow producer={product.producer} producerHref={producerHref} />
-          {inGuide ? <InGuideFlag /> : null}
+          {inGuide ? (
+            <InGuideFlag />
+          ) : (product as { is_peak?: boolean }).is_peak ? (
+            <PeakFlag />
+          ) : null}
         </div>
         <div className="text-[15px] font-semibold leading-snug text-ink-primary line-clamp-1 mt-0.5" title={product.name}>
           {displayName}
@@ -448,7 +452,11 @@ function CardMedia({
         <ProductCardFallback product={product} size={fallbackSize} />
       )}
 
-      {inGuide ? <InGuideBadge /> : null}
+      {inGuide ? (
+        <InGuideBadge />
+      ) : (product as { is_peak?: boolean }).is_peak ? (
+        <PeakBadge />
+      ) : null}
       {paused ? (
         <span className="absolute top-2 right-2 badge badge-gold text-[10px]">Paused</span>
       ) : null}
@@ -458,6 +466,17 @@ function CardMedia({
         </span>
       ) : null}
     </div>
+  );
+}
+
+/** Compact/grid: green-tinted pill marking a product at its seasonal peak.
+ *  Quieter than InGuide (no icon, lowercase weight) so a card with neither
+ *  flag looks normal and a card with both prefers InGuide. */
+function PeakBadge() {
+  return (
+    <span className="absolute top-2 left-2 inline-flex items-center px-2 py-1 rounded-full bg-white text-brand-green text-[11px] font-semibold leading-none border border-brand-green/30 shadow-card pointer-events-none">
+      Peak
+    </span>
   );
 }
 
@@ -477,6 +496,17 @@ function InGuideFlag() {
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none text-[#8a690f] bg-accent-gold/15 shrink-0">
       <StarIcon />
       In guide
+    </span>
+  );
+}
+
+/** Row variant of the Peak badge — sits beside the producer eyebrow when
+ *  the product is at its seasonal peak AND not already in guide. Quiet
+ *  green chip, no icon, to keep row-density tight. */
+function PeakFlag() {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none text-brand-green bg-brand-green/12 shrink-0">
+      Peak
     </span>
   );
 }
