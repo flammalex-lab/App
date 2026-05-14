@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SUGGESTIONS_TAG } from "@/lib/products/suggestions";
 import type { Category, Brand } from "@/lib/supabase/types";
+import type { TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
 
 interface Row {
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
     const existing = (existingRows as { id: string }[] | null)?.[0];
 
     const category = guessCategory(r.category_hint, r.name);
-    const payload: Record<string, unknown> = {
+    const payload: TablesInsert<"products"> = {
       sku: r.sku,
       upc: r.upc ?? null,
       name: r.name,
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
 
     if (existing) {
       // Update — but don't overwrite image_url, description if the CSV doesn't have them
-      const updatePayload: Record<string, unknown> = {
+      const updatePayload: TablesUpdate<"products"> = {
         name: payload.name,
         wholesale_price: payload.wholesale_price,
         retail_price: payload.retail_price,

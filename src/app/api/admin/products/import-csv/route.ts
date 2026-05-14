@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 interface Row {
   id: string;
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const update: Record<string, unknown> = { name: r.name.trim() };
+    const update: TablesUpdate<"products"> = { name: r.name.trim() };
 
     const producer = nullableText(r.producer);
     if (producer !== undefined) update.producer = producer;
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
         if (errors.length < 10) errors.push({ id: r.id, reason: `invalid category "${cat}"` });
         continue;
       }
-      if (cat) update.category = cat;
+      if (cat) update.category = cat as TablesUpdate<"products">["category"];
     }
 
     if (r.product_group !== undefined && r.product_group !== null) {

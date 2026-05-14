@@ -163,11 +163,12 @@ export default async function GuidePage() {
     }
   }
 
-  const items: GuideRow[] = (itemRows as any[] | null ?? []).map((row) => {
-    const p = row.product as Product;
+  type ItemRow = OrderGuideItem & { product: Product };
+  const items: GuideRow[] = ((itemRows as ItemRow[] | null) ?? []).map((row) => {
+    const p = row.product;
     const unitPrice = priceForProduct(p, pricingCtx);
     return {
-      ...(row as OrderGuideItem),
+      ...row,
       product: p,
       unitPrice,
       lastOrderedAt: lastOrderedByProduct[p.id] ?? null,
@@ -256,7 +257,12 @@ export default async function GuidePage() {
         .select("standing_order_id, quantity, product:products(name, unit)")
         .in("standing_order_id", matchingIds);
       const totalByStanding: Record<string, { qty: number; firstName: string }> = {};
-      for (const it of (itemsRows as any[] | null) ?? []) {
+      type StandingItemRow = {
+        standing_order_id: string;
+        quantity: number;
+        product: { name: string; unit: string } | null;
+      };
+      for (const it of ((itemsRows ?? []) as unknown as StandingItemRow[])) {
         const cur = totalByStanding[it.standing_order_id] ?? {
           qty: 0,
           firstName: "",
@@ -449,8 +455,9 @@ export default async function GuidePage() {
       buyerProducerRank[prod] =
         (buyerProducerRank[prod] ?? 0) + row.qty;
     }
-    for (const r of ((allItems as any[] | null) ?? [])) {
-      const prod = r.product?.producer as string | undefined;
+    type GlobalRankRow = { quantity: number; product: { producer: string | null } | null };
+    for (const r of ((allItems ?? []) as unknown as GlobalRankRow[])) {
+      const prod = r.product?.producer ?? undefined;
       if (!prod) continue;
       globalProducerRank[prod] =
         (globalProducerRank[prod] ?? 0) + Number(r.quantity ?? 0);

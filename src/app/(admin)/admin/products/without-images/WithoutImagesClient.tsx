@@ -12,7 +12,12 @@ interface RowState {
   uploadedUrl?: string;
 }
 
-export function WithoutImagesClient({ products }: { products: Product[] }) {
+type WithoutImagesProduct = Pick<
+  Product,
+  "id" | "sku" | "name" | "producer" | "pack_size" | "unit" | "brand" | "category" | "image_url" | "sort_order"
+>;
+
+export function WithoutImagesClient({ products }: { products: WithoutImagesProduct[] }) {
   const router = useRouter();
   const [state, setState] = useState<Record<string, RowState>>({});
   const [stripBg, setStripBg] = useState(false);
@@ -58,10 +63,11 @@ export function WithoutImagesClient({ products }: { products: Product[] }) {
         ...s,
         [productId]: { status: "done", uploadedUrl: image_url },
       }));
-    } catch (e: any) {
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       setState((s) => ({
         ...s,
-        [productId]: { status: "error", error: e?.message ?? String(e) },
+        [productId]: { status: "error", error: msg },
       }));
     }
   }

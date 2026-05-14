@@ -12,7 +12,10 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { CATEGORY_LABELS, BUYER_TYPE_LABELS, type BuyerType } from "@/lib/constants";
 
-type Row = OrderGuideTemplateItem & { product: Product };
+type Row = Omit<OrderGuideTemplateItem, "par_levels"> & {
+  par_levels: Record<string, number> | null;
+  product: Product;
+};
 
 const DAYS = [
   { key: "mon", label: "Mon" },
@@ -269,7 +272,7 @@ export function TemplateEditor({
                         type="number"
                         min={0}
                         className="w-full text-center px-1 py-1 text-sm"
-                        value={(r.par_levels as any)?.[d.key] ?? ""}
+                        value={r.par_levels?.[d.key] ?? ""}
                         onChange={(e) => setPar(r.id, d.key, e.target.value)}
                       />
                     </label>

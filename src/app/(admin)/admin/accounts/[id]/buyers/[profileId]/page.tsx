@@ -53,24 +53,32 @@ export default async function BuyerEditPage({
   ]);
 
   if (!account || !profile) notFound();
-  const a = account as Account;
-  const p = profile as Profile;
+  const a = account;
+  const p = profile;
 
-  const guideRow = ((guide as any[] | null) ?? [])[0] ?? null;
-  const guideItems = ((guideRow?.order_guide_items ?? []) as { product: { product_group: string | null } | null }[]);
+  type GuideRow = {
+    id: string;
+    order_guide_items: Array<{ product: { product_group: string | null } | null } | null> | null;
+  };
+  const guideRow = ((guide ?? []) as GuideRow[])[0] ?? null;
+  const guideItems = (guideRow?.order_guide_items ?? []) as Array<{ product: { product_group: string | null } | null } | null>;
   const guideCount = guideItems.length;
   const guideGroups = Array.from(
-    new Set(guideItems.map((g) => g.product?.product_group).filter((g): g is ProductGroup => !!g)),
+    new Set(
+      guideItems
+        .map((g) => g?.product?.product_group)
+        .filter((g): g is ProductGroup => !!g),
+    ),
   );
   const effectiveType = (p.buyer_type ?? a.buyer_type) as BuyerType | null;
-  const orderCount = ((orders as Order[] | null) ?? []).length;
+  const orderCount = (orders ?? []).length;
 
   // Template item counts map
   const itemCounts = new Map<string, number>();
-  for (const r of ((templateItemCountsRaw as { template_id: string }[] | null) ?? [])) {
+  for (const r of (templateItemCountsRaw ?? [])) {
     itemCounts.set(r.template_id, (itemCounts.get(r.template_id) ?? 0) + 1);
   }
-  const allTemplates: TemplateLite[] = ((allTemplatesRaw as { id: string; name: string; buyer_type: string | null }[] | null) ?? []).map(
+  const allTemplates: TemplateLite[] = (allTemplatesRaw ?? []).map(
     (t) => ({ ...t, itemCount: itemCounts.get(t.id) ?? 0 }),
   );
 
@@ -82,7 +90,7 @@ export default async function BuyerEditPage({
       .from("order_guide_seed_sources")
       .select("template_id")
       .eq("guide_id", guideRow.id);
-    const sourceIds = new Set(((sourcesRaw as { template_id: string }[] | null) ?? []).map((s) => s.template_id));
+    const sourceIds = new Set((sourcesRaw ?? []).map((s) => s.template_id));
     sourceTemplates = allTemplates.filter((t) => sourceIds.has(t.id));
     const d = await computeGuideDrift(svc, profileId, guideRow.id);
     drift = {
@@ -184,7 +192,7 @@ export default async function BuyerEditPage({
       <section>
         <h2 className="display text-xl mb-2">Recent orders</h2>
         <div className="card divide-y divide-black/5 overflow-hidden">
-          {((orders as Order[] | null) ?? []).map((o) => (
+          {(orders ?? []).map((o) => (
             <Link
               key={o.id}
               href={`/admin/orders/${o.id}`}

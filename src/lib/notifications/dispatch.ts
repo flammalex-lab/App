@@ -1,13 +1,17 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendSms } from "@/lib/twilio/client";
 import { sendEmail } from "@/lib/resend/client";
 import type { NotifChannel, NotifType } from "@/lib/supabase/types";
+import type { Database } from "@/lib/supabase/database.types";
+
+type Svc = SupabaseClient<Database>;
 
 /**
  * Enqueue a notification and attempt to send immediately.
  * Uses the service-role client (passed in) to bypass RLS.
  */
 export interface EnqueueInput {
-  supabase: any; // service-role SupabaseClient
+  supabase: Svc; // service-role SupabaseClient
   profileId?: string | null;
   accountId?: string | null;
   type: NotifType;
@@ -35,7 +39,7 @@ export async function enqueueAndSend(input: EnqueueInput): Promise<{ ok: boolean
       to_address: input.toAddress,
       related_order_id: input.relatedOrderId ?? null,
       related_standing_order_id: input.relatedStandingOrderId ?? null,
-      metadata: input.metadata ?? null,
+      metadata: (input.metadata ?? null) as Database["public"]["Tables"]["notifications"]["Insert"]["metadata"],
       status: "pending",
     })
     .select("id")
@@ -102,7 +106,7 @@ async function deliver(input: EnqueueInput): Promise<{ ok: boolean; error?: stri
   return { ok: false, error: "unknown channel" };
 }
 
-async function profileOptedInToSms(supabase: any, profileId: string): Promise<boolean> {
+async function profileOptedInToSms(supabase: Svc, profileId: string): Promise<boolean> {
   const { data } = await supabase
     .from("profiles")
     .select("sms_opted_in")
@@ -111,7 +115,7 @@ async function profileOptedInToSms(supabase: any, profileId: string): Promise<bo
   return Boolean(data?.sms_opted_in);
 }
 
-async function smsAllowedToday(supabase: any): Promise<boolean> {
+async function smsAllowedToday(supabase: Svc): Promise<boolean> {
   const { data: cap } = await supabase.from("qb_settings").select("value").eq("key", "sms_daily_cap").maybeSingle();
   const limit = cap?.value ? Number(cap.value) : 200;
   const since = new Date();

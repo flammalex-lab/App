@@ -36,7 +36,10 @@ export default async function DashboardPage() {
     .select("total")
     .gte("created_at", startOfMonth.toISOString())
     .neq("status", "cancelled");
-  const mtd = ((monthOrders as { total: number }[] | null) ?? []).reduce((s, o) => s + Number(o.total), 0);
+  const mtd = (monthOrders ?? []).reduce((s, o) => s + Number(o.total), 0);
+
+  type OrderWithAccount = Order & { account: { name: string | null } | null };
+  const recent = (recentOrders ?? []) as OrderWithAccount[];
 
   return (
     <div className="max-w-6xl">
@@ -55,7 +58,7 @@ export default async function DashboardPage() {
         <Link href="/admin/orders" className="text-sm text-brand-blue hover:underline">View all →</Link>
       </div>
       <div className="card divide-y divide-black/5 overflow-hidden">
-        {((recentOrders as (Order & { account: { name: string } | null })[] | null) ?? []).map((o) => (
+        {recent.map((o) => (
           <Link
             key={o.id}
             href={`/admin/orders/${o.id}`}
@@ -71,7 +74,7 @@ export default async function DashboardPage() {
             <span className="tabular font-semibold text-ink-primary">{money(o.total)}</span>
           </Link>
         ))}
-        {!((recentOrders as any[]) ?? []).length ? (
+        {!recent.length ? (
           <div className="p-8 text-sm text-ink-secondary text-center">
             No orders yet. Accounts with buyers on the portal will show up here as they order.
           </div>

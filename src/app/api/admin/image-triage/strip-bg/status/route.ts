@@ -29,9 +29,10 @@ export async function GET(request: Request) {
   let prediction;
   try {
     prediction = await client.predictions.get(id);
-  } catch (e: any) {
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "unknown";
     return NextResponse.json(
-      { error: `replicate get failed: ${e?.message ?? "unknown"}` },
+      { error: `replicate get failed: ${msg}` },
       { status: 502 },
     );
   }

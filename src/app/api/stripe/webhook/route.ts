@@ -16,8 +16,9 @@ export async function POST(request: Request) {
   let event: Stripe.Event;
   try {
     event = getStripe().webhooks.constructEvent(payload, sig!, secret);
-  } catch (e: any) {
-    return NextResponse.json({ error: `bad signature: ${e.message}` }, { status: 400 });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `bad signature: ${msg}` }, { status: 400 });
   }
 
   const svc = createServiceClient();

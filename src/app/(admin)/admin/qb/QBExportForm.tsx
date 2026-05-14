@@ -27,7 +27,7 @@ export function QBExportForm({ pendingCount }: { pendingCount: number }) {
 
   return (
     <div className="flex items-center gap-3">
-      <select className="input w-auto" value={format} onChange={(e) => setFormat(e.target.value as any)}>
+      <select className="input w-auto" value={format} onChange={(e) => setFormat(e.target.value as "iif" | "csv")}>
         <option value="iif">IIF (QuickBooks)</option>
         <option value="csv">CSV (audit)</option>
       </select>

@@ -7,6 +7,7 @@ import { getStripe } from "@/lib/stripe/client";
 import { loadPricingContext, priceForProduct } from "@/lib/utils/pricing";
 import { meetsMinimum, effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import type { OrderType, PaymentMethod, Profile, DeliveryZoneRow, Account } from "@/lib/supabase/types";
+import type { TablesInsert } from "@/lib/supabase/database.types";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { buyerHistoryTag } from "@/lib/products/buyer-history";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
@@ -249,17 +250,21 @@ export async function POST(request: Request) {
       });
       stripeCheckoutUrl = checkout.url;
       stripeSessionId = checkout.id;
-    } catch (e: any) {
-      return NextResponse.json({ error: `Stripe: ${e.message}` }, { status: 500 });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return NextResponse.json({ error: `Stripe: ${msg}` }, { status: 500 });
     }
   }
 
-  const orderInsertRow: Record<string, unknown> = {
+  // orders.account_id is NOT NULL in the DB; effectiveProfile.account_id
+  // can technically be null (legacy DTC paths) so we coerce and let RLS /
+  // FK reject if a DTC buyer somehow hits this path without an account.
+  const orderInsertRow: TablesInsert<"orders"> = {
     order_number,
     order_type: body.orderType,
     status: body.paymentMethod === "stripe" ? "draft" : "pending",
     profile_id: effectiveProfile.id,
-    account_id: effectiveProfile.account_id,
+    account_id: effectiveProfile.account_id as string,
     placed_by_id: placedById,
     requested_delivery_date: body.requestedDeliveryDate,
     pickup_date: body.pickupDate,

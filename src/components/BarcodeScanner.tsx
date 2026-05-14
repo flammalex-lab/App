@@ -117,12 +117,13 @@ export function BarcodeScanner({
           },
         );
         controlsRef.current = controls;
-      } catch (e: any) {
+      } catch (e) {
         if (cancelled) return;
+        const err = e as { name?: string; message?: string } | null;
         setCameraError(
-          e?.name === "NotAllowedError"
+          err?.name === "NotAllowedError"
             ? "Camera permission denied. Enter the code manually below."
-            : e?.message ?? "Couldn't start the camera.",
+            : err?.message ?? "Couldn't start the camera.",
         );
       }
     })();
@@ -159,10 +160,10 @@ export function BarcodeScanner({
       const reader = new BrowserMultiFormatReader();
       const result = await reader.decodeFromImageUrl(photo.dataUrl);
       lookup(result.getText());
-    } catch (e: any) {
+    } catch (e) {
       // User-cancelled the camera or no barcode was in the frame. Both
       // recover into the manual-entry field that's always visible below.
-      const msg = e?.message ?? "";
+      const msg = e instanceof Error ? e.message : "";
       if (/cancel/i.test(msg)) return;
       setBanner({
         kind: "error",

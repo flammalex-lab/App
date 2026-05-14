@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizePhone } from "@/lib/utils/phone";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 interface PatchBody {
   first_name?: string | null;
@@ -36,7 +37,7 @@ export async function PATCH(
     if (!e164) return NextResponse.json({ error: "invalid phone" }, { status: 400 });
   }
 
-  const profileUpdate: Record<string, unknown> = {
+  const profileUpdate: TablesUpdate<"profiles"> = {
     first_name: body.first_name ?? null,
     last_name: body.last_name ?? null,
     title: body.title ?? null,

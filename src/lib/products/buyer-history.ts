@@ -49,11 +49,11 @@ export const getBuyerHistory = cache(
         const { data } = await db.rpc("buyer_product_history", {
           p_profile_id: profileId,
         });
-        return ((data as any[] | null) ?? []).map((r) => ({
-          product_id: r.product_id as string,
+        return (data ?? []).map((r) => ({
+          product_id: r.product_id,
           qty: Number(r.qty ?? 0),
-          producer: (r.producer ?? null) as string | null,
-          lastOrderedAt: (r.last_ordered_at ?? null) as string | null,
+          producer: r.producer ?? null,
+          lastOrderedAt: r.last_ordered_at ?? null,
         })) as BuyerHistoryRow[];
       },
       ["buyer-history", profileId],

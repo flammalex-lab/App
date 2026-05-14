@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 
-type AnyDb = SupabaseClient<any, any, any>;
+type Db = SupabaseClient<Database>;
 
 /**
  * Per-producer order-frequency ranking, scoped to a set of producers (the
@@ -16,7 +17,7 @@ type AnyDb = SupabaseClient<any, any, any>;
  * catalog group has thousands of products.
  */
 export async function rankProducers(
-  db: AnyDb,
+  db: Db,
   opts: {
     profileId: string;
     producers: string[];
@@ -41,13 +42,14 @@ export async function rankProducers(
       .in("product.producer", opts.producers),
   ]);
 
-  for (const r of ((myItems as any[] | null) ?? [])) {
-    const prod = r.product?.producer as string | undefined;
+  type Row = { quantity: number; product: { producer: string | null } | null };
+  for (const r of ((myItems ?? []) as unknown as Row[])) {
+    const prod = r.product?.producer ?? undefined;
     if (!prod) continue;
     buyerRank[prod] = (buyerRank[prod] ?? 0) + Number(r.quantity ?? 0);
   }
-  for (const r of ((allItems as any[] | null) ?? [])) {
-    const prod = r.product?.producer as string | undefined;
+  for (const r of ((allItems ?? []) as unknown as Row[])) {
+    const prod = r.product?.producer ?? undefined;
     if (!prod) continue;
     globalRank[prod] = (globalRank[prod] ?? 0) + Number(r.quantity ?? 0);
   }

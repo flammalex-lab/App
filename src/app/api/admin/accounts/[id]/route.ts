@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
+import type { TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
 
 /**
  * Columns an admin is allowed to set on an account via this endpoint.
@@ -62,14 +63,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = pickAccountFields(raw);
   const svc = createServiceClient();
   if (id === "new") {
-    const { data, error } = await svc.from("accounts").insert(body).select("id").single();
+    const { data, error } = await svc
+      .from("accounts")
+      .insert(body as TablesInsert<"accounts">)
+      .select("id")
+      .single();
     if (error || !data) return NextResponse.json({ error: error?.message ?? "no row" }, { status: 500 });
-    return NextResponse.json({ id: (data as { id: string }).id });
+    return NextResponse.json({ id: data.id });
   }
   if (Object.keys(body).length === 0) {
     return NextResponse.json({ id });
   }
-  const { error } = await svc.from("accounts").update(body).eq("id", id);
+  const { error } = await svc
+    .from("accounts")
+    .update(body as TablesUpdate<"accounts">)
+    .eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ id });
 }

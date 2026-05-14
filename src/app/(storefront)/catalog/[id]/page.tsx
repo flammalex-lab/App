@@ -108,11 +108,26 @@ export default async function ProductDetail({
     .eq("orders.profile_id", profileId)
     .order("created_at", { ascending: false, referencedTable: "orders" })
     .limit(10);
-  const history = ((historyRaw as any[]) ?? []).map((r) => ({
-    id: r.id as string,
-    orderId: r.orders?.id as string,
-    orderNumber: r.orders?.order_number as string,
-    date: (r.orders?.requested_delivery_date ?? r.orders?.pickup_date ?? r.orders?.created_at) as string,
+  type HistoryRow = {
+    id: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+    orders: {
+      id: string;
+      order_number: string;
+      created_at: string;
+      requested_delivery_date: string | null;
+      pickup_date: string | null;
+      status: string;
+      profile_id: string;
+    } | null;
+  };
+  const history = ((historyRaw ?? []) as unknown as HistoryRow[]).map((r) => ({
+    id: r.id,
+    orderId: r.orders?.id ?? "",
+    orderNumber: r.orders?.order_number ?? "",
+    date: (r.orders?.requested_delivery_date ?? r.orders?.pickup_date ?? r.orders?.created_at ?? "") as string,
     qty: Number(r.quantity),
     unitPrice: Number(r.unit_price),
     total: Number(r.line_total),

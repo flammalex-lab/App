@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 interface Input {
   name?: string;
@@ -22,7 +23,7 @@ export async function POST(
   }
   const { id } = await params;
   const body = (await request.json()) as Input;
-  const update: Record<string, unknown> = {};
+  const update: TablesUpdate<"price_lists"> = {};
   if (typeof body.name === "string") {
     if (!body.name.trim()) {
       return NextResponse.json({ error: "name cannot be blank" }, { status: 400 });

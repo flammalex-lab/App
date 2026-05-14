@@ -1,17 +1,23 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { Account } from "@/lib/supabase/types";
+import type { AccountStatus } from "@/lib/supabase/types";
 import { ZONE_LABELS } from "@/lib/constants";
 
 export const metadata = { title: "Admin — Accounts" };
+
+const ACCOUNT_STATUSES: AccountStatus[] = ["prospect", "active", "inactive", "churned"];
+function asAccountStatus(s: string | undefined): AccountStatus | null {
+  return ACCOUNT_STATUSES.includes(s as AccountStatus) ? (s as AccountStatus) : null;
+}
 
 export default async function AdminAccountsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const sp = await searchParams;
   const db = await createClient();
   let query = db.from("accounts").select("*").order("name");
-  if (sp.status) query = query.eq("status", sp.status);
+  const status = asAccountStatus(sp.status);
+  if (status) query = query.eq("status", status);
   const { data } = await query;
-  const accounts = (data as Account[] | null) ?? [];
+  const accounts = data ?? [];
 
   return (
     <div>
