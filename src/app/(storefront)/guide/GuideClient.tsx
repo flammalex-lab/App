@@ -9,6 +9,7 @@ import { groupBySubCategory } from "@/lib/products/sub-category";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCart, type CartLine } from "@/lib/cart/store";
 import { DraftLine, pickSubstitutes } from "./DraftLine";
+import { DraftStrip } from "./DraftStrip";
 import { SubmitSheet } from "./SubmitSheet";
 import { dateLong } from "@/lib/utils/format";
 import type { GuideRow, PricedProductLite } from "./page";
@@ -434,34 +435,53 @@ export function GuideClient({
           {draftSections.map(({ subCategory, rows }) => {
             const filtered = rows.filter(searchMatch);
             if (filtered.length === 0) return null;
+            // Split: in-stock rows render as condensed DraftTiles in a
+            // horizontal-scroll grid; stockout rows fall to fullwidth
+            // DraftLines below the grid so the substitute chips still
+            // have room to breathe. This split preserves the existing
+            // stockout UX while making the bulk of the draft 2–3× denser.
+            const stockTiles: typeof filtered = [];
+            const stockoutRows: typeof filtered = [];
+            for (const r of filtered) {
+              if (
+                r.product.available_this_week === false ||
+                r.product.available_b2b === false
+              ) {
+                stockoutRows.push(r);
+              } else {
+                stockTiles.push(r);
+              }
+            }
             return (
               <section key={subCategory}>
-                <div className="text-[11px] uppercase tracking-wider text-ink-tertiary font-medium mb-1 px-1">
+                <div className="text-[11px] uppercase tracking-wider text-ink-tertiary font-medium mb-2 px-1">
                   {subCategory}
                 </div>
-                <div className="card overflow-hidden divide-y divide-black/[0.04]">
-                  {filtered.map((r) => {
-                    // Stockout substitutes computed on the fly. The pool
-                    // is small (~30 items) so this is cheap.
-                    const subs =
-                      r.product.available_this_week === false
-                        ? pickSubstitutes(
-                            r.product,
-                            subPool,
-                            buyerProductCounts,
-                            globalCounts,
-                            2,
-                          )
-                        : [];
-                    return (
-                      <DraftLine
-                        key={r.product.id}
-                        row={r}
-                        substitutes={subs}
-                      />
-                    );
-                  })}
-                </div>
+                {stockTiles.length > 0 ? (
+                  <DraftStrip tiles={stockTiles} rows={2} />
+                ) : null}
+                {stockoutRows.length > 0 ? (
+                  <div
+                    className={`card overflow-hidden divide-y divide-black/[0.04] ${stockTiles.length > 0 ? "mt-3" : ""}`}
+                  >
+                    {stockoutRows.map((r) => {
+                      const subs = pickSubstitutes(
+                        r.product,
+                        subPool,
+                        buyerProductCounts,
+                        globalCounts,
+                        2,
+                      );
+                      return (
+                        <DraftLine
+                          key={r.product.id}
+                          row={r}
+                          substitutes={subs}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
               </section>
             );
           })}

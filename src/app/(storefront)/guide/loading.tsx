@@ -1,5 +1,5 @@
 import {
-  DraftLineBlockSkeleton,
+  DraftStripSkeleton,
   ScrollStripSkeleton,
 } from "@/components/products/primitives";
 
@@ -29,8 +29,8 @@ export default function GuideLoading() {
       <div className="space-y-4 animate-pulse">
         {[0, 1, 2].map((i) => (
           <section key={i}>
-            <div className="h-3 w-32 rounded bg-black/8 mb-1 ml-1" />
-            <DraftLineBlockSkeleton rows={4} />
+            <div className="h-3 w-32 rounded bg-black/8 mb-2 ml-1" />
+            <DraftStripSkeleton rows={2} columns={4} />
           </section>
         ))}
       </div>
