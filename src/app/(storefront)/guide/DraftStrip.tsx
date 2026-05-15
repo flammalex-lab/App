@@ -1,29 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DraftTile } from "./DraftTile";
-import type { GuideRow } from "./page";
+import { DraftTile, type DraftItem } from "./DraftTile";
 
 /**
- * Horizontal-scroll grid of DraftTile. Tiles flow column-by-column so a
- * "row count" of 2 means the strip is 2 tiles tall and overflow scrolls
- * right. With ~96px tile width + 12px gap, mobile fits ~3 columns of
- * visible tiles (6 items per viewport at rows=2) and the rest live to
- * the right.
+ * Horizontal-scroll grid of DraftTiles. Tiles flow column-by-column so a
+ * "row count" of 3 means the strip is 3 tiles tall and overflow scrolls
+ * right.
  *
- * Single-row branch: when the input fits in ≤3 tiles, render a single
- * row instead of a half-empty 2-row grid.
+ * Row heights are fixed (120px) so a short-name tile doesn't render
+ * shorter than a 2-line-name sibling — keeps the rows visually even.
+ * Tile width fixed at 248px to fit the 80px image + name/price/producer
+ * stack + 44px segmented stepper.
  *
- * Edge fades hint at horizontal overflow on the right side; a symmetric
- * left fade appears once the rail has been scrolled. Suppressed when
- * the rail's content fits entirely.
+ * Smart row scaling: a strip with very few items collapses to fewer
+ * rows so the grid doesn't look broken. With requestedRows=3, the
+ * actual rows used is min(requested, ceil(count / 4)).
  */
 export function DraftStrip({
   rows: requestedRows = 3,
   tiles,
 }: {
   rows?: 1 | 2 | 3;
-  tiles: GuideRow[];
+  tiles: DraftItem[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [overflowLeft, setOverflowLeft] = useState(false);
@@ -49,9 +48,6 @@ export function DraftStrip({
 
   if (tiles.length === 0) return null;
 
-  // Scale rows to item count so sparse strips don't read as broken.
-  // Aim for at least ~4 columns before stacking — otherwise the last
-  // column has too many empty slots and looks unfinished.
   const rows = Math.min(
     requestedRows,
     Math.max(1, Math.ceil(tiles.length / 4)),
@@ -59,10 +55,10 @@ export function DraftStrip({
 
   const gridRowsClass =
     rows === 1
-      ? "grid-rows-[140px]"
+      ? "grid-rows-[120px]"
       : rows === 2
-        ? "grid-rows-[140px_140px]"
-        : "grid-rows-[140px_140px_140px]";
+        ? "grid-rows-[120px_120px]"
+        : "grid-rows-[120px_120px_120px]";
 
   return (
     <div className="relative">
@@ -74,7 +70,7 @@ export function DraftStrip({
           className={`grid grid-flow-col ${gridRowsClass} auto-cols-[248px] gap-x-3 gap-y-3`}
         >
           {tiles.map((t) => (
-            <DraftTile key={t.product.id} row={t} />
+            <DraftTile key={t.product.id} {...t} />
           ))}
         </div>
       </div>
