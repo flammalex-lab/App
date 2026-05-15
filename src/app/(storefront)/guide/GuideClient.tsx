@@ -310,14 +310,6 @@ export function GuideClient({
         })()
       )}
 
-      {/* ---- Recent buys -------------------------------------------------- */}
-      {!search && recentBuys.length > 0 ? (
-        <section className="mt-6">
-          <SectionHeader>Recent buys</SectionHeader>
-          <DraftStrip tiles={recentBuys.map(toDraftItem)} rows={3} />
-        </section>
-      ) : null}
-
       {/* ---- Suggested: recent buys not yet in the order guide ----------- */}
       {!search && suggestedProducts.length > 0 ? (
         <section className="mt-6">

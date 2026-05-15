@@ -5,6 +5,7 @@ import type { PackOption, Product } from "@/lib/supabase/types";
 import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 import { useCart } from "@/lib/cart/store";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
+import { useGuideMemberships } from "@/lib/products/guide-memberships-store";
 import { productPhoto } from "@/lib/utils/product-image";
 import { displayProductName } from "@/lib/utils/product-display";
 import { VariantPickerSheet } from "@/components/products/VariantPickerSheet";
@@ -112,10 +113,18 @@ export function ProductCard({
   // image, description, AND priced variant rows. The server action
   // only fires for sibling-grouped candidates (Whole Milk — Gallon /
   // Half Gallon) — a most-products fast path with zero round-trips.
+  //
+  // `inGuide` is read from the shared memberships store at click time
+  // (not from the closed-over prop) so an optimistic toggle on the
+  // card's GuideStarButton propagates into the sheet that this same
+  // click opens. Falls back to the prop for products the store has
+  // never seen — preserves SSR-rendered correctness on first paint.
   const openSheet = useCallback(() => {
+    const live = useGuideMemberships.getState().byProduct[product.id];
+    const effectiveInGuide = live ?? inGuide;
     useProductSheet.getState().open(product, {
       fromGroup,
-      inGuide,
+      inGuide: effectiveInGuide,
       isB2B,
       packs: product.packs,
     });
