@@ -67,7 +67,6 @@ export function OrderPlacedHero({
   deliveryDate,
   total,
   orderId,
-  buyerFirstName,
   placedAt,
   lineCount,
   producerCount,
@@ -79,7 +78,6 @@ export function OrderPlacedHero({
   deliveryDate: string | null;
   total: number;
   orderId: string;
-  buyerFirstName: string | null;
   placedAt: string | null | undefined;
   lineCount: number;
   producerCount: number;
@@ -126,11 +124,9 @@ export function OrderPlacedHero({
   }, []);
 
   const deliveryDay = deliveryDate ? dayFromIso(deliveryDate) : null;
-  const headline = (() => {
-    const dayPart = deliveryDay ? ` for ${deliveryDay}` : "";
-    const thanks = buyerFirstName ? ` Thanks, ${buyerFirstName}.` : "";
-    return { dayPart, thanks };
-  })();
+  const headline = {
+    dayPart: deliveryDay ? ` for ${deliveryDay}` : "",
+  };
 
   return (
     <div
@@ -150,9 +146,6 @@ export function OrderPlacedHero({
           style={{ objectPosition: "center 40%" }}
           priority
         />
-        <span className="absolute bottom-2.5 left-3 inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-ink-primary shadow-sm">
-          Upstate · early light
-        </span>
       </div>
 
       {/* 2. Eyebrow row: green check pill + meta */}
@@ -178,21 +171,11 @@ export function OrderPlacedHero({
         </span>
       </div>
 
-      {/* 3. Headline + 4. Subhead */}
+      {/* 3. Headline */}
       <h1 className="mt-3 display text-3xl md:text-4xl leading-[1.05] tracking-tight text-ink-primary">
         {lineCount} {lineCount === 1 ? "line" : "lines"} locked in
-        {headline.dayPart}.{" "}
-        {headline.thanks.trim() ? (
-          <em className="text-brand-green-dark italic font-semibold">
-            {headline.thanks.trim()}
-          </em>
-        ) : null}
+        {headline.dayPart}.
       </h1>
-      <p className="mt-3 text-[14px] text-ink-secondary leading-relaxed max-w-prose">
-        We&apos;ll text the truck driver tonight and prep at dawn. Edits stay
-        open until your delivery zone&apos;s cutoff — after that we&apos;re
-        already loading.
-      </p>
 
       {/* 5. Ticket */}
       <div className="mt-6 card overflow-hidden">
@@ -204,9 +187,6 @@ export function OrderPlacedHero({
             <div className="mt-1 text-[15px] font-semibold tabular">
               {deliveryDate ? dateLong(deliveryDate) : "TBD"}
             </div>
-            <div className="text-[12px] text-ink-tertiary mt-0.5">
-              We&apos;ll confirm the time window the night before.
-            </div>
           </div>
           <div className="px-5 py-4">
             <div className="text-[10px] uppercase tracking-wider text-ink-tertiary font-semibold">
@@ -214,9 +194,6 @@ export function OrderPlacedHero({
             </div>
             <div className="mt-1 text-[15px] font-semibold tabular">
               {money(total)}
-            </div>
-            <div className="text-[12px] text-ink-tertiary mt-0.5">
-              Final invoiced after pack-out.
             </div>
           </div>
         </div>

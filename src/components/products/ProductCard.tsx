@@ -212,6 +212,14 @@ export function ProductCard({
             className="absolute inset-x-0 top-0 bottom-[64px] z-0"
           />
 
+          {/* Star overlay — moved off the bottom action row so the qty
+              stepper has the full row width on narrow viewports. */}
+          {isB2B ? (
+            <div className="absolute top-1.5 right-1.5 z-10 pointer-events-auto">
+              <GuideStarButton productId={product.id} initialInGuide={inGuide} />
+            </div>
+          ) : null}
+
           <ProductMedia
             product={product}
             photo={photo}
@@ -240,21 +248,16 @@ export function ProductCard({
             />
           </div>
 
-          <div className="relative pointer-events-auto px-2 pb-2 mt-auto flex items-center gap-2">
-            {isB2B ? (
-              <GuideStarButton productId={product.id} initialInGuide={inGuide} />
-            ) : null}
-            <div className="flex-1 min-w-0">
-              <ProductStepper
-                available={Boolean(available)}
-                cartQty={cartQty}
-                onAdd={addOne}
-                onSub={sub}
-                onSet={hasVariants ? undefined : applyDirectQty}
-                fullWidth
-                ariaProductName={product.name}
-              />
-            </div>
+          <div className="relative pointer-events-auto px-2 pb-2 mt-auto">
+            <ProductStepper
+              available={Boolean(available)}
+              cartQty={cartQty}
+              onAdd={addOne}
+              onSub={sub}
+              onSet={hasVariants ? undefined : applyDirectQty}
+              fullWidth
+              ariaProductName={product.name}
+            />
           </div>
         </div>
         <SheetPortal />
@@ -275,6 +278,14 @@ export function ProductCard({
             aria-label={product.name}
             className="absolute inset-x-0 top-0 bottom-[64px] z-0"
           />
+
+          {/* Star overlay — moved off the bottom action row so the qty
+              stepper has the full row width on narrow viewports. */}
+          {isB2B ? (
+            <div className="absolute top-1.5 right-1.5 z-10 pointer-events-auto">
+              <GuideStarButton productId={product.id} initialInGuide={inGuide} />
+            </div>
+          ) : null}
 
           <ProductMedia
             product={product}
@@ -305,21 +316,16 @@ export function ProductCard({
             />
           </div>
 
-          <div className="relative pointer-events-auto px-3 pb-3 mt-auto flex items-center gap-2">
-            {isB2B ? (
-              <GuideStarButton productId={product.id} initialInGuide={inGuide} />
-            ) : null}
-            <div className="flex-1 min-w-0">
-              <ProductStepper
-                available={Boolean(available)}
-                cartQty={cartQty}
-                onAdd={addOne}
-                onSub={sub}
-                onSet={hasVariants ? undefined : applyDirectQty}
-                fullWidth
-                ariaProductName={product.name}
-              />
-            </div>
+          <div className="relative pointer-events-auto px-3 pb-3 mt-auto">
+            <ProductStepper
+              available={Boolean(available)}
+              cartQty={cartQty}
+              onAdd={addOne}
+              onSub={sub}
+              onSet={hasVariants ? undefined : applyDirectQty}
+              fullWidth
+              ariaProductName={product.name}
+            />
           </div>
         </div>
         <SheetPortal />

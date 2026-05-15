@@ -186,13 +186,6 @@ function EmptyState({
   // Upcoming empty: photo-led hero per Brief 5 V1, then the dynamic
   // next-delivery + cutoff line so the buyer immediately sees when they
   // need to act. Falls back to a generic CTA when no zone is set.
-  const cutoffShort = nextDelivery
-    ? new Date(nextDelivery.cutoffAt).toLocaleString("en-US", {
-        weekday: "long",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : null;
   return (
     <div className="card p-6 text-center">
       <div className="mx-auto mb-5 w-full max-w-sm md:max-w-md">
@@ -205,11 +198,6 @@ function EmptyState({
             className="object-cover"
             priority={false}
           />
-          {cutoffShort ? (
-            <span className="absolute bottom-2.5 left-2.5 inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-ink-primary shadow-sm">
-              Cutoff {cutoffShort}
-            </span>
-          ) : null}
         </div>
       </div>
       <p className="display text-[22px] tracking-tight text-ink-primary mb-1">
