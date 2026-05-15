@@ -232,11 +232,15 @@ describe("runStandingOrder", () => {
     expect(captured.orderInsert.order_number).toBe("FLF-1001");
   });
 
-  it("creates a draft order when require_confirmation is true", async () => {
+  it("creates a pending order even when require_confirmation is true (legacy data)", async () => {
+    // Legacy standing orders may still have require_confirmation=true in the
+    // DB. The auto-submit migration ignores that flag; every run now lands
+    // a `pending` order so it flows into fulfillment without a manual
+    // confirm step.
     const fx = baseFixture({ require_confirmation: true });
     const { svc, captured } = makeSvc(fx);
     await runStandingOrder(svc, "so-1");
-    expect(captured.orderInsert.status).toBe("draft");
+    expect(captured.orderInsert.status).toBe("pending");
   });
 
   it("computes subtotal at the standard wholesale tier", async () => {
@@ -337,8 +341,10 @@ describe("runStandingOrder", () => {
     expect(captured.updatedStandingOrderId).toBe("so-1");
   });
 
-  it("sends a confirmation-style SMS when require_confirmation is true", async () => {
-    const fx = baseFixture({ require_confirmation: true });
+  it("sends an auto-submit SMS regardless of require_confirmation", async () => {
+    // Auto-submit migration: the SMS body is always the post-submit form,
+    // even for legacy rows that still have require_confirmation=true.
+    const fx = baseFixture();
     const { svc } = makeSvc(fx);
     await runStandingOrder(svc, "so-1");
 
@@ -346,19 +352,21 @@ describe("runStandingOrder", () => {
     const arg = mockedEnqueue.mock.calls[0][0];
     expect(arg.channel).toBe("sms");
     expect(arg.toAddress).toBe("+15555550100");
-    expect(arg.body).toMatch(/CONFIRM/);
     expect(arg.type).toBe("standing_order_ready");
+    expect(arg.body).toMatch(/submitted automatically/);
+    expect(arg.body).toMatch(/\$32\.75/);
+    expect(arg.body).not.toMatch(/CONFIRM/);
   });
 
-  it("sends an auto-submit SMS when require_confirmation is false", async () => {
-    const fx = baseFixture();
+  it("sends the auto-submit SMS even when require_confirmation is true (legacy data)", async () => {
+    const fx = baseFixture({ require_confirmation: true });
     const { svc } = makeSvc(fx);
     await runStandingOrder(svc, "so-1");
 
     expect(mockedEnqueue).toHaveBeenCalledTimes(1);
     const body: string = mockedEnqueue.mock.calls[0][0].body;
     expect(body).toMatch(/submitted automatically/);
-    expect(body).toMatch(/\$32\.75/);
+    expect(body).not.toMatch(/CONFIRM/);
   });
 
   it("skips SMS entirely when buyer has no phone", async () => {
