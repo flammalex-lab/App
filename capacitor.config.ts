@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
   appName: "Fingerlakes Farms",
   webDir: "public",
   server: {
-    url: process.env.NEXT_PUBLIC_APP_URL ?? "https://flf-portal.vercel.app",
+    url: process.env.NEXT_PUBLIC_APP_URL ?? "https://order.ilovenyfarms.com",
     androidScheme: "https",
     cleartext: false,
   },
