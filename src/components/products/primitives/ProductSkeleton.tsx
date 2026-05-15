@@ -106,6 +106,46 @@ export function DraftLineBlockSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
+/** DraftStrip skeleton: a 2-row × N-column grid of DraftTile placeholders.
+ *  Image square + 2-line name bar + pill row, all sized to the painted
+ *  tile so the swap doesn't jump. */
+export function DraftStripSkeleton({
+  rows = 2,
+  columns = 4,
+}: {
+  rows?: 1 | 2 | 3;
+  columns?: number;
+}) {
+  const total = rows * columns;
+  return (
+    <div className="overflow-hidden">
+      <div
+        className={`grid grid-flow-col auto-cols-[96px] gap-x-3 gap-y-3 ${
+          rows === 1
+            ? "grid-rows-[auto]"
+            : rows === 2
+              ? "grid-rows-[auto_auto]"
+              : "grid-rows-[auto_auto_auto]"
+        }`}
+      >
+        {Array.from({ length: total }).map((_, i) => (
+          <div key={i} className="flex flex-col">
+            <div className="h-24 w-24 rounded-md bg-black/8" />
+            <div className="pt-1.5 space-y-1">
+              <div className="h-3 w-20 rounded bg-black/8" />
+              <div className="h-3 w-14 rounded bg-black/8" />
+            </div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <div className="h-7 w-10 rounded-md bg-black/10" />
+              <div className="h-3 w-10 rounded bg-black/8" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Horizontal scroll-strip skeleton: a row of compact card skeletons. */
 export function ScrollStripSkeleton({ count = 4 }: { count?: number }) {
   return (

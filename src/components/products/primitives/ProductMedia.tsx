@@ -86,7 +86,7 @@ export function ProductThumb({
   product: Product & Record<string, unknown>;
   photo: string | null;
   /** Outer square size in CSS pixels. Tailwind classes are computed for the common sizes. */
-  sizePx?: 40 | 48 | 56 | 64 | 80;
+  sizePx?: 40 | 48 | 56 | 64 | 80 | 96;
   className?: string;
 }) {
   // Tailwind doesn't ship h-14 w-14 etc. for arbitrary px values via class

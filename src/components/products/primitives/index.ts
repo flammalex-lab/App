@@ -14,6 +14,7 @@ export {
   ProductCardSkeleton,
   PackRowsSkeleton,
   DraftLineBlockSkeleton,
+  DraftStripSkeleton,
   ScrollStripSkeleton,
 } from "./ProductSkeleton";
 export { haptic } from "./haptic";
