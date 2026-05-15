@@ -3,6 +3,7 @@
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
 import { ProductDetailContent } from "@/app/(storefront)/catalog/[id]/ProductDetailContent";
+import { PackRowsSkeleton } from "@/components/products/primitives";
 
 /**
  * Mounts the Pepper-style client-state product detail modal at the
@@ -105,20 +106,3 @@ function ProductDetailContentInstant({
   );
 }
 
-function PackRowsSkeleton() {
-  return (
-    <div className="mt-4 animate-pulse">
-      <div className="card divide-y divide-black/8">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="p-3 flex items-center justify-between gap-3">
-            <div className="space-y-1.5 flex-1">
-              <div className="h-4 w-32 rounded bg-black/8" />
-              <div className="h-3 w-20 rounded bg-black/8" />
-            </div>
-            <div className="h-9 w-24 rounded-full bg-black/10 shrink-0" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

@@ -1,16 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import type { PackOption, Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
 import { useToast } from "@/components/ui/Toast";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { QtyInput } from "@/components/ui/QtyInput";
-import { ProductCardFallback } from "@/components/products/ProductCardFallback";
 import { productPhoto } from "@/lib/utils/product-image";
 import { displayProductName } from "@/lib/utils/product-display";
 import { money } from "@/lib/utils/format";
+import {
+  ProducerEyebrow,
+  ProductThumb,
+  ProductStepper,
+  PriceLine,
+  haptic,
+} from "@/components/products/primitives";
 
 type PricedProduct = Product & { unitPrice: number | null };
 
@@ -65,9 +69,7 @@ export function StockUpSheet({
   );
 
   // Resync rows whenever the sheet transitions from closed→open, or when
-  // the product set changes mid-open. Render-time sync mirrors how
-  // BottomSheet handles its own open transition (no effect cascade).
-  // Closing also resets so a re-open isn't haunted by leftover qty=0 rows.
+  // the product set changes mid-open.
   const openKey = open ? buildOpenKey(orderable) : "__closed__";
   const [lastOpenKey, setLastOpenKey] = useState<string>(openKey);
   if (openKey !== lastOpenKey) {
@@ -116,10 +118,7 @@ export function StockUpSheet({
   }
 
   // Footer math — only rows with qty > 0 count toward the line + subtotal
-  // totals. Missing state falls back to the same default as the rendering
-  // (qty 1, default pack) so the footer can't disagree with what the
-  // buyer sees in a row. Unpriced variants count as 0 even if qty>0 so
-  // the buyer never sees a falsely-low subtotal.
+  // totals.
   let lineCount = 0;
   let subtotal = 0;
   for (const p of orderable) {
@@ -165,19 +164,9 @@ export function StockUpSheet({
       open={open}
       onClose={onClose}
       ariaLabel={`Stock up on ${subject}`}
-      // Wider than the default 32rem because the Stock-up sheet is a
-      // multi-row list (image + name + price + qty stepper) — at the old
-      // 48rem the sheet only spanned ~half the catalog's content area
-      // (max-w-screen-xl = 80rem) on web, leaving a lot of dead canvas.
-      // 56rem (= Tailwind max-w-4xl) gives each row room to breathe
-      // without making the product list painful to scan.
       desktopMaxWidth="56rem"
     >
       <div className="flex flex-col h-full md:min-h-[400px] md:max-h-[80vh] md:h-[70vh]">
-        {/* Header — display font, no border-bottom (we get one from the
-            list's top edge instead). Subtitle uses the editorial voice
-            from docs/design-system.md: terse, no "successfully", no
-            exclamation. */}
         <div className="px-5 pt-2 md:pt-5 pb-3">
           <h2 className="display text-xl font-bold tracking-tight leading-tight">
             Stock up on {subject}
@@ -187,9 +176,6 @@ export function StockUpSheet({
           </p>
         </div>
 
-        {/* Scrollable list. flex-1 + min-h-0 so it shrinks inside the
-            sheet's height-managed flex column without pushing the footer
-            off-screen. */}
         <ul className="flex-1 min-h-0 overflow-y-auto overscroll-contain border-t border-black/[0.06] divide-y divide-black/[0.06]">
           {orderable.length === 0 ? (
             <li className="px-5 py-10 text-center text-sm text-ink-secondary">
@@ -212,9 +198,6 @@ export function StockUpSheet({
           )}
         </ul>
 
-        {/* Sticky footer — kept inside the sheet so it rides up with the
-            sheet's height. Brand-blue CTA (no green; green is for Place
-            order only per the design system). */}
         <div
           className="shrink-0 border-t border-black/[0.06] bg-white px-4 py-3 flex items-center gap-3"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0.75rem)" }}
@@ -240,9 +223,10 @@ export function StockUpSheet({
 }
 
 /**
- * Single row. Thumbnail + name + size eyebrow + (optional variant pills) +
- * qty stepper. Matches the row aesthetic of ProductCard's row variant
- * without modifying it.
+ * Single row. Thumbnail + producer eyebrow + name + price/size + optional
+ * variant pills + qty stepper. Composed from the shared primitives —
+ * matches ProductCard.row's identity treatment so the two read as
+ * siblings.
  */
 function StockUpRow({
   product,
@@ -259,9 +243,7 @@ function StockUpRow({
 }) {
   // When the sheet was opened from a producer-filtered view, the heading
   // already says "Stock up on {producer}", so re-stating the producer on
-  // every row is redundant and makes a single-producer list look like it
-  // spans multiple producers when scanned fast. Skip the producer caption
-  // (and the producer prefix in the display name) only when they match.
+  // every row is redundant. Skip the eyebrow only when they match.
   const sheetIsProducer =
     !!product.producer &&
     product.producer.trim().toLowerCase() ===
@@ -290,13 +272,7 @@ function StockUpRow({
     activeUnit = product.unit;
   }
   const sizeLabel = activeSize ?? activeUnit;
-  const priceLabel = activePrice != null ? money(activePrice) : "—";
 
-  // Variant pill rows: "default" pill first (only when the default pack
-  // is actually priced — otherwise it'd lead to an "—" row that can't be
-  // added), then each priced pack_option. Buyer toggles which one the
-  // stepper controls. Active = brand-blue solid; inactive = bordered.
-  // A row with only one priced option doesn't need pills at all.
   const pricedOpts = opts.filter(
     (o) => (o.wholesale_price ?? o.retail_price ?? null) != null,
   );
@@ -305,37 +281,19 @@ function StockUpRow({
   const hasVariants = pillCount > 1;
   const defaultPillLabel = product.pack_size ?? "Each";
 
-  function qtyInc() {
-    haptic(8);
-    onChangeQty(Math.min(9999, state.qty + 1));
-  }
-  function qtyDec() {
-    if (state.qty <= 0) return;
-    haptic(6);
-    onChangeQty(Math.max(0, state.qty - 1));
+  function bump(n: number) {
+    if (n > state.qty) haptic(8);
+    else if (n < state.qty) haptic(6);
+    onChangeQty(Math.min(9999, Math.max(0, n)));
   }
 
   return (
     <li className="flex items-start gap-3 px-4 py-3">
-      <div className="relative h-14 w-14 shrink-0 rounded-md overflow-hidden bg-bg-secondary flex items-center justify-center">
-        {photo ? (
-          <Image
-            src={photo}
-            alt=""
-            fill
-            sizes="56px"
-            className="object-contain mix-blend-multiply"
-          />
-        ) : (
-          <ProductCardFallback product={product} size="sm" />
-        )}
-      </div>
+      <ProductThumb product={product} photo={photo} sizePx={56} />
 
       <div className="flex-1 min-w-0">
         {product.producer && !sheetIsProducer ? (
-          <div className="text-[10px] uppercase tracking-[0.08em] font-semibold text-ink-tertiary truncate leading-tight">
-            {product.producer}
-          </div>
+          <ProducerEyebrow producer={product.producer} />
         ) : null}
         <div
           className="text-[14px] font-semibold leading-snug text-ink-primary mt-0.5 line-clamp-2"
@@ -343,10 +301,13 @@ function StockUpRow({
         >
           {displayName}
         </div>
-        <div className="text-[12px] text-ink-secondary tabular mt-0.5 truncate">
-          <span className="font-medium text-ink-primary">{priceLabel}</span>
-          <span className="text-ink-tertiary"> · {sizeLabel}</span>
-        </div>
+        <PriceLine
+          price={activePrice}
+          size={sizeLabel}
+          weight="medium"
+          textSize="xs"
+          className="mt-0.5 truncate"
+        />
 
         {hasVariants ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -369,28 +330,17 @@ function StockUpRow({
         ) : null}
       </div>
 
-      <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
-        <button
-          onClick={qtyDec}
-          disabled={state.qty <= 0}
-          aria-label="Decrease"
-          className="h-9 w-9 flex items-center justify-center rounded-full border-2 border-brand-blue text-brand-blue hover:bg-brand-blue-tint focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97] disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <span className="text-lg leading-none">−</span>
-        </button>
-        <QtyInput
-          value={state.qty}
-          onSet={(n) => onChangeQty(n)}
-          ariaLabel={`${product.name} quantity`}
-          className="h-9 w-11 text-center tabular text-[14px] font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 transition-colors duration-150"
+      <div className="shrink-0 pt-0.5">
+        <ProductStepper
+          available
+          cartQty={state.qty}
+          onAdd={() => bump(state.qty + 1)}
+          onSub={() => bump(state.qty - 1)}
+          onSet={(n) => onChangeQty(Math.min(9999, Math.max(0, n)))}
+          size="sm"
+          ariaProductName={product.name}
+          alwaysExpanded
         />
-        <button
-          onClick={qtyInc}
-          aria-label="Add one"
-          className="h-9 w-9 flex items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97]"
-        >
-          <span className="text-lg leading-none">+</span>
-        </button>
       </div>
     </li>
   );
@@ -423,8 +373,6 @@ function VariantPill({
 function isOrderable(p: PricedProduct): boolean {
   if (p.available_b2b === false) return false;
   if (p.available_this_week === false) return false;
-  // No resolvable price for the default pack AND no priced pack_options
-  // means there's nothing to buy at any size — hide the row.
   if (p.unitPrice == null) {
     const opts = (p.pack_options as PackOption[] | null) ?? [];
     const anyPriced = opts.some(
@@ -443,12 +391,6 @@ function buildInitialRows(products: PricedProduct[]): Record<string, RowState> {
   return out;
 }
 
-/**
- * Pick the initial variant for a product row. Prefer the default pack
- * when it's priced; otherwise fall back to the first priced pack_option.
- * Returning null means "use the default pack" (the product's own
- * unitPrice / unit). The buyer can always switch via the pills.
- */
 function defaultVariantKey(p: PricedProduct): string | null {
   if (p.unitPrice != null) return null;
   const opts = (p.pack_options as PackOption[] | null) ?? [];
@@ -458,18 +400,6 @@ function defaultVariantKey(p: PricedProduct): string | null {
   return null;
 }
 
-/** Stable key for the set of products in the sheet. Changes when the
- *  caller passes a different list, triggering a state reset. */
 function buildOpenKey(products: PricedProduct[]): string {
   return products.map((p) => p.id).join("|");
-}
-
-function haptic(ms: number) {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-    try {
-      (navigator as Navigator & { vibrate: (p: number | number[]) => boolean }).vibrate(ms);
-    } catch {
-      /* ignore */
-    }
-  }
 }

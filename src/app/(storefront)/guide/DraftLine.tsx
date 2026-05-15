@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCart, type CartLine } from "@/lib/cart/store";
 import { QtyInput } from "@/components/ui/QtyInput";
 import { displayProductName } from "@/lib/utils/product-display";
-import { money } from "@/lib/utils/format";
+import { PriceLine } from "@/components/products/primitives";
 import type { Product } from "@/lib/supabase/types";
 import type { GuideRow, PricedProductLite } from "./page";
 
@@ -255,9 +255,11 @@ export function DraftLine({ row, substitutes = [] }: Props) {
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <div className="tabular text-[13px] text-ink-secondary">
-          {unitPrice > 0 ? money(unitPrice) : "—"}
-        </div>
+        <PriceLine
+          price={unitPrice > 0 ? unitPrice : null}
+          textSize="sm"
+          weight="medium"
+        />
       </div>
     </div>
   );
