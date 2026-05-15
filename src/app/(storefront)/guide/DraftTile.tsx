@@ -7,32 +7,31 @@ import { displayProductName } from "@/lib/utils/product-display";
 import { productPhoto } from "@/lib/utils/product-image";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
 import { ProductCardFallback } from "@/components/products/ProductCardFallback";
-import { PriceLine, haptic } from "@/components/products/primitives";
+import {
+  PriceLine,
+  ProducerEyebrow,
+  haptic,
+} from "@/components/products/primitives";
 import type { GuideRow } from "./page";
 
 /**
- * Horizontal draft tile: 80px image on the left, name + price + −/N/+
- * stepper stacked on the right. Border + radius match the catalog card
- * family so the draft and catalog read as the same visual system.
+ * Horizontal order-guide tile. 80px image on the left; on the right
+ * the content stacks name + price on top, producer eyebrow + stepper
+ * pinned to the bottom (producer sits directly above the stepper per
+ * the design pass). Tiles are fixed height (set by the grid row) so
+ * shorter-name tiles don't render shorter than longer-name siblings —
+ * keeps the 3-row strip visually even.
  *
- * Three visual states, mirroring DraftLine's:
- *   - SUGGESTED  : rhythm pre-filled qty. Qty cell tinted-blue.
- *   - ADJUSTED   : buyer changed qty. Qty cell white, blue ink.
- *   - SKIPPED    : tile dimmed + strikethrough name; the stepper is
- *                  replaced with a single full-width "+ Add back" button.
+ * No rhythm state. The order guide is a flat list of products; the
+ * stepper just controls cart qty (0/N). When qty=0 the [−] disables;
+ * when qty>0 the qty cell tints blue to signal "this is in your order".
  *
- * STOCKOUT is NOT rendered here — substitute chips don't fit. The
- * parent (GuideClient) splits stockouts into a fullwidth DraftLine list
- * below the strip.
- *
- * Stepper buttons are exactly 44px square (iOS HIG minimum). The three
- * cells are flush against each other with a single outer brand-blue
- * border + internal dividers from the qty cell's border-l/r — reads as
- * a single segmented control rather than three loose buttons. Total
- * stepper width: 132px content + 4px outer border = 136px.
+ * Stepper is a segmented control: single outer brand-blue border with
+ * internal dividers from the qty cell's border-l/r. Buttons are 44px
+ * (iOS HIG); total stepper width 136px including the outer border.
  *
  * Tap targets:
- *   - −/+      → bump qty (or restore from skipped via the "Add back" pill)
+ *   - −/+      → bump qty by one
  *   - qty cell → focus QtyInput for direct numeric entry
  *   - tile body→ open the product detail sheet
  */
@@ -44,17 +43,11 @@ export function DraftTile({ row }: { row: GuideRow }) {
   const line = useCart((s) =>
     s.lines.find((l) => l.productId === product.id && (l.variantKey ?? null) === variantKey),
   );
-  const adjusted = useCart((s) => s.isAdjusted(product.id, variantKey));
-  const skipped = useCart((s) => s.isSkipped(product.id, variantKey));
-  const rhythmQty = useCart((s) => s.rhythmQtyFor(product.id, variantKey));
   const setQty = useCart((s) => s.setQty);
   const add = useCart((s) => s.add);
-  const skipLine = useCart((s) => s.skipLine);
-  const addBackLine = useCart((s) => s.addBackLine);
-  const markAdjusted = useCart((s) => s.markAdjusted);
 
   const qty = line?.quantity ?? 0;
-  const isSuggested = !adjusted && rhythmQty != null && qty > 0;
+  const inCart = qty > 0;
 
   const photo = productPhoto(product);
   const displayName = displayProductName(
@@ -84,7 +77,7 @@ export function DraftTile({ row }: { row: GuideRow }) {
   function handleQtyChange(next: number) {
     if (next === qty) return;
     if (next <= 0) {
-      skipLine(product.id, variantKey);
+      setQty(product.id, 0, variantKey);
       return;
     }
     if (qty === 0) {
@@ -92,7 +85,6 @@ export function DraftTile({ row }: { row: GuideRow }) {
     } else {
       setQty(product.id, next, variantKey);
     }
-    markAdjusted(product.id, variantKey);
   }
 
   function bumpUp() {
@@ -104,27 +96,17 @@ export function DraftTile({ row }: { row: GuideRow }) {
     handleQtyChange(Math.max(0, qty - 1));
   }
 
-  function handleAddBack() {
-    const restored = rhythmQty && rhythmQty > 0 ? rhythmQty : 1;
-    add(cartLineFromProduct(restored));
-    addBackLine(product.id, variantKey);
-  }
-
   function openDetail() {
     useProductSheet.getState().open(product, { packs: row.packs });
   }
 
-  const qtyCellBg = isSuggested ? "bg-brand-blue-tint" : "bg-white";
-  const qtyInputClass = isSuggested
+  const qtyCellBg = inCart ? "bg-brand-blue-tint" : "bg-white";
+  const qtyInputClass = inCart
     ? "h-full w-full text-center tabular text-[14px] font-semibold bg-transparent border-none text-brand-blue-dark focus:outline-none"
     : "h-full w-full text-center tabular text-[14px] font-semibold bg-transparent border-none text-brand-blue focus:outline-none";
 
   return (
-    <div
-      className={`group/tile relative w-[248px] flex items-stretch gap-3 p-2 rounded-xl border border-black/10 bg-white snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${
-        skipped ? "opacity-50" : ""
-      }`}
-    >
+    <div className="group/tile relative w-[248px] h-full flex items-start gap-3 p-2 rounded-xl border border-black/10 bg-white snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue">
       <button
         type="button"
         onClick={openDetail}
@@ -146,12 +128,10 @@ export function DraftTile({ row }: { row: GuideRow }) {
         )}
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col justify-between relative">
+      <div className="flex-1 min-w-0 h-full flex flex-col relative">
         <div className="pointer-events-none">
           <div
-            className={`text-[13px] font-semibold leading-snug text-ink-primary line-clamp-2 ${
-              skipped ? "line-through text-ink-tertiary" : ""
-            }`}
+            className="text-[13px] font-semibold leading-snug text-ink-primary line-clamp-2"
             title={product.name}
           >
             {displayName}
@@ -165,21 +145,13 @@ export function DraftTile({ row }: { row: GuideRow }) {
           />
         </div>
 
-        {skipped ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAddBack();
-            }}
-            className="mt-1 h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-accent-gold/15 text-[#8a690f] text-[13px] font-semibold hover:bg-accent-gold/25 focus:outline-none focus:ring-2 focus:ring-accent-gold/40 transition-colors duration-150"
-            aria-label={`Add back ${product.name}`}
-          >
-            <span aria-hidden>+</span>
-            <span>Add back</span>
-          </button>
-        ) : (
-          <div className="mt-1 inline-flex h-11 rounded-md overflow-hidden border-2 border-brand-blue self-start">
+        <div className="mt-auto pt-1">
+          {product.producer ? (
+            <div className="pointer-events-none mb-1">
+              <ProducerEyebrow producer={product.producer} />
+            </div>
+          ) : null}
+          <div className="inline-flex h-11 rounded-md overflow-hidden border-2 border-brand-blue self-start">
             <button
               type="button"
               onClick={(e) => {
@@ -214,7 +186,7 @@ export function DraftTile({ row }: { row: GuideRow }) {
               <span className="text-lg leading-none">+</span>
             </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
