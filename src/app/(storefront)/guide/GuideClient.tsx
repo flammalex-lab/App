@@ -431,39 +431,39 @@ export function GuideClient({
           cta={{ href: "/catalog", label: "Browse the catalog" }}
         />
       ) : (
-        <div className="space-y-4">
-          {draftSections.map(({ subCategory, rows }) => {
-            const filtered = rows.filter(searchMatch);
-            if (filtered.length === 0) return null;
-            // Split: in-stock rows render as condensed DraftTiles in a
-            // horizontal-scroll grid; stockout rows fall to fullwidth
-            // DraftLines below the grid so the substitute chips still
-            // have room to breathe. This split preserves the existing
-            // stockout UX while making the bulk of the draft 2–3× denser.
-            const stockTiles: typeof filtered = [];
-            const stockoutRows: typeof filtered = [];
-            for (const r of filtered) {
-              if (
-                r.product.available_this_week === false ||
-                r.product.available_b2b === false
-              ) {
-                stockoutRows.push(r);
-              } else {
-                stockTiles.push(r);
-              }
+        (() => {
+          // Single unified strip across all sub-categories. Buyers scan
+          // their draft by photo and name (it's the same items every
+          // week), not by category — and search handles the find-a-
+          // specific-item case. Headers were fragmenting a draft that
+          // wants to read as one cohesive list.
+          const allFiltered = draftSections.flatMap((s) =>
+            s.rows.filter(searchMatch),
+          );
+          const stockTiles: typeof allFiltered = [];
+          const stockoutRows: typeof allFiltered = [];
+          for (const r of allFiltered) {
+            if (
+              r.product.available_this_week === false ||
+              r.product.available_b2b === false
+            ) {
+              stockoutRows.push(r);
+            } else {
+              stockTiles.push(r);
             }
-            return (
-              <section key={subCategory}>
-                <div className="text-[11px] uppercase tracking-wider text-ink-tertiary font-medium mb-2 px-1">
-                  {subCategory}
-                </div>
-                {stockTiles.length > 0 ? (
-                  <DraftStrip tiles={stockTiles} rows={2} />
-                ) : null}
-                {stockoutRows.length > 0 ? (
-                  <div
-                    className={`card overflow-hidden divide-y divide-black/[0.04] ${stockTiles.length > 0 ? "mt-3" : ""}`}
-                  >
+          }
+          if (allFiltered.length === 0) return null;
+          return (
+            <div className="space-y-4">
+              {stockTiles.length > 0 ? (
+                <DraftStrip tiles={stockTiles} rows={3} />
+              ) : null}
+              {stockoutRows.length > 0 ? (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-ink-tertiary font-medium mb-2 px-1">
+                    Out this week
+                  </div>
+                  <div className="card overflow-hidden divide-y divide-black/[0.04]">
                     {stockoutRows.map((r) => {
                       const subs = pickSubstitutes(
                         r.product,
@@ -481,11 +481,11 @@ export function GuideClient({
                       );
                     })}
                   </div>
-                ) : null}
-              </section>
-            );
-          })}
-        </div>
+                </div>
+              ) : null}
+            </div>
+          );
+        })()
       )}
 
       {/* ---- "Recent buys" — keep but demote below the draft -------------- */}

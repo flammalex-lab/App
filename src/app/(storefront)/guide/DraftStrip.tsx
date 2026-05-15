@@ -19,7 +19,7 @@ import type { GuideRow } from "./page";
  * the rail's content fits entirely.
  */
 export function DraftStrip({
-  rows: requestedRows = 2,
+  rows: requestedRows = 3,
   tiles,
 }: {
   rows?: 1 | 2 | 3;
@@ -49,8 +49,13 @@ export function DraftStrip({
 
   if (tiles.length === 0) return null;
 
-  // Single-row branch — a 2-row grid with 1-3 items reads as broken.
-  const rows = tiles.length <= 3 ? 1 : Math.min(requestedRows, 3);
+  // Scale rows to item count so sparse strips don't read as broken.
+  // Aim for at least ~4 columns before stacking — otherwise the last
+  // column has too many empty slots and looks unfinished.
+  const rows = Math.min(
+    requestedRows,
+    Math.max(1, Math.ceil(tiles.length / 4)),
+  );
 
   const gridRowsClass =
     rows === 1

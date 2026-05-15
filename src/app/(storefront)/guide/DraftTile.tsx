@@ -5,10 +5,8 @@ import { QtyInput } from "@/components/ui/QtyInput";
 import { displayProductName } from "@/lib/utils/product-display";
 import { productPhoto } from "@/lib/utils/product-image";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
-import {
-  ProductThumb,
-  PriceLine,
-} from "@/components/products/primitives";
+import { money } from "@/lib/utils/format";
+import { ProductThumb, haptic } from "@/components/products/primitives";
 import type { GuideRow } from "./page";
 
 /**
@@ -16,18 +14,29 @@ import type { GuideRow } from "./page";
  * lines into a horizontal-scroll grid. Three visual states, mirroring
  * DraftLine's:
  *
- *   - SUGGESTED  : rhythm pre-filled qty. Tinted blue pill behind the qty.
- *   - ADJUSTED   : buyer changed qty. White pill, blue ink.
- *   - SKIPPED    : tile dimmed + strikethrough name; the qty pill becomes
- *                  a gold-tint "+ back" button that restores rhythm qty.
+ *   - SUGGESTED  : rhythm pre-filled qty. Qty cell tinted-blue.
+ *   - ADJUSTED   : buyer changed qty. Qty cell white, blue ink.
+ *   - SKIPPED    : tile dimmed + strikethrough name; the stepper is
+ *                  replaced by a single full-width "+ back" button that
+ *                  restores rhythm qty.
  *
- * STOCKOUT is NOT rendered here — substitute chips don't fit on a 100px
+ * STOCKOUT is NOT rendered here — substitute chips don't fit on a 96px
  * tile. The parent (DraftStrip's caller in GuideClient) splits out
  * stockout rows and renders them as the existing fullwidth DraftLine.
  *
+ * Layout: 96px wide. Image 96×96 with a small price-pill overlay in
+ * the top-right corner (so the unit price stays visible without taking
+ * a separate text row). Below: name (2-line clamp). Below: [−][N][+]
+ * stepper, 28px buttons, exact 96px total width — no gaps, qty cell
+ * 40px wide. Tap targets are below the 44px iOS HIG, but the buyer-
+ * frequent-use context (chefs editing their daily rhythm) makes the
+ * density trade worth it; the QtyInput itself remains tappable for
+ * direct numeric entry when the +/- doesn't suffice.
+ *
  * Tap targets:
- *   - Tap qty pill   → focus QtyInput (numeric keyboard) / restore (skipped)
- *   - Tap tile body  → open the product detail sheet
+ *   - −/+      → bump qty by one (capped at 0)
+ *   - qty cell → focus QtyInput (numeric keyboard)
+ *   - tile body→ open the product detail sheet
  */
 export function DraftTile({ row }: { row: GuideRow }) {
   const product = row.product;
@@ -86,6 +95,15 @@ export function DraftTile({ row }: { row: GuideRow }) {
     markAdjusted(product.id, variantKey);
   }
 
+  function bumpUp() {
+    haptic(8);
+    handleQtyChange(qty + 1);
+  }
+  function bumpDown() {
+    haptic(6);
+    handleQtyChange(Math.max(0, qty - 1));
+  }
+
   function handleAddBack() {
     const restored = rhythmQty && rhythmQty > 0 ? rhythmQty : 1;
     add(cartLineFromProduct(restored));
@@ -96,15 +114,13 @@ export function DraftTile({ row }: { row: GuideRow }) {
     useProductSheet.getState().open(product, { packs: row.packs });
   }
 
-  // Qty pill — visual states encoded on the wrapper background.
-  const pillWrapClass = skipped
-    ? "h-7 px-2 rounded-md bg-accent-gold/15 text-[#8a690f] flex items-center gap-1 text-[11px] font-semibold tabular shrink-0"
-    : isSuggested
-      ? "h-7 w-10 rounded-md bg-brand-blue-tint border border-brand-blue/25 flex items-center justify-center shrink-0"
-      : "h-7 w-10 rounded-md border border-black/15 bg-white flex items-center justify-center shrink-0";
-  const inputClass = isSuggested
-    ? "h-7 w-10 text-center tabular text-[12px] font-semibold rounded-md bg-transparent border-none text-brand-blue-dark focus:outline-none"
-    : "h-7 w-10 text-center tabular text-[12px] font-semibold rounded-md bg-transparent border-none text-brand-blue focus:outline-none";
+  // Qty cell background encodes the suggested/adjusted distinction.
+  const qtyCellClass = isSuggested
+    ? "h-7 w-10 flex items-center justify-center bg-brand-blue-tint border-y border-brand-blue/25"
+    : "h-7 w-10 flex items-center justify-center bg-white border-y border-black/15";
+  const qtyInputClass = isSuggested
+    ? "h-7 w-10 text-center tabular text-[12px] font-semibold bg-transparent border-none text-brand-blue-dark focus:outline-none"
+    : "h-7 w-10 text-center tabular text-[12px] font-semibold bg-transparent border-none text-brand-blue focus:outline-none";
 
   return (
     <div className={`relative flex flex-col snap-start ${skipped ? "opacity-50" : ""}`}>
@@ -117,10 +133,15 @@ export function DraftTile({ row }: { row: GuideRow }) {
 
       <div className="relative pointer-events-none">
         <ProductThumb product={product} photo={photo} sizePx={96} className="rounded-md" />
+        {unitPrice > 0 ? (
+          <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-semibold tabular bg-white/95 text-ink-primary shadow-card">
+            {money(unitPrice)}
+          </span>
+        ) : null}
       </div>
 
       <div
-        className={`pt-1.5 text-[11px] font-semibold leading-snug text-ink-primary line-clamp-2 pointer-events-none ${
+        className={`pt-1.5 px-0.5 text-[11px] font-semibold leading-snug text-ink-primary line-clamp-2 pointer-events-none ${
           skipped ? "line-through text-ink-tertiary" : ""
         }`}
         title={product.name}
@@ -128,33 +149,55 @@ export function DraftTile({ row }: { row: GuideRow }) {
         {displayName}
       </div>
 
-      <div className="mt-1 flex items-center gap-1.5 relative">
+      <div className="mt-1 relative">
         {skipped ? (
           <button
             type="button"
-            onClick={handleAddBack}
-            className={pillWrapClass}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAddBack();
+            }}
+            className="w-full h-7 inline-flex items-center justify-center gap-1 rounded-md bg-accent-gold/15 text-[#8a690f] text-[11px] font-semibold focus:outline-none focus:ring-2 focus:ring-accent-gold/40"
             aria-label={`Add back ${product.name}`}
           >
             <span aria-hidden>+</span>
-            <span className="line-through tabular">{rhythmQty ?? 0}</span>
+            <span>Add back</span>
           </button>
         ) : (
-          <div className={pillWrapClass}>
-            <QtyInput
-              value={qty}
-              onSet={handleQtyChange}
-              ariaLabel={`${product.name} quantity`}
-              className={inputClass}
-            />
+          <div className="flex items-center justify-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                bumpDown();
+              }}
+              disabled={qty <= 0}
+              aria-label={`Decrease ${product.name}`}
+              className="h-7 w-7 rounded-l-md border border-brand-blue text-brand-blue bg-white hover:bg-brand-blue-tint focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+            >
+              <span className="text-base leading-none">−</span>
+            </button>
+            <div className={qtyCellClass}>
+              <QtyInput
+                value={qty}
+                onSet={handleQtyChange}
+                ariaLabel={`${product.name} quantity`}
+                className={qtyInputClass}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                bumpUp();
+              }}
+              aria-label={`Increase ${product.name}`}
+              className="h-7 w-7 rounded-r-md bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 flex items-center justify-center"
+            >
+              <span className="text-base leading-none">+</span>
+            </button>
           </div>
         )}
-        <PriceLine
-          price={unitPrice > 0 ? unitPrice : null}
-          textSize="xs"
-          weight="medium"
-          className="truncate pointer-events-none"
-        />
       </div>
     </div>
   );
