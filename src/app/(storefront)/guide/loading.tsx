@@ -26,13 +26,8 @@ export default function GuideLoading() {
       <div className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2 bg-white/95 mb-3">
         <div className="h-10 rounded-md bg-black/8" />
       </div>
-      <div className="space-y-4 animate-pulse">
-        {[0, 1, 2].map((i) => (
-          <section key={i}>
-            <div className="h-3 w-32 rounded bg-black/8 mb-2 ml-1" />
-            <DraftStripSkeleton rows={2} columns={4} />
-          </section>
-        ))}
+      <div className="animate-pulse">
+        <DraftStripSkeleton rows={3} columns={5} />
       </div>
       <div className="mt-6 animate-pulse">
         <div className="h-4 w-28 rounded bg-black/8 mb-3" />

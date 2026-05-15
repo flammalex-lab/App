@@ -106,11 +106,11 @@ export function DraftLineBlockSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
-/** DraftStrip skeleton: a 2-row × N-column grid of DraftTile placeholders.
- *  Image square + 2-line name bar + pill row, all sized to the painted
+/** DraftStrip skeleton: a N-row × M-column grid of DraftTile placeholders.
+ *  Image square + 2-line name bar + stepper row, all sized to the painted
  *  tile so the swap doesn't jump. */
 export function DraftStripSkeleton({
-  rows = 2,
+  rows = 3,
   columns = 4,
 }: {
   rows?: 1 | 2 | 3;
@@ -135,10 +135,7 @@ export function DraftStripSkeleton({
               <div className="h-3 w-20 rounded bg-black/8" />
               <div className="h-3 w-14 rounded bg-black/8" />
             </div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <div className="h-7 w-10 rounded-md bg-black/10" />
-              <div className="h-3 w-10 rounded bg-black/8" />
-            </div>
+            <div className="mt-1 h-7 w-full rounded-md bg-black/10" />
           </div>
         ))}
       </div>
