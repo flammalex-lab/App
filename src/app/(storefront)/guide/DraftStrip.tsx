@@ -71,7 +71,7 @@ export function DraftStrip({
         className="overflow-x-auto overscroll-x-contain snap-x snap-proximity -mx-1 px-1 pb-1"
       >
         <div
-          className={`grid grid-flow-col ${gridRowsClass} auto-cols-[96px] gap-x-3 gap-y-3`}
+          className={`grid grid-flow-col ${gridRowsClass} auto-cols-[248px] gap-x-3 gap-y-3`}
         >
           {tiles.map((t) => (
             <DraftTile key={t.product.id} row={t} />
