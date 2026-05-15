@@ -53,12 +53,47 @@ export default async function OrderDetail({
   const rows = (items as (OrderItem & { product: Product })[] | null) ?? [];
 
   if (placed === "1") {
+    // Buyer first-name for the headline's "Thanks, X" tail. Profile lookup
+    // is cheap and the data is on the order row already.
+    const { data: buyer } = await db
+      .from("profiles")
+      .select("first_name")
+      .eq("id", o.profile_id)
+      .maybeSingle();
+
+    // Top 8 lines for the receipt body. Sort by line_total desc so the
+    // biggest items lead — gives the buyer the same scanning order they'd
+    // use on a real packing slip.
+    const heroLines = [...rows]
+      .sort((a, b) => (b.line_total ?? 0) - (a.line_total ?? 0))
+      .slice(0, 8)
+      .map((r) => ({
+        name: r.product?.name ?? "Item",
+        producer: r.product?.producer ?? null,
+        qty: r.quantity,
+        lineTotal: r.line_total ?? 0,
+      }));
+    const remainingLines = Math.max(0, rows.length - heroLines.length);
+    const remainingTotal = rows
+      .slice(8)
+      .reduce((s, r) => s + (r.line_total ?? 0), 0);
+    const producerCount = new Set(
+      rows.map((r) => r.product?.producer).filter(Boolean),
+    ).size;
+
     return (
       <OrderPlacedHero
         orderNumber={o.order_number}
         deliveryDate={o.requested_delivery_date ?? o.pickup_date ?? null}
         total={o.total}
         orderId={o.id}
+        buyerFirstName={(buyer as { first_name?: string } | null)?.first_name ?? null}
+        placedAt={o.created_at}
+        lineCount={rows.length}
+        producerCount={producerCount}
+        lines={heroLines}
+        remainingLines={remainingLines}
+        remainingTotal={remainingTotal}
       />
     );
   }

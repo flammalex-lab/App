@@ -1,13 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BrandLogo } from "@/components/Brand";
 import { dateLong, money } from "@/lib/utils/format";
 import { useToast } from "@/components/ui/Toast";
 
-const DAY_NAMES_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_NAMES_LONG = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 function dayFromIso(iso: string | null): string {
   if (!iso) return DAY_NAMES_LONG[new Date().getDay()];
@@ -17,29 +25,72 @@ function dayFromIso(iso: string | null): string {
   return DAY_NAMES_LONG[d.getDay()];
 }
 
+function placedAtShort(iso: string | null | undefined): string {
+  if (!iso) return "just now";
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+interface HeroLine {
+  name: string;
+  producer: string | null;
+  qty: number;
+  lineTotal: number;
+}
+
+/**
+ * Order-placed hero — Brief 4 Option B "Receipt with landscape strip."
+ *
+ * Layout, top to bottom:
+ *   1. Thin landscape photo strip (produce-1.jpg) with a caption pill
+ *   2. Green check pill + order number + placed timestamp
+ *   3. Big mixed-italic headline: "N lines locked in for [Day]. Thanks, X."
+ *   4. Subhead about cutoff / when edits are accepted
+ *   5. Ticket card — two top blocks (Delivery, Estimated total), a
+ *      perforated divider, the 8 biggest line items, a footer total
+ *   6. Standing-order conversion ask (PR #115) — green-tinted card
+ *      with primary CTA; dismissible with "Not yet"
+ *   7. View order details + Back to guide CTAs
+ *
+ * The standing-order ask MUST stay across any future Brief 4 ship — the
+ * card is the post-submit conversion event and the only piece of the
+ * old hero that was load-bearing.
+ */
 export function OrderPlacedHero({
   orderNumber,
   deliveryDate,
   total,
   orderId,
+  buyerFirstName,
+  placedAt,
+  lineCount,
+  producerCount,
+  lines,
+  remainingLines,
+  remainingTotal,
 }: {
   orderNumber: string;
   deliveryDate: string | null;
   total: number;
   orderId: string;
+  buyerFirstName: string | null;
+  placedAt: string | null | undefined;
+  lineCount: number;
+  producerCount: number;
+  lines: HeroLine[];
+  remainingLines: number;
+  remainingTotal: number;
 }) {
   const router = useRouter();
   const toast = useToast();
-  // Post-submit "save as standing" prompt — auto-dismisses after 10s if
-  // ignored. Hidden once dismissed (manually or by save) for the lifetime
-  // of this page render.
   const [standingPromptOpen, setStandingPromptOpen] = useState(true);
   const [standingSaving, setStandingSaving] = useState(false);
-  useEffect(() => {
-    if (!standingPromptOpen) return;
-    const id = window.setTimeout(() => setStandingPromptOpen(false), 10_000);
-    return () => window.clearTimeout(id);
-  }, [standingPromptOpen]);
 
   async function saveAsStanding() {
     setStandingSaving(true);
@@ -67,159 +118,228 @@ export function OrderPlacedHero({
     router.push(`/standing/${id}`);
   }
 
-  // "Animate on mount" — start with mounted=false so the CSS transitions
-  // have an off-state to fade FROM, then flip to true after the first
-  // paint. requestAnimationFrame defers the setState past the commit so
-  // the React 19 set-state-in-effect lint doesn't flag a render cascade
-  // (the canonical "you might not need an effect" pattern doesn't apply
-  // — there's no derivable source for this; we're synchronizing with
-  // the browser's compositor).
+  // Fade-in on mount so the page settles in instead of slamming on.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
+  const deliveryDay = deliveryDate ? dayFromIso(deliveryDate) : null;
+  const headline = (() => {
+    const dayPart = deliveryDay ? ` for ${deliveryDay}` : "";
+    const thanks = buyerFirstName ? ` Thanks, ${buyerFirstName}.` : "";
+    return { dayPart, thanks };
+  })();
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-brand-blue text-white overflow-hidden">
-      {/* Texture layer — blue gradient w/ subtle diagonal lines */}
-      <div
-        className="absolute inset-0 opacity-80"
-        style={{
-          background:
-            "linear-gradient(135deg, #0F4A8A 0%, #1763B5 50%, #2A9B46 120%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.12]"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, rgba(255,255,255,0.6) 0, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 14px)",
-        }}
-      />
+    <div
+      className={`max-w-2xl mx-auto pb-20 transition-opacity duration-300 ${
+        mounted ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      {/* 1. Photo strip — 96px mobile, 128px desktop. Slightly taller than
+          the brief's 88px to land the visual at app type sizes. */}
+      <div className="relative h-24 md:h-32 overflow-hidden rounded-xl ring-1 ring-black/[0.06]">
+        <Image
+          src="/photos/produce-1.jpg"
+          alt="Fresh produce loaded for delivery"
+          fill
+          sizes="(max-width: 768px) 100vw, 42rem"
+          className="object-cover"
+          style={{ objectPosition: "center 40%" }}
+          priority
+        />
+        <span className="absolute bottom-2.5 left-3 inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-ink-primary shadow-sm">
+          Upstate · early light
+        </span>
+      </div>
 
-      {/* Content */}
-      <div className="relative flex-1 flex flex-col px-6 py-10 max-w-2xl mx-auto w-full">
-        <div className="flex items-center gap-2 mb-auto">
-          <BrandLogo size={44} />
-          <span className="display text-lg tracking-tight">Fingerlakes Farms</span>
-        </div>
-
-        <div className={`transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          {/* Celebratory check + confetti dots */}
-          <div className="relative mb-6">
-            <div className={`h-16 w-16 rounded-full bg-white/15 backdrop-blur flex items-center justify-center transition-transform duration-500 ${mounted ? "scale-100" : "scale-50"}`}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="m5 12 5 5L20 7" />
-              </svg>
-            </div>
-            {/* Confetti — small offset dots that spring in */}
-            <Confetti mounted={mounted} />
-          </div>
-
-          <p className="text-sm uppercase tracking-widest opacity-80 mb-3">
-            Order {orderNumber}
-          </p>
-          <h1 className="display text-5xl sm:text-6xl md:text-7xl leading-[0.95] uppercase tracking-tighter">
-            Sent.<br />We&apos;ve got it.
-          </h1>
-          <div className="mt-8 space-y-2">
-            {deliveryDate ? (
-              <div className="flex items-baseline justify-between border-t border-white/20 pt-3">
-                <span className="text-sm uppercase tracking-wide opacity-80">See you</span>
-                <span className="font-semibold">{dateLong(deliveryDate)}</span>
-              </div>
-            ) : null}
-            <div className="flex items-baseline justify-between border-t border-white/20 pt-3">
-              <span className="text-sm uppercase tracking-wide opacity-80">Estimated total</span>
-              <span className="tabular font-semibold">{money(total)}</span>
-            </div>
-          </div>
-        </div>
-
-        {standingPromptOpen ? (
-          <div
-            className={`mt-8 rounded-lg bg-white/12 backdrop-blur border border-white/20 px-4 py-3 transition-all duration-500 delay-300 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
-            role="region"
-            aria-label="Save as standing order"
+      {/* 2. Eyebrow row: green check pill + meta */}
+      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-green text-white px-2.5 py-1 text-[11px] font-semibold tracking-wide shadow-[0_2px_8px_rgba(42,155,70,0.28)]">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
           >
-            <p className="text-sm font-medium leading-snug">
-              Want to make this a regular order?
-            </p>
-            <p className="text-xs opacity-80 mt-0.5 leading-snug">
-              We&apos;ll re-send it on a schedule and text you to confirm.
-            </p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={saveAsStanding}
-                disabled={standingSaving}
-                className="flex-1 rounded-md bg-white text-brand-blue text-sm font-semibold py-2 hover:bg-bg-secondary transition disabled:opacity-60"
-              >
-                {standingSaving ? "Saving…" : "Save as standing"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStandingPromptOpen(false)}
-                className="rounded-md border border-white/30 text-white/90 text-sm py-2 px-3 hover:bg-white/10 transition"
-              >
-                No thanks
-              </button>
-            </div>
-          </div>
+            <path d="M2.5 6.3 5 8.5 9.5 3.8" />
+          </svg>
+          Order placed
+        </span>
+        <span className="text-[12px] text-ink-tertiary tabular">
+          #{orderNumber} · placed {placedAtShort(placedAt)}
+        </span>
+      </div>
+
+      {/* 3. Headline + 4. Subhead */}
+      <h1 className="mt-3 display text-3xl md:text-4xl leading-[1.05] tracking-tight text-ink-primary">
+        {lineCount} {lineCount === 1 ? "line" : "lines"} locked in
+        {headline.dayPart}.{" "}
+        {headline.thanks.trim() ? (
+          <em className="text-brand-green-dark italic font-semibold">
+            {headline.thanks.trim()}
+          </em>
         ) : null}
+      </h1>
+      <p className="mt-3 text-[14px] text-ink-secondary leading-relaxed max-w-prose">
+        We&apos;ll text the truck driver tonight and prep at dawn. Edits stay
+        open until your delivery zone&apos;s cutoff — after that we&apos;re
+        already loading.
+      </p>
 
-        <div className={`mt-10 flex flex-col gap-2 transition-all duration-700 delay-150 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <Link
-            href={`/orders/${orderId}`}
-            className="block w-full rounded-md bg-white text-brand-blue font-medium py-3 text-center hover:bg-bg-secondary transition"
-          >
-            View order details
-          </Link>
-          <Link
-            href="/guide"
-            className="block w-full py-3 text-center text-white/90 hover:text-white transition text-sm"
-          >
-            Back to guide
-          </Link>
+      {/* 5. Ticket */}
+      <div className="mt-6 card overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-black/[0.06]">
+          <div className="px-5 py-4">
+            <div className="text-[10px] uppercase tracking-wider text-ink-tertiary font-semibold">
+              Delivery
+            </div>
+            <div className="mt-1 text-[15px] font-semibold tabular">
+              {deliveryDate ? dateLong(deliveryDate) : "TBD"}
+            </div>
+            <div className="text-[12px] text-ink-tertiary mt-0.5">
+              We&apos;ll confirm the time window the night before.
+            </div>
+          </div>
+          <div className="px-5 py-4">
+            <div className="text-[10px] uppercase tracking-wider text-ink-tertiary font-semibold">
+              Estimated total
+            </div>
+            <div className="mt-1 text-[15px] font-semibold tabular">
+              {money(total)}
+            </div>
+            <div className="text-[12px] text-ink-tertiary mt-0.5">
+              Final invoiced after pack-out.
+            </div>
+          </div>
+        </div>
+
+        {/* Perforated divider — two small circles bite into either edge */}
+        <div className="relative border-t border-dashed border-black/[0.14]">
+          <span
+            aria-hidden
+            className="absolute -left-2 -top-2 h-4 w-4 rounded-full bg-bg-secondary ring-1 ring-black/[0.08]"
+          />
+          <span
+            aria-hidden
+            className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-bg-secondary ring-1 ring-black/[0.08]"
+          />
+        </div>
+
+        <div className="px-5 py-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-[11px] uppercase tracking-wider text-ink-secondary font-bold">
+              Lines · {lineCount}
+              {producerCount > 0 ? ` · from ${producerCount} ${producerCount === 1 ? "producer" : "producers"}` : ""}
+            </h2>
+            <Link
+              href={`/orders/${orderId}`}
+              className="text-[12px] text-brand-blue font-medium hover:text-brand-blue-dark"
+            >
+              View full order →
+            </Link>
+          </div>
+          <ul className="divide-y divide-black/[0.04]">
+            {lines.map((l, i) => (
+              <li
+                key={i}
+                className="flex items-baseline justify-between gap-3 py-2"
+              >
+                <span className="text-[13px] text-ink-primary min-w-0 truncate">
+                  {l.name}
+                  {l.producer ? (
+                    <span className="text-ink-tertiary"> — {l.producer}</span>
+                  ) : null}
+                </span>
+                <span className="text-[12px] text-ink-secondary tabular shrink-0">
+                  ×{l.qty}
+                </span>
+                <span className="text-[13px] font-semibold tabular shrink-0 w-16 text-right">
+                  {money(l.lineTotal)}
+                </span>
+              </li>
+            ))}
+            {remainingLines > 0 ? (
+              <li className="flex items-baseline justify-between gap-3 py-2">
+                <span className="text-[13px] text-ink-tertiary italic">
+                  + {remainingLines} more {remainingLines === 1 ? "line" : "lines"}
+                </span>
+                <span className="shrink-0" />
+                <span className="text-[13px] font-semibold tabular shrink-0 w-16 text-right">
+                  {money(remainingTotal)}
+                </span>
+              </li>
+            ) : null}
+          </ul>
+        </div>
+
+        <div className="border-t border-black/[0.06] px-5 py-3 flex items-baseline justify-between bg-bg-secondary/50">
+          <span className="text-[11px] uppercase tracking-wider text-ink-secondary font-bold">
+            Estimated total
+          </span>
+          <span className="text-[16px] font-bold tabular">{money(total)}</span>
         </div>
       </div>
-    </div>
-  );
-}
 
-/**
- * Decorative confetti dots that spring outward from the checkmark on
- * mount. Pure CSS via inline transforms — no library, no GIF.
- */
-function Confetti({ mounted }: { mounted: boolean }) {
-  // Eight dots in a radial pattern around the check
-  const dots = [
-    { x: -42, y: -28, color: "bg-accent-gold", size: "h-1.5 w-1.5", delay: "100ms" },
-    { x: 48, y: -22, color: "bg-white", size: "h-2 w-2", delay: "120ms" },
-    { x: -52, y: 18, color: "bg-brand-green", size: "h-1.5 w-1.5", delay: "150ms" },
-    { x: 58, y: 32, color: "bg-accent-gold", size: "h-2 w-2", delay: "170ms" },
-    { x: -8, y: -52, color: "bg-white", size: "h-1.5 w-1.5", delay: "200ms" },
-    { x: 14, y: 50, color: "bg-brand-green", size: "h-2 w-2", delay: "220ms" },
-    { x: -64, y: -2, color: "bg-white", size: "h-1 w-1", delay: "260ms" },
-    { x: 70, y: 6, color: "bg-accent-gold", size: "h-1 w-1", delay: "280ms" },
-  ];
-  return (
-    <>
-      {dots.map((d, i) => (
-        <span
-          key={i}
-          aria-hidden
-          className={`absolute top-1/2 left-1/2 ${d.size} ${d.color} rounded-full transition-all duration-700 ease-out`}
-          style={{
-            transform: mounted
-              ? `translate(${d.x}px, ${d.y}px)`
-              : "translate(0, 0)",
-            opacity: mounted ? 1 : 0,
-            transitionDelay: d.delay,
-          }}
-        />
-      ))}
-    </>
+      {/* 6. Standing-order ask — PR #115's conversion event. Green-tinted
+          to align with Brief 4's "green earns its keep at commit" rule. */}
+      {standingPromptOpen ? (
+        <div
+          className="mt-5 rounded-xl border border-brand-green/25 bg-brand-green-tint/60 px-5 py-4"
+          role="region"
+          aria-label="Save as standing order"
+        >
+          <div className="text-[11px] uppercase tracking-wider text-brand-green-dark font-bold mb-1">
+            Worth a thought
+          </div>
+          <h3 className="display text-[18px] tracking-tight leading-tight text-ink-primary">
+            Want next {deliveryDay ?? "delivery"} to file itself?
+          </h3>
+          <p className="mt-1 text-[13px] text-ink-secondary leading-snug">
+            Auto-add these {lineCount} {lineCount === 1 ? "line" : "lines"} every week and we&apos;ll text you a preview to edit before each cutoff.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={saveAsStanding}
+              disabled={standingSaving}
+              className="btn-success text-sm"
+            >
+              {standingSaving ? "Saving…" : "Set up standing order"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStandingPromptOpen(false)}
+              className="btn-ghost text-sm text-brand-green-dark"
+            >
+              Not yet
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 7. CTAs */}
+      <div className="mt-6 flex flex-col gap-2">
+        <Link
+          href={`/orders/${orderId}`}
+          className="btn-primary"
+        >
+          View order details
+        </Link>
+        <Link
+          href="/guide"
+          className="block text-center text-[14px] text-ink-secondary hover:text-ink-primary transition-colors py-2"
+        >
+          Back to guide
+        </Link>
+      </div>
+    </div>
   );
 }
