@@ -137,7 +137,6 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
   const minShortfall = isB2B
     ? shortfall({ subtotal, deliveryFee: effectiveDeliveryFee, minimum: accountMinimum })
     : 0;
-  const hasCatchWeight = lines.some((l) => l.priceByWeight);
 
   const [search, setSearch] = useState("");
   const visibleLines = useMemo(() => {
@@ -346,11 +345,6 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
         {effectiveDeliveryFee > 0 ? <Row label="Delivery fee" value={money(effectiveDeliveryFee)} /> : null}
         <div className="border-t border-dashed border-black/15 my-2" />
         <Row label="Estimated total" value={money(total)} strong />
-        {hasCatchWeight ? (
-          <p className="text-[11px] text-ink-tertiary pt-1 leading-snug">
-            Final price confirmed by distributor — weight-priced items settle at delivery.
-          </p>
-        ) : null}
       </div>
 
       <CheckoutBar

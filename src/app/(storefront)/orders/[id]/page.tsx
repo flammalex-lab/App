@@ -379,7 +379,7 @@ export default async function OrderDetail({
         />
       </div>
       <p className="mt-2 text-[11px] text-center text-ink-tertiary">
-        Auto-send this order on a schedule — we&apos;ll text you to confirm before each one.
+        Auto-send this order on a schedule.
       </p>
     </div>
   );

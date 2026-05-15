@@ -280,7 +280,7 @@ export function OrderPlacedHero({
             Want next {deliveryDay ?? "delivery"} to file itself?
           </h3>
           <p className="mt-1 text-[13px] text-ink-secondary leading-snug">
-            Auto-add these {lineCount} {lineCount === 1 ? "line" : "lines"} every week and we&apos;ll text you a preview to edit before each cutoff.
+            Auto-send these {lineCount} {lineCount === 1 ? "line" : "lines"} every week. Edit anytime — changes apply to the next run.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button

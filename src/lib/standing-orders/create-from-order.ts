@@ -30,7 +30,9 @@ export async function createStandingOrderFromOrder(
   },
 ): Promise<CreateFromOrderResult> {
   const { sourceOrder: o, daysOfWeek, cadence } = args;
-  const requireConfirmation = args.requireConfirmation ?? true;
+  // Standing orders auto-submit; this column is no longer behavior-bearing
+  // but is still written for backward compat with older rows.
+  const requireConfirmation = args.requireConfirmation ?? false;
 
   // Validate days_of_week values up front — RLS will reject garbage but the
   // error string is opaque; better to fail with a 400 we control.
