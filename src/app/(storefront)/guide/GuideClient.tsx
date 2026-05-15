@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { OrderGuide } from "@/lib/supabase/types";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -197,6 +198,36 @@ export function GuideClient({
           </Link>
         </div>
       ))}
+
+      {/* ---- Brief 8 V2 landscape strip — thin farm photo above the
+          order-guide header. 96px mobile / 144px desktop with a
+          caption pill bottom-left. Deliberately atmospheric: it does
+          not carry information the buyer needs, just gives the page
+          a sense of place before the working chrome starts. The
+          Submit pill from PR #141 sits BELOW the header (lines ~223+)
+          and is intentionally untouched. */}
+      <div className="relative h-24 md:h-36 overflow-hidden rounded-xl ring-1 ring-black/[0.06] mb-4">
+        <Image
+          src="/photos/farm-4.jpg"
+          alt="A morning at one of our partner farms in the Finger Lakes"
+          fill
+          sizes="(max-width: 768px) 100vw, 56rem"
+          className="object-cover"
+          style={{ objectPosition: "center 50%" }}
+          priority
+        />
+        {targetDeliveryDayName ? (
+          <span className="absolute bottom-2.5 left-3 inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-ink-primary shadow-sm">
+            For {targetDeliveryDayName}
+            {targetDeliveryDate ? (
+              <span className="text-ink-tertiary tabular">
+                {" · "}
+                {shortDate(targetDeliveryDate)}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+      </div>
 
       {/* ---- Order-guide header ----------------------------------------- */}
       <div className="mb-3 pt-1">
