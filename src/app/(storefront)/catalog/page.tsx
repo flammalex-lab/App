@@ -22,7 +22,7 @@ import { CategoryChips } from "./CategoryChips";
 import { ProducerChips } from "./ProducerChips";
 import { StockUpButton } from "./StockUpButton";
 import { BackButton } from "@/components/layout/BackButton";
-import { groupBySubCategory, subCategoryOf } from "@/lib/products/sub-category";
+import { groupBySubCategory, subCategoryEmoji, subCategoryOf } from "@/lib/products/sub-category";
 import { compareProducersByRank, rankProducers } from "@/lib/products/producer-rank";
 import { getBuyerHistory } from "@/lib/products/buyer-history";
 
@@ -678,6 +678,7 @@ export default async function CatalogPage({
             <ScrollStrip
               key={subCategory}
               title={subCategory}
+              emoji={subCategoryEmoji(subCategory)}
               href={`/catalog?group=${groupFilter}&subCategory=${encodeURIComponent(subCategory)}`}
               products={items}
               inGuideIds={inGuideIds}
