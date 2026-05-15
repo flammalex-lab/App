@@ -2,9 +2,12 @@
 
 import type { PackOption, Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
-import { money } from "@/lib/utils/format";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { QtyInput } from "@/components/ui/QtyInput";
+import {
+  ProductStepper,
+  PriceLine,
+  haptic,
+} from "@/components/products/primitives";
 
 interface VariantRow {
   variantKey: string | null;
@@ -19,9 +22,14 @@ interface VariantRow {
 
 /**
  * Bottom sheet for products with multiple pack options (case vs unit,
- * etc.). Each variant gets its own stepper + tappable qty digit so the
- * buyer can quickly say "3 cases" without 48 + taps. Changes apply
- * to the cart immediately — sheet just stays open until dismissed.
+ * etc.). Each variant gets its own ProductStepper so the buyer can
+ * quickly dial in "3 cases" without 48 + taps. Changes apply to the
+ * cart immediately — the sheet stays open until dismissed.
+ *
+ * Color: brand-blue, matching every other stepper in the app. An older
+ * version of this sheet used green; reverted as part of the card-system
+ * standardization pass — green is reserved for the commit step (Place
+ * order, Confirm) and shouldn't appear on per-row qty controls.
  */
 export function VariantPickerSheet({
   open,
@@ -106,77 +114,64 @@ export function VariantPickerSheet({
   }
 
   return (
-    <>
-      <BottomSheet open={open} onClose={onClose} title={product.name}>
-        <div className="px-2 pt-1 pb-3">
-          {product.producer ? (
-            <div className="display text-[13px] font-medium text-ink-primary mb-2 px-3">
-              {product.producer}
-            </div>
-          ) : null}
+    <BottomSheet open={open} onClose={onClose} title={product.name}>
+      <div className="px-2 pt-1 pb-3">
+        {product.producer ? (
+          <div className="display text-[13px] font-medium text-ink-primary mb-2 px-3">
+            {product.producer}
+          </div>
+        ) : null}
 
-          {rows.length === 0 ? (
-            <p className="px-5 py-6 text-center text-sm text-ink-secondary">
-              Contact your rep for pricing on this item.
-            </p>
-          ) : (
-            <ul className="divide-y divide-black/[0.06]">
-              {rows.map((row) => {
-                const qty = qtyFor(row.variantKey);
-                return (
-                  <li key={row.variantKey ?? "default"} className="flex items-center gap-3 px-3 py-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[15px] font-medium leading-snug">{row.label}</div>
-                      <div className="text-[13px] text-ink-secondary tabular mt-0.5">
-                        {money(row.unitPrice)} / {row.unit}
-                        {row.packSize && row.packSize !== row.label ? (
-                          <span className="text-ink-tertiary"> · {row.packSize}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="shrink-0 flex items-center gap-2">
-                      <button
-                        onClick={() => commit(row, Math.max(0, qty - 1))}
-                        className="h-11 w-11 flex items-center justify-center rounded-full border-2 border-brand-green-dark text-brand-green-dark hover:bg-brand-green-tint focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 disabled:opacity-30 active:scale-[0.97]"
-                        aria-label="Decrease"
-                        disabled={qty === 0}
-                      >
-                        <span className="text-xl leading-none">−</span>
-                      </button>
-                      <QtyInput
-                        value={qty}
-                        onSet={(n) => commit(row, n)}
-                        ariaLabel={`${row.label} quantity`}
-                      />
-                      <button
-                        onClick={() => commit(row, qty + 1)}
-                        className="h-11 w-11 flex items-center justify-center rounded-full bg-brand-green-dark text-white hover:bg-brand-green-dark/90 focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.97]"
-                        aria-label="Add one"
-                      >
-                        <span className="text-xl leading-none">+</span>
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          <p className="text-[12px] text-ink-tertiary text-center px-5 mt-3">
-            Tap the number to type any quantity.
+        {rows.length === 0 ? (
+          <p className="px-5 py-6 text-center text-sm text-ink-secondary">
+            Contact your rep for pricing on this item.
           </p>
-        </div>
-      </BottomSheet>
-    </>
-  );
-}
+        ) : (
+          <ul className="divide-y divide-black/[0.06]">
+            {rows.map((row) => {
+              const qty = qtyFor(row.variantKey);
+              const showPackChip = row.packSize && row.packSize !== row.label;
+              return (
+                <li
+                  key={row.variantKey ?? "default"}
+                  className="flex items-center gap-3 px-3 py-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-medium leading-snug">{row.label}</div>
+                    <div className="mt-0.5">
+                      <PriceLine
+                        price={row.unitPrice}
+                        unit={row.unit}
+                        format="unit"
+                        weight="medium"
+                        textSize="sm"
+                      />
+                      {showPackChip ? (
+                        <span className="text-ink-tertiary text-[13px] tabular"> · {row.packSize}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <ProductStepper
+                      available
+                      cartQty={qty}
+                      onAdd={() => commit(row, qty + 1)}
+                      onSub={() => commit(row, Math.max(0, qty - 1))}
+                      onSet={(n) => commit(row, n)}
+                      ariaProductName={`${product.name} ${row.label}`}
+                      alwaysExpanded
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-function haptic(ms: number) {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-    try {
-      (navigator as Navigator & { vibrate: (p: number | number[]) => boolean }).vibrate(ms);
-    } catch {
-      /* ignore */
-    }
-  }
+        <p className="text-[12px] text-ink-tertiary text-center px-5 mt-3">
+          Tap the number to type any quantity.
+        </p>
+      </div>
+    </BottomSheet>
+  );
 }
