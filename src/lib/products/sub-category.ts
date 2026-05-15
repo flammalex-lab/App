@@ -165,3 +165,38 @@ export function groupBySubCategory<
   }
   return order.map((k) => ({ subCategory: k, items: bucket.get(k)! }));
 }
+
+/**
+ * Brief 6 V1: leading emoji glyph for sub-category section eyebrows.
+ * Cheap warmth signal next to uppercase category labels on /catalog
+ * strips. Matches a sub-category label (or the unfiltered raw category
+ * key) against a set of common food groups; returns an empty string for
+ * unmapped labels so the strip header collapses to text-only rather
+ * than rendering a "missing glyph" tile.
+ *
+ * Renders inconsistently across iOS / Android system emoji — that's the
+ * accepted V1 tradeoff. If the test reads warm, V3 commissions custom
+ * marks; if it reads childish, this map is the only thing to delete.
+ */
+export function subCategoryEmoji(label: string | null | undefined): string {
+  if (!label) return "";
+  const k = label.toLowerCase();
+  if (/(milk|cream|butter|yogurt|kefir)/.test(k)) return "🥛";
+  if (/egg/.test(k)) return "🥚";
+  if (/(green|lettuce|herb|salad|microgreen|spinach|kale|chard)/.test(k))
+    return "🥬";
+  if (/(root|carrot|beet|turnip|potato|onion|garlic|radish|allium)/.test(k))
+    return "🥕";
+  if (/(beef|pork|chicken|lamb|sausage|bacon|charcut|meat|poultry)/.test(k))
+    return "🥩";
+  if (/(cheese|chevre|mozzarell|cheddar|gouda|ricotta|feta)/.test(k))
+    return "🧀";
+  if (/(bread|loaf|baguette|focaccia|sourdough|baked)/.test(k)) return "🍞";
+  if (/(pantry|ferment|grain|flour|oil|vinegar|honey|jam|preserve|sauce|spice)/.test(k))
+    return "🫙";
+  if (/(fruit|berry|apple|pear|peach|cherry|plum|stone)/.test(k)) return "🍎";
+  if (/(mushroom|shroom|fungi)/.test(k)) return "🍄";
+  if (/(juice|cider|beverage|drink|tea|coffee|kombucha)/.test(k)) return "🧃";
+  if (/(fish|seafood|oyster|trout|salmon)/.test(k)) return "🐟";
+  return "";
+}
