@@ -10,6 +10,7 @@ export {
 } from "./ProductBadges";
 export { ProductMedia, ProductThumb } from "./ProductMedia";
 export { ProductStepper } from "./ProductStepper";
+export { GuideStarButton } from "./GuideStarButton";
 export {
   ProductCardSkeleton,
   PackRowsSkeleton,

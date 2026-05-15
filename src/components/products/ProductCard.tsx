@@ -19,6 +19,7 @@ import {
   PeakFlag,
   PausedBadge,
   WeekOffBadge,
+  GuideStarButton,
   haptic,
 } from "@/components/products/primitives";
 
@@ -208,7 +209,7 @@ export function ProductCard({
             aspect="square"
             fallbackSize="md"
             sizes="(max-width: 768px) 45vw, 200px"
-            inGuide={inGuide}
+            inGuide={isB2B ? false : inGuide}
             paused={paused}
             weekOff={weekOff}
           />
@@ -230,16 +231,21 @@ export function ProductCard({
             />
           </div>
 
-          <div className="relative pointer-events-auto px-2 pb-2 mt-auto">
-            <ProductStepper
-              available={Boolean(available)}
-              cartQty={cartQty}
-              onAdd={addOne}
-              onSub={sub}
-              onSet={hasVariants ? undefined : applyDirectQty}
-              fullWidth
-              ariaProductName={product.name}
-            />
+          <div className="relative pointer-events-auto px-2 pb-2 mt-auto flex items-center gap-2">
+            {isB2B ? (
+              <GuideStarButton productId={product.id} initialInGuide={inGuide} />
+            ) : null}
+            <div className="flex-1 min-w-0">
+              <ProductStepper
+                available={Boolean(available)}
+                cartQty={cartQty}
+                onAdd={addOne}
+                onSub={sub}
+                onSet={hasVariants ? undefined : applyDirectQty}
+                fullWidth
+                ariaProductName={product.name}
+              />
+            </div>
           </div>
         </div>
         <SheetPortal />
@@ -267,7 +273,7 @@ export function ProductCard({
             aspect="square"
             fallbackSize="md"
             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
-            inGuide={inGuide}
+            inGuide={isB2B ? false : inGuide}
             paused={paused}
             weekOff={weekOff}
             zoomOnHover
@@ -290,16 +296,21 @@ export function ProductCard({
             />
           </div>
 
-          <div className="relative pointer-events-auto px-3 pb-3 mt-auto">
-            <ProductStepper
-              available={Boolean(available)}
-              cartQty={cartQty}
-              onAdd={addOne}
-              onSub={sub}
-              onSet={hasVariants ? undefined : applyDirectQty}
-              fullWidth
-              ariaProductName={product.name}
-            />
+          <div className="relative pointer-events-auto px-3 pb-3 mt-auto flex items-center gap-2">
+            {isB2B ? (
+              <GuideStarButton productId={product.id} initialInGuide={inGuide} />
+            ) : null}
+            <div className="flex-1 min-w-0">
+              <ProductStepper
+                available={Boolean(available)}
+                cartQty={cartQty}
+                onAdd={addOne}
+                onSub={sub}
+                onSet={hasVariants ? undefined : applyDirectQty}
+                fullWidth
+                ariaProductName={product.name}
+              />
+            </div>
           </div>
         </div>
         <SheetPortal />
@@ -324,7 +335,11 @@ export function ProductCard({
       <div className="flex-1 min-w-0 pointer-events-none">
         <div className="flex items-center gap-1.5 min-w-0">
           <ProducerEyebrow producer={product.producer} href={prodHref} />
-          {inGuide ? (
+          {/* InGuideFlag is suppressed for B2B because the new
+              GuideStarButton on the right of the row already shows the
+              in-guide state (filled star). PeakFlag stays — it's a
+              separate marketing signal. */}
+          {!isB2B && inGuide ? (
             <InGuideFlag />
           ) : (product as { is_peak?: boolean }).is_peak ? (
             <PeakFlag />
@@ -356,7 +371,10 @@ export function ProductCard({
         </div>
       </div>
 
-      <div className="relative shrink-0 pointer-events-auto">
+      <div className="relative shrink-0 pointer-events-auto flex items-center gap-2">
+        {isB2B ? (
+          <GuideStarButton productId={product.id} initialInGuide={inGuide} />
+        ) : null}
         <ProductStepper
           available={Boolean(available)}
           cartQty={cartQty}
