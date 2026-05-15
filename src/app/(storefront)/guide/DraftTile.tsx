@@ -10,35 +10,50 @@ import { ProductCardFallback } from "@/components/products/ProductCardFallback";
 import {
   PriceLine,
   ProducerEyebrow,
+  producerHref,
   haptic,
 } from "@/components/products/primitives";
-import type { GuideRow } from "./page";
+import type { Product } from "@/lib/supabase/types";
+import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
 
 /**
- * Horizontal order-guide tile. 80px image on the left; on the right
- * the content stacks name + price on top, producer eyebrow + stepper
- * pinned to the bottom (producer sits directly above the stepper per
- * the design pass). Tiles are fixed height (set by the grid row) so
- * shorter-name tiles don't render shorter than longer-name siblings —
- * keeps the 3-row strip visually even.
- *
- * No rhythm state. The order guide is a flat list of products; the
- * stepper just controls cart qty (0/N). When qty=0 the [−] disables;
- * when qty>0 the qty cell tints blue to signal "this is in your order".
- *
- * Stepper is a segmented control: single outer brand-blue border with
- * internal dividers from the qty cell's border-l/r. Buttons are 44px
- * (iOS HIG); total stepper width 136px including the outer border.
- *
- * Tap targets:
- *   - −/+      → bump qty by one
- *   - qty cell → focus QtyInput for direct numeric entry
- *   - tile body→ open the product detail sheet
+ * Minimum input shape for a tile — both GuideRow (weekly orders) and a
+ * trivially-wrapped PricedProductLite (recent buys / suggested / new
+ * from your farms) satisfy this. Keeps DraftTile as the one tile for
+ * every section on /guide.
  */
-export function DraftTile({ row }: { row: GuideRow }) {
-  const product = row.product;
+export type DraftItem = {
+  product: Product;
+  unitPrice: number | null;
+  packs?: PackRow[];
+};
+
+/**
+ * Horizontal order-guide tile used across every section on /guide.
+ * 80px image on the left; on the right the content stacks tight —
+ * name (line-clamp-1) → price+size → producer (linked) → stepper.
+ * No flex-grow / mt-auto: stacking is top-down with the natural
+ * height, and the grid row pins all tiles in a row to the same total
+ * height for visual evenness.
+ *
+ * Click zones:
+ *   - tile body (image, name, price area)  → opens product detail sheet
+ *   - producer eyebrow                      → /catalog?producer=…
+ *   - −/+ buttons + qty cell                → cart qty
+ *
+ * Implementation detail: the content wrapper is `pointer-events-none`
+ * so its background falls through to the detail-open button under the
+ * tile. The stepper wrapper re-enables pointer events on itself, and
+ * ProducerEyebrow's Link is already `pointer-events-auto` so the
+ * producer link captures its own clicks.
+ */
+export function DraftTile({
+  product,
+  unitPrice,
+  packs,
+}: DraftItem) {
   const variantKey = null;
-  const unitPrice = row.unitPrice ?? 0;
+  const price = unitPrice ?? 0;
 
   const line = useCart((s) =>
     s.lines.find((l) => l.productId === product.id && (l.variantKey ?? null) === variantKey),
@@ -58,6 +73,7 @@ export function DraftTile({ row }: { row: GuideRow }) {
   );
   const richSize = product.case_pack ?? product.pack_size;
   const sizeLabel = richSize ?? product.unit;
+  const prodHref = producerHref(product.producer);
 
   function cartLineFromProduct(quantity: number): CartLine {
     return {
@@ -68,7 +84,7 @@ export function DraftTile({ row }: { row: GuideRow }) {
       name: product.name,
       packSize: product.pack_size,
       unit: product.unit,
-      unitPrice,
+      unitPrice: price,
       priceByWeight: Boolean(product.price_by_weight),
       quantity,
     };
@@ -97,7 +113,7 @@ export function DraftTile({ row }: { row: GuideRow }) {
   }
 
   function openDetail() {
-    useProductSheet.getState().open(product, { packs: row.packs });
+    useProductSheet.getState().open(product, { packs });
   }
 
   const qtyCellBg = inCart ? "bg-brand-blue-tint" : "bg-white";
@@ -128,64 +144,61 @@ export function DraftTile({ row }: { row: GuideRow }) {
         )}
       </div>
 
-      <div className="flex-1 min-w-0 h-full flex flex-col relative">
-        <div className="pointer-events-none">
-          <div
-            className="text-[13px] font-semibold leading-snug text-ink-primary line-clamp-2"
-            title={product.name}
-          >
-            {displayName}
-          </div>
-          <PriceLine
-            price={unitPrice > 0 ? unitPrice : null}
-            size={sizeLabel}
-            textSize="xs"
-            weight="medium"
-            className="truncate mt-0.5"
-          />
+      <div className="relative flex-1 min-w-0 flex flex-col pointer-events-none">
+        <div
+          className="text-[13px] font-semibold leading-snug text-ink-primary truncate"
+          title={product.name}
+        >
+          {displayName}
         </div>
-
-        <div className="mt-auto pt-1">
-          {product.producer ? (
-            <div className="pointer-events-none mb-1">
-              <ProducerEyebrow producer={product.producer} />
-            </div>
-          ) : null}
-          <div className="inline-flex h-11 rounded-md overflow-hidden border-2 border-brand-blue self-start">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                bumpDown();
-              }}
-              disabled={qty <= 0}
-              aria-label={`Decrease ${product.name}`}
-              className="h-full w-11 flex items-center justify-center bg-white text-brand-blue hover:bg-brand-blue-tint focus:outline-none transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <span className="text-lg leading-none">−</span>
-            </button>
-            <div
-              className={`h-full w-11 flex items-center justify-center border-l-2 border-r-2 border-brand-blue ${qtyCellBg}`}
-            >
-              <QtyInput
-                value={qty}
-                onSet={handleQtyChange}
-                ariaLabel={`${product.name} quantity`}
-                className={qtyInputClass}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                bumpUp();
-              }}
-              aria-label={`Increase ${product.name}`}
-              className="h-full w-11 flex items-center justify-center bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none transition-colors duration-150"
-            >
-              <span className="text-lg leading-none">+</span>
-            </button>
+        <PriceLine
+          price={price > 0 ? price : null}
+          size={sizeLabel}
+          textSize="xs"
+          weight="medium"
+          className="truncate mt-0.5"
+        />
+        {product.producer ? (
+          <ProducerEyebrow
+            producer={product.producer}
+            href={prodHref}
+            className="mt-1"
+          />
+        ) : null}
+        <div className="mt-1 pointer-events-auto inline-flex h-11 rounded-md overflow-hidden border-2 border-brand-blue self-start">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              bumpDown();
+            }}
+            disabled={qty <= 0}
+            aria-label={`Decrease ${product.name}`}
+            className="h-full w-11 flex items-center justify-center bg-white text-brand-blue hover:bg-brand-blue-tint focus:outline-none transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <span className="text-lg leading-none">−</span>
+          </button>
+          <div
+            className={`h-full w-11 flex items-center justify-center border-l-2 border-r-2 border-brand-blue ${qtyCellBg}`}
+          >
+            <QtyInput
+              value={qty}
+              onSet={handleQtyChange}
+              ariaLabel={`${product.name} quantity`}
+              className={qtyInputClass}
+            />
           </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              bumpUp();
+            }}
+            aria-label={`Increase ${product.name}`}
+            className="h-full w-11 flex items-center justify-center bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none transition-colors duration-150"
+          >
+            <span className="text-lg leading-none">+</span>
+          </button>
         </div>
       </div>
     </div>

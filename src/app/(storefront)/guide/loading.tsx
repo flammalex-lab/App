@@ -1,7 +1,4 @@
-import {
-  DraftStripSkeleton,
-  ScrollStripSkeleton,
-} from "@/components/products/primitives";
+import { DraftStripSkeleton } from "@/components/products/primitives";
 
 /**
  * Skeleton for /guide. Real layout:
@@ -9,8 +6,8 @@ import {
  *   - display "Your order guide for {day}, {date}" heading
  *   - in-eye-line submit pill
  *   - sticky in-page search bar
- *   - "Your weekly orders" DraftStrip (3-row horizontal scroll)
- *   - "Recent buys" / "Suggested" / "New from your farms" scroll strips
+ *   - 4 sections, each a DraftStrip: weekly orders / recent buys /
+ *     suggested / new from your farms
  */
 export default function GuideLoading() {
   return (
@@ -23,21 +20,23 @@ export default function GuideLoading() {
       <div className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2 bg-white/95 mb-3">
         <div className="h-10 rounded-md bg-black/8" />
       </div>
-      <div className="animate-pulse">
-        <div className="h-3 w-32 rounded bg-black/8 mb-2 ml-1" />
-        <DraftStripSkeleton rows={3} columns={2} />
-      </div>
-      <div className="mt-6 animate-pulse">
-        <div className="h-4 w-28 rounded bg-black/8 mb-3" />
-        <ScrollStripSkeleton count={4} />
-      </div>
-      <div className="mt-4 animate-pulse">
-        <div className="h-4 w-24 rounded bg-black/8 mb-3" />
-        <ScrollStripSkeleton count={4} />
-      </div>
-      <div className="mt-4 animate-pulse">
-        <div className="h-4 w-36 rounded bg-black/8 mb-3" />
-        <ScrollStripSkeleton count={4} />
+      <div className="animate-pulse space-y-6">
+        <section>
+          <div className="h-3 w-32 rounded bg-black/8 mb-2 ml-1" />
+          <DraftStripSkeleton rows={3} columns={2} />
+        </section>
+        <section>
+          <div className="h-3 w-24 rounded bg-black/8 mb-2 ml-1" />
+          <DraftStripSkeleton rows={2} columns={2} />
+        </section>
+        <section>
+          <div className="h-3 w-20 rounded bg-black/8 mb-2 ml-1" />
+          <DraftStripSkeleton rows={2} columns={2} />
+        </section>
+        <section>
+          <div className="h-3 w-36 rounded bg-black/8 mb-2 ml-1" />
+          <DraftStripSkeleton rows={2} columns={2} />
+        </section>
       </div>
     </div>
   );

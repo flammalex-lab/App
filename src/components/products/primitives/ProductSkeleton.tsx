@@ -108,7 +108,7 @@ export function DraftLineBlockSkeleton({ rows = 4 }: { rows?: number }) {
 
 /** DraftStrip skeleton: a N-row × M-column grid of horizontal DraftTile
  *  placeholders. Image 80px on left, name+price+producer+stepper on right.
- *  Fixed 140px row height matches the painted tile. */
+ *  Fixed 120px row height matches the painted tile. */
 export function DraftStripSkeleton({
   rows = 3,
   columns = 2,
@@ -122,10 +122,10 @@ export function DraftStripSkeleton({
       <div
         className={`grid grid-flow-col auto-cols-[248px] gap-x-3 gap-y-3 ${
           rows === 1
-            ? "grid-rows-[140px]"
+            ? "grid-rows-[120px]"
             : rows === 2
-              ? "grid-rows-[140px_140px]"
-              : "grid-rows-[140px_140px_140px]"
+              ? "grid-rows-[120px_120px]"
+              : "grid-rows-[120px_120px_120px]"
         }`}
       >
         {Array.from({ length: total }).map((_, i) => (
@@ -134,15 +134,11 @@ export function DraftStripSkeleton({
             className="flex items-start gap-3 p-2 rounded-xl border border-black/10 bg-white"
           >
             <div className="h-20 w-20 shrink-0 rounded-md bg-black/8" />
-            <div className="flex-1 min-w-0 h-full flex flex-col">
-              <div className="space-y-1.5">
-                <div className="h-3.5 w-3/4 rounded bg-black/8" />
-                <div className="h-3 w-1/2 rounded bg-black/8" />
-              </div>
-              <div className="mt-auto pt-1">
-                <div className="h-2.5 w-16 rounded bg-black/8 mb-1" />
-                <div className="h-11 w-[136px] rounded-md bg-black/10" />
-              </div>
+            <div className="flex-1 min-w-0 flex flex-col">
+              <div className="h-3.5 w-3/4 rounded bg-black/8" />
+              <div className="h-3 w-1/2 rounded bg-black/8 mt-1" />
+              <div className="h-2.5 w-16 rounded bg-black/8 mt-1" />
+              <div className="h-11 w-[136px] rounded-md bg-black/10 mt-1" />
             </div>
           </div>
         ))}

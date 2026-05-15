@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { OrderGuide, Product } from "@/lib/supabase/types";
-import type { PackRow } from "@/app/(storefront)/catalog/[id]/packs";
-import { ScrollStrip } from "@/app/(storefront)/catalog/ScrollStrip";
+import type { OrderGuide } from "@/lib/supabase/types";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCart } from "@/lib/cart/store";
 import { DraftLine, pickSubstitutes } from "./DraftLine";
 import { DraftStrip } from "./DraftStrip";
+import type { DraftItem } from "./DraftTile";
 import { SubmitSheet } from "./SubmitSheet";
 import type { GuideRow, PricedProductLite } from "./page";
 import { SearchBar } from "@/components/catalog/SearchBar";
@@ -69,13 +68,10 @@ interface Props {
   activeGuideId?: string | null;
 }
 
-type PricedProduct = Product & { unitPrice: number | null; packs?: PackRow[] };
-
 export function GuideClient({
   items,
   newFromProducers = [],
   recentBuys = [],
-  inGuideIds = [],
   rhythmByProduct = {},
   targetDeliveryDate,
   targetDeliveryDayName,
@@ -131,8 +127,6 @@ export function GuideClient({
     const guideIds = new Set(items.map((it) => it.product.id));
     return recentBuys.filter((p) => !guideIds.has(p.id));
   }, [items, recentBuys]);
-
-  const inGuideSet = useMemo(() => new Set(inGuideIds), [inGuideIds]);
 
   // Substitute pool for stockout rows.
   const subPool = useMemo<PricedProductLite[]>(() => {
@@ -277,19 +271,20 @@ export function GuideClient({
               stockTiles.push(r);
             }
           }
+          const tileItems = stockTiles.map((r) => ({
+            product: r.product,
+            unitPrice: r.unitPrice,
+            packs: r.packs,
+          }));
           return (
             <section>
-              <div className="text-[11px] uppercase tracking-wider text-ink-tertiary font-medium mb-2 px-1">
-                Your weekly orders
-              </div>
-              {stockTiles.length > 0 ? (
-                <DraftStrip tiles={stockTiles} rows={3} />
+              <SectionHeader>Your weekly orders</SectionHeader>
+              {tileItems.length > 0 ? (
+                <DraftStrip tiles={tileItems} rows={3} />
               ) : null}
               {stockoutRows.length > 0 ? (
-                <div className={stockTiles.length > 0 ? "mt-4" : ""}>
-                  <div className="text-[11px] uppercase tracking-wider text-ink-tertiary font-medium mb-2 px-1">
-                    Out this week
-                  </div>
+                <div className={tileItems.length > 0 ? "mt-4" : ""}>
+                  <SectionHeader>Out this week</SectionHeader>
                   <div className="card overflow-hidden divide-y divide-black/[0.04]">
                     {stockoutRows.map((r) => {
                       const subs = pickSubstitutes(
@@ -317,41 +312,26 @@ export function GuideClient({
 
       {/* ---- Recent buys -------------------------------------------------- */}
       {!search && recentBuys.length > 0 ? (
-        <div className="mt-6">
-          <ScrollStrip
-            title="Recent buys"
-            products={recentBuys}
-            density="dense"
-            inGuideIds={inGuideSet}
-            isB2B
-          />
-        </div>
+        <section className="mt-6">
+          <SectionHeader>Recent buys</SectionHeader>
+          <DraftStrip tiles={recentBuys.map(toDraftItem)} rows={3} />
+        </section>
       ) : null}
 
       {/* ---- Suggested: recent buys not yet in the order guide ----------- */}
       {!search && suggestedProducts.length > 0 ? (
-        <div className="mt-2">
-          <ScrollStrip
-            title="Suggested"
-            products={suggestedProducts}
-            density="dense"
-            inGuideIds={inGuideSet}
-            isB2B
-          />
-        </div>
+        <section className="mt-6">
+          <SectionHeader>Suggested</SectionHeader>
+          <DraftStrip tiles={suggestedProducts.map(toDraftItem)} rows={3} />
+        </section>
       ) : null}
 
       {/* ---- New from your farms ----------------------------------------- */}
       {!search && newFromProducers.length > 0 ? (
-        <div className="mt-2">
-          <ScrollStrip
-            title="New from your farms"
-            products={newFromProducers}
-            density="dense"
-            inGuideIds={inGuideSet}
-            isB2B
-          />
-        </div>
+        <section className="mt-6">
+          <SectionHeader>New from your farms</SectionHeader>
+          <DraftStrip tiles={newFromProducers.map(toDraftItem)} rows={3} />
+        </section>
       ) : null}
 
       <SubmitSheet
@@ -381,6 +361,22 @@ function SubmitSheetBridge({ onOpen }: { onOpen: () => void }) {
     return () => window.removeEventListener("flf:open-submit", handler);
   }, [onOpen]);
   return null;
+}
+
+/** Adapter: PricedProductLite has product fields flat; DraftTile wants
+ *  them nested under `product`. */
+function toDraftItem(p: PricedProductLite): DraftItem {
+  return { product: p, unitPrice: p.unitPrice, packs: p.packs };
+}
+
+/** Section header used above each strip on /guide. Uppercase eyebrow
+ *  caps in ink-tertiary, ~11px. */
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[11px] uppercase tracking-wider text-ink-tertiary font-medium mb-2 px-1">
+      {children}
+    </div>
+  );
 }
 
 function shortDate(iso: string | null): string {
