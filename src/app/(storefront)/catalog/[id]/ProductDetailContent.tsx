@@ -59,14 +59,14 @@ export function ProductDetailContent({
 
   return (
     <div className="md:grid md:grid-cols-2 md:gap-0">
-      <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-white border-b md:border-b-0 md:border-r border-black/[0.06] bg-gradient-radial-soft overflow-hidden">
+      <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[480px] bg-white border-b md:border-b-0 md:border-r border-black/[0.06] overflow-hidden">
         {photo ? (
           <Image
             src={photo}
             alt=""
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-contain p-6 md:p-12 mix-blend-multiply"
+            className="object-contain p-6 md:p-12"
             priority
           />
         ) : (
