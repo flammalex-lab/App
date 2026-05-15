@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import type { OrderGuide } from "@/lib/supabase/types";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -13,6 +12,7 @@ import { SubmitSheet } from "./SubmitSheet";
 import type { GuideRow, PricedProductLite } from "./page";
 import { SearchBar } from "@/components/catalog/SearchBar";
 import { ListSwitcher } from "./ListSwitcher";
+import { money } from "@/lib/utils/format";
 
 interface UpcomingDelivery {
   date: string;
@@ -158,18 +158,14 @@ export function GuideClient({
   const guideIsEmpty = items.length === 0 && lineCount === 0;
 
   // ---- In-eye-line submit pill ---------------------------------------
+  // Brief 8 V0/V1/V2 spec: rounded-full inline pill with embedded total
+  // chip + trailing arrow. Under-min variant collapses the total chip
+  // and surfaces the shortfall amount inline.
   const submitPillUnderMin =
     accountMinimum > 0 && cartSubtotal < accountMinimum;
   const submitPillShortfall = Math.ceil(
     Math.max(0, accountMinimum - cartSubtotal),
   );
-  const submitPillCopy = submitPillUnderMin
-    ? targetDeliveryDayName
-      ? `Add $${submitPillShortfall} to ship ${targetDeliveryDayName}`
-      : `Add $${submitPillShortfall} to submit`
-    : targetDeliveryDayName
-      ? `Submit ${targetDeliveryDayName}'s order →`
-      : "Submit order →";
   function handleSubmitPillClick() {
     window.dispatchEvent(new Event("flf:open-submit"));
   }
@@ -199,36 +195,6 @@ export function GuideClient({
         </div>
       ))}
 
-      {/* ---- Brief 8 V2 landscape strip — thin farm photo above the
-          order-guide header. 96px mobile / 144px desktop with a
-          caption pill bottom-left. Deliberately atmospheric: it does
-          not carry information the buyer needs, just gives the page
-          a sense of place before the working chrome starts. The
-          Submit pill from PR #141 sits BELOW the header (lines ~223+)
-          and is intentionally untouched. */}
-      <div className="relative h-24 md:h-36 overflow-hidden rounded-xl ring-1 ring-black/[0.06] mb-4">
-        <Image
-          src="/photos/farm-4.jpg"
-          alt="A morning at one of our partner farms in the Finger Lakes"
-          fill
-          sizes="(max-width: 768px) 100vw, 56rem"
-          className="object-cover"
-          style={{ objectPosition: "center 50%" }}
-          priority
-        />
-        {targetDeliveryDayName ? (
-          <span className="absolute bottom-2.5 left-3 inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-ink-primary shadow-sm">
-            For {targetDeliveryDayName}
-            {targetDeliveryDate ? (
-              <span className="text-ink-tertiary tabular">
-                {" · "}
-                {shortDate(targetDeliveryDate)}
-              </span>
-            ) : null}
-          </span>
-        ) : null}
-      </div>
-
       {/* ---- Order-guide header ----------------------------------------- */}
       <div className="mb-3 pt-1">
         <div className="flex items-start justify-between gap-3">
@@ -247,25 +213,40 @@ export function GuideClient({
         </div>
       </div>
 
-      {/* ---- In-eye-line submit pill — hidden until there's something in
-          the cart to submit. With no rhythm prefill, the cart starts
-          empty, so an always-visible "Submit Friday's order →" would
-          point at an empty submission. */}
+      {/* ---- In-eye-line submit pill — Brief 8 rounded-full design with
+          embedded total chip + trailing arrow. Hidden until there's
+          something in the cart to submit. */}
       {lineCount > 0 ? (
         <div className="mb-4">
-          <button
-            type="button"
-            onClick={handleSubmitPillClick}
-            disabled={submitPillUnderMin}
-            aria-disabled={submitPillUnderMin}
-            className={
-              submitPillUnderMin
-                ? "w-full flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-bg-secondary text-ink-tertiary border border-black/[0.06] cursor-not-allowed"
-                : "w-full flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98]"
-            }
-          >
-            {submitPillCopy}
-          </button>
+          {submitPillUnderMin ? (
+            <button
+              type="button"
+              onClick={handleSubmitPillClick}
+              disabled
+              aria-disabled
+              className="inline-flex items-center gap-2 h-10 md:h-11 px-4 rounded-full text-[13px] font-semibold bg-bg-secondary text-ink-tertiary border border-black/[0.06] cursor-not-allowed"
+            >
+              <span>
+                Add{" "}
+                <span className="tabular font-bold text-ink-secondary">${submitPillShortfall}</span>
+                {targetDeliveryDayName ? ` to ship ${targetDeliveryDayName}` : " to submit"}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmitPillClick}
+              className="inline-flex items-center gap-2 h-10 md:h-11 pl-4 pr-3 rounded-full text-[13px] font-semibold bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] shadow-[0_4px_12px_rgba(23,99,181,0.22)]"
+            >
+              <span>Submit guide</span>
+              <span className="inline-flex items-center rounded-full bg-white/[0.18] px-2 py-0.5 text-[12px] font-bold tabular">
+                {money(cartSubtotal)}
+              </span>
+              <span aria-hidden className="text-base leading-none opacity-90">
+                →
+              </span>
+            </button>
+          )}
         </div>
       ) : null}
 

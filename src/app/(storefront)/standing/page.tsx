@@ -40,7 +40,6 @@ export default async function StandingPage() {
         <EmptyState
           image="/photos/farm-2.jpg"
           imageAlt="A Jersey cow on pasture at one of our partner farms"
-          imageCaption="She milks every dawn"
           title="Same order, every week."
           body="Lock in the lines you reorder every week — we'll auto-build the guide and text you to confirm before each cutoff."
           cta={{ href: "/standing/new", label: "Set up a standing order", variant: "primary" }}

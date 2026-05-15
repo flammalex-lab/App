@@ -228,7 +228,6 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
           className="card md:mx-0"
           image="/photos/produce-1.jpg"
           imageAlt="Fresh produce delivered this week"
-          imageCaption="In season this week"
           title="Cart's clear."
           body={isB2B ? "Pull from your last guide to start fast, or browse what's new this week." : "Browse the catalog to pick something fresh."}
           cta={{
