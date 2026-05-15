@@ -635,8 +635,6 @@ export default async function GuidePage({ searchParams }: PageProps) {
           accountMinimum={accountMinimum}
           deliveryFee={deliveryFee}
           upcomingDeliveries={upcomingDeliveries}
-          lastOrder={lastOrder}
-          accountPaused={accountPaused}
           pastCutoff={pastCutoff}
           allGuides={allGuides}
           activeGuideId={activeGuide?.id ?? null}

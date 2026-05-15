@@ -59,10 +59,10 @@ export function DraftStrip({
 
   const gridRowsClass =
     rows === 1
-      ? "grid-rows-[auto]"
+      ? "grid-rows-[140px]"
       : rows === 2
-        ? "grid-rows-[auto_auto]"
-        : "grid-rows-[auto_auto_auto]";
+        ? "grid-rows-[140px_140px]"
+        : "grid-rows-[140px_140px_140px]";
 
   return (
     <div className="relative">
