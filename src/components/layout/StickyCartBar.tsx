@@ -114,8 +114,18 @@ export function StickyCartBar({
   // soon as the post-mount tick lands, the cutoff branches activate.
   const pastCutoff =
     next && now != null ? new Date(next.cutoffAt).getTime() - now <= 0 : false;
+  // S1 (QA audit): /guide owns the under-min message itself via the
+  // in-eye-line submit pill at the top of the draft (see GuideClient).
+  // Suppress the StickyCartBar's under-min variant on /guide so the buyer
+  // doesn't see two pieces of chrome saying the same "Add $X to ship
+  // Friday" thing. The ready-to-submit pill, cutoff countdown, and
+  // past-cutoff email pill all still render on /guide.
+  const onGuidePage = pathname === "/guide";
   const underMin =
-    accountMinimum > 0 && !pastCutoff && total < accountMinimum;
+    accountMinimum > 0 &&
+    !pastCutoff &&
+    total < accountMinimum &&
+    !onGuidePage;
   const ms = next && now != null ? new Date(next.cutoffAt).getTime() - now : null;
   const countdownActive = ms != null && ms > 0 && ms < 12 * 60 * 60 * 1000;
 

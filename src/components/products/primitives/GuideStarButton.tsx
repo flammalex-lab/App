@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { useGuideMemberships } from "@/lib/products/guide-memberships-store";
 import { haptic } from "./haptic";
 
 /**
@@ -15,6 +16,12 @@ import { haptic } from "./haptic";
  * routes derive the active buyer's default list server-side, so the
  * client just sends a product id.
  *
+ * State source-of-truth: the shared `useGuideMemberships` store. The
+ * `initialInGuide` prop seeds the value on first render for products
+ * the store hasn't seen — once the buyer toggles a star anywhere
+ * (card, PDP modal), every other surface for that product reflects
+ * the new value immediately because they all read from the same store.
+ *
  * Rendered as a 36px circular button so it's a comfortable touch
  * target without dominating the card's price row.
  */
@@ -27,7 +34,15 @@ export function GuideStarButton({
   initialInGuide: boolean;
   disabled?: boolean;
 }) {
-  const [inGuide, setInGuide] = useState(initialInGuide);
+  // Read live state from the shared store; fall back to the
+  // server-supplied initial value only when the store hasn't seen
+  // this productId yet. This keeps SSR-rendered correctness for
+  // products that have never been toggled in the current session.
+  const storeKnows = useGuideMemberships((s) => productId in s.byProduct);
+  const storeValue = useGuideMemberships((s) => s.byProduct[productId]);
+  const inGuide = storeKnows ? storeValue : initialInGuide;
+
+  const writeMembership = useGuideMemberships((s) => s.set);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
@@ -40,7 +55,9 @@ export function GuideStarButton({
     e.preventDefault();
     if (saving || disabled) return;
     const wasIn = inGuide;
-    setInGuide(!wasIn);
+    // Optimistic flip — write through the store so every other surface
+    // for this product (cards, PDP modal) updates instantly.
+    writeMembership(productId, !wasIn);
     setSaving(true);
     haptic(6);
     const endpoint = wasIn ? "/api/my-guide/remove" : "/api/my-guide/add";
@@ -56,12 +73,12 @@ export function GuideStarButton({
           err.error ?? (wasIn ? "Failed to remove from guide" : "Failed to add to guide"),
           "error",
         );
-        setInGuide(wasIn);
+        writeMembership(productId, wasIn);
         return;
       }
     } catch {
       toast.push(wasIn ? "Failed to remove from guide" : "Failed to add to guide", "error");
-      setInGuide(wasIn);
+      writeMembership(productId, wasIn);
     } finally {
       setSaving(false);
     }

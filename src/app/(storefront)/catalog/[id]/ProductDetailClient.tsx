@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
+import { useGuideMemberships } from "@/lib/products/guide-memberships-store";
 import { money } from "@/lib/utils/format";
 import { useToast } from "@/components/ui/Toast";
 import { QtyInput } from "@/components/ui/QtyInput";
@@ -34,7 +35,17 @@ export function ProductDetailClient({
   // Optimistic toggle: flip immediately on click, snap back on error.
   // `saving` blocks double-fires while the request is in flight; both
   // directions (add + remove) are reachable from any state.
-  const [inGuide, setInGuide] = useState<boolean>(inGuideInitial);
+  //
+  // Source of truth lives in the shared `useGuideMemberships` store so
+  // that a star toggled here (in the modal) or on the underlying card's
+  // `GuideStarButton` stays in sync — without the store, optimistic
+  // flips on one surface never reached the other.
+  const storeKnowsMembership = useGuideMemberships(
+    (s) => product.id in s.byProduct,
+  );
+  const storeMembership = useGuideMemberships((s) => s.byProduct[product.id]);
+  const inGuide = storeKnowsMembership ? storeMembership : inGuideInitial;
+  const writeMembership = useGuideMemberships((s) => s.set);
   const [saving, setSaving] = useState<boolean>(false);
 
   function qtyFor(p: PackRow): number {
@@ -86,8 +97,10 @@ export function ProductDetailClient({
   async function toggleGuide() {
     if (saving) return;
     const wasIn = inGuide;
-    // Optimistic flip.
-    setInGuide(!wasIn);
+    // Optimistic flip — write through the shared store so any other
+    // surface for this product (catalog card, /guide tiles, recently-
+    // opened detail sheet) updates instantly.
+    writeMembership(product.id, !wasIn);
     setSaving(true);
     const endpoint = wasIn ? "/api/my-guide/remove" : "/api/my-guide/add";
     try {
@@ -105,7 +118,7 @@ export function ProductDetailClient({
           "error",
         );
         // Snap back on failure so the UI matches server truth.
-        setInGuide(wasIn);
+        writeMembership(product.id, wasIn);
         return;
       }
       // Refresh underlying page so /guide reflects the change when the
@@ -116,7 +129,7 @@ export function ProductDetailClient({
         wasIn ? "Failed to remove from guide" : "Failed to add to guide",
         "error",
       );
-      setInGuide(wasIn);
+      writeMembership(product.id, wasIn);
     } finally {
       setSaving(false);
     }
