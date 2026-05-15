@@ -111,6 +111,20 @@
   .badge-gray   { @apply badge bg-black/5 text-ink-secondary; }
   /* sage = legacy alias, points to brand-green */
   .badge-sage   { @apply badge bg-brand-green/15 text-brand-green-dark; }
+
+  /* Pictorial nav icons (Brief 7 V2): each <g class="tab-icon-fill">
+     paints the icon's primary mass with currentColor at low opacity.
+     Hidden by default; revealed when the parent NavLink is active
+     (sets data-active="true" — see NavLink.tsx). This gives every
+     active tab a soft fill behind its stroke without needing a
+     per-icon active prop. */
+  .tab-icon-fill {
+    fill-opacity: 0;
+    transition: fill-opacity 150ms ease;
+  }
+  [data-active="true"] .tab-icon-fill {
+    fill-opacity: 0.14;
+  }
 }
 
 /* Sheet-open header rescue: BottomSheet locks the body via

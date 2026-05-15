@@ -41,6 +41,7 @@ export function NavLink({
     <Link
       href={href}
       prefetch
+      data-active={isActive ? "true" : undefined}
       className={`${className ?? ""} ${isActive ? activeClassName ?? "" : ""}`}
     >
       {children}

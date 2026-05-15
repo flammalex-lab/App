@@ -121,36 +121,62 @@ function DesktopHeader({
   );
 }
 
+/* Brief 7 V2 pictorial nav icons: clipboard (Guide), stacked crates
+   (Catalog), farm truck (Orders), speech bubble (Chat — swapped in
+   for the brief's tin-can-on-string per the failure-point flag;
+   literal beats clever for nav recognition). Stroke 1.6 monoline.
+   Each icon's primary mass is painted via a <g class="tab-icon-fill">
+   that becomes visible at 14% opacity when the parent NavLink has
+   data-active="true". Active stroke color = brand-blue via
+   currentColor. See globals.css ".tab-icon-fill" + NavLink.tsx. */
 function GuideIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4Z" />
-      <path d="M8 8h8M8 12h8M8 16h5" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <g fill="currentColor" stroke="none" className="tab-icon-fill">
+        <rect x="5" y="4" width="14" height="17" rx="1.5" />
+      </g>
+      <rect x="5" y="4" width="14" height="17" rx="1.5" />
+      <rect x="9" y="2.5" width="6" height="3" rx="0.8" fill="currentColor" stroke="none" />
+      <path d="M8 11h8M8 14h8M8 17h5" />
     </svg>
   );
 }
 function CatalogIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <g fill="currentColor" stroke="none" className="tab-icon-fill">
+        <rect x="3" y="13" width="8" height="7" rx="0.6" />
+        <rect x="13" y="13" width="8" height="7" rx="0.6" />
+        <rect x="8" y="5" width="8" height="7" rx="0.6" />
+      </g>
+      <rect x="3" y="13" width="8" height="7" rx="0.6" />
+      <rect x="13" y="13" width="8" height="7" rx="0.6" />
+      <rect x="8" y="5" width="8" height="7" rx="0.6" />
+      <path d="M5 13v7M9 13v7M15 13v7M19 13v7M10 5v7M14 5v7" />
     </svg>
   );
 }
 function OrdersIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M9 7h6M9 11h6M9 15h4" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <g fill="currentColor" stroke="none" className="tab-icon-fill">
+        <rect x="2" y="8" width="11" height="9" rx="0.8" />
+        <path d="M13 11h5l3 3v3h-8z" />
+      </g>
+      <rect x="2" y="8" width="11" height="9" rx="0.8" />
+      <path d="M13 11h5l3 3v3h-8z" />
+      <circle cx="7" cy="18.5" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="18.5" r="1.6" fill="currentColor" stroke="none" />
     </svg>
   );
 }
 function ChatIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1-4.6A8 8 0 1 1 21 12Z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <g fill="currentColor" stroke="none" className="tab-icon-fill">
+        <path d="M4 6.5C4 5.12 5.12 4 6.5 4h11C18.88 4 20 5.12 20 6.5v8c0 1.38-1.12 2.5-2.5 2.5H11l-4 4v-4h-0.5C5.12 17 4 15.88 4 14.5v-8z" />
+      </g>
+      <path d="M4 6.5C4 5.12 5.12 4 6.5 4h11C18.88 4 20 5.12 20 6.5v8c0 1.38-1.12 2.5-2.5 2.5H11l-4 4v-4h-0.5C5.12 17 4 15.88 4 14.5v-8z" />
     </svg>
   );
 }
