@@ -226,9 +226,11 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
         ) : null}
         <EmptyState
           className="card md:mx-0"
-          icon={<div className="text-5xl opacity-30">🛒</div>}
-          title="Nothing in your cart yet"
-          body={isB2B ? "Head back to your guide to start building an order." : "Browse the catalog to pick something fresh."}
+          image="/photos/produce-1.jpg"
+          imageAlt="Fresh produce delivered this week"
+          imageCaption="In season this week"
+          title="Cart's clear."
+          body={isB2B ? "Pull from your last guide to start fast, or browse what's new this week." : "Browse the catalog to pick something fresh."}
           cta={{
             href: isB2B ? "/guide" : "/catalog",
             label: isB2B ? "Back to your guide" : "Browse the catalog",
