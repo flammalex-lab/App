@@ -102,8 +102,7 @@ export function SaveAsStandingSheet({
       >
         <div className="px-5 py-5 space-y-4">
           <p className="text-[13px] text-ink-secondary leading-snug">
-            Re-send order <span className="mono">{orderNumber}</span> on a
-            schedule. We&apos;ll text you to confirm before each one submits.
+            Re-send order <span className="mono">{orderNumber}</span> on a schedule. Auto-submits on each run.
           </p>
 
           <div>

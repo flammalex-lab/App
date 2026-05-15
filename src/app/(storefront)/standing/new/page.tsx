@@ -49,7 +49,7 @@ export default async function NewStandingPage() {
     <div className="max-w-2xl mx-auto">
       <h1 className="text-3xl mb-1">New standing order</h1>
       <p className="text-sm text-ink-secondary mb-4">
-        We&apos;ll stage an order on each scheduled day and text you to confirm before submitting.
+        Auto-submits on each scheduled day. Edit lines anytime — changes apply to the next run.
       </p>
       <StandingNewClient
         products={(products as Product[] | null) ?? []}

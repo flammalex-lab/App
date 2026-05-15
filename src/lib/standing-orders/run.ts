@@ -11,8 +11,10 @@ export type RunStandingOrderResult =
   | { ok: false; error: string; orderId?: string };
 
 /**
- * Materialize a standing order into a draft order. If require_confirmation is
- * true, the buyer gets an SMS to confirm; otherwise it submits as pending.
+ * Materialize a standing order into a submitted order. The buyer gets a
+ * post-submit SMS confirming the amount; the order goes straight to
+ * `pending` so it flows into the normal fulfillment queue without a
+ * manual confirm step.
  *
  * Failure semantics: every supabase write is error-checked. If `order_items`
  * insert fails after `orders` succeeded we try a compensating delete on the
@@ -79,7 +81,7 @@ export async function runStandingOrder(
     .insert({
       order_number,
       order_type: "b2b",
-      status: s.require_confirmation ? "draft" : "pending",
+      status: "pending",
       profile_id: s.profile_id,
       account_id: s.account_id,
       standing_order_id: s.id,
@@ -153,9 +155,7 @@ export async function runStandingOrder(
       type: "standing_order_ready",
       channel: "sms",
       toAddress: s.buyer.phone,
-      body: s.require_confirmation
-        ? `FLF: standing order ${order_number} is staged — reply CONFIRM to submit or visit ${process.env.NEXT_PUBLIC_APP_URL}/orders/${newOrderId}`
-        : `FLF: standing order ${order_number} submitted automatically ($${total.toFixed(2)}).`,
+      body: `FLF: standing order ${order_number} submitted automatically ($${total.toFixed(2)}).`,
       relatedOrderId: newOrderId,
       relatedStandingOrderId: s.id,
     });

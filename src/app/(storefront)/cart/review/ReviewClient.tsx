@@ -173,9 +173,6 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
           <span className="display text-lg tracking-tight">Estimated total</span>
           <span className="tabular text-2xl font-semibold">{money(subtotal)}</span>
         </div>
-        <p className="text-[12px] text-ink-tertiary mt-1">
-          Prices may be subject to change based on final weight at delivery.
-        </p>
       </section>
 
       {/* Order now */}

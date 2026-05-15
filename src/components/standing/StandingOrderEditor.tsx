@@ -34,7 +34,9 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
   const [name, setName] = useState(initial.name);
   const [frequency, setFrequency] = useState<StandingFreq>(initial.frequency);
   const [days, setDays] = useState<string[]>(initial.days_of_week);
-  const [requireConfirm, setRequireConfirm] = useState(initial.require_confirmation);
+  // require_confirmation is held at `false` permanently — standing orders
+  // auto-submit on the scheduled day. Column is kept on the DB for
+  // backwards compat; the run logic ignores it.
   const [active, setActive] = useState(initial.active);
   const [items, setItems] = useState(initial.items);
   const [search, setSearch] = useState("");
@@ -87,7 +89,7 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
         name,
         frequency,
         days_of_week: days,
-        require_confirmation: requireConfirm,
+        require_confirmation: false,
         active,
         items,
         account_id: accountId,
@@ -171,10 +173,6 @@ export function StandingOrderEditor(props: StandingOrderEditorProps) {
           </Field>
         </div>
         <div className="flex flex-wrap gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={requireConfirm} onChange={(e) => setRequireConfirm(e.target.checked)} />
-            Text me to confirm before submitting
-          </label>
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             Active
