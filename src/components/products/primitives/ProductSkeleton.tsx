@@ -106,12 +106,12 @@ export function DraftLineBlockSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
-/** DraftStrip skeleton: a N-row × M-column grid of DraftTile placeholders.
- *  Image square + 2-line name bar + stepper row, all sized to the painted
- *  tile so the swap doesn't jump. */
+/** DraftStrip skeleton: a N-row × M-column grid of horizontal DraftTile
+ *  placeholders. Image 80px on left, name+price+stepper on right. Border
+ *  and width match the painted tile so the swap doesn't jump. */
 export function DraftStripSkeleton({
   rows = 3,
-  columns = 4,
+  columns = 2,
 }: {
   rows?: 1 | 2 | 3;
   columns?: number;
@@ -120,7 +120,7 @@ export function DraftStripSkeleton({
   return (
     <div className="overflow-hidden">
       <div
-        className={`grid grid-flow-col auto-cols-[96px] gap-x-3 gap-y-3 ${
+        className={`grid grid-flow-col auto-cols-[248px] gap-x-3 gap-y-3 ${
           rows === 1
             ? "grid-rows-[auto]"
             : rows === 2
@@ -129,13 +129,18 @@ export function DraftStripSkeleton({
         }`}
       >
         {Array.from({ length: total }).map((_, i) => (
-          <div key={i} className="flex flex-col">
-            <div className="h-24 w-24 rounded-md bg-black/8" />
-            <div className="pt-1.5 space-y-1">
-              <div className="h-3 w-20 rounded bg-black/8" />
-              <div className="h-3 w-14 rounded bg-black/8" />
+          <div
+            key={i}
+            className="flex items-stretch gap-3 p-2 rounded-xl border border-black/10 bg-white"
+          >
+            <div className="h-20 w-20 shrink-0 rounded-md bg-black/8" />
+            <div className="flex-1 min-w-0 flex flex-col justify-between">
+              <div className="space-y-1.5">
+                <div className="h-3.5 w-3/4 rounded bg-black/8" />
+                <div className="h-3 w-1/2 rounded bg-black/8" />
+              </div>
+              <div className="h-11 w-[136px] rounded-md bg-black/10 mt-1" />
             </div>
-            <div className="mt-1 h-7 w-full rounded-md bg-black/10" />
           </div>
         ))}
       </div>

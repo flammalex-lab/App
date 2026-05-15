@@ -1,41 +1,39 @@
 "use client";
 
+import Image from "next/image";
 import { useCart, type CartLine } from "@/lib/cart/store";
 import { QtyInput } from "@/components/ui/QtyInput";
 import { displayProductName } from "@/lib/utils/product-display";
 import { productPhoto } from "@/lib/utils/product-image";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
-import { money } from "@/lib/utils/format";
-import { ProductThumb, haptic } from "@/components/products/primitives";
+import { ProductCardFallback } from "@/components/products/ProductCardFallback";
+import { PriceLine, haptic } from "@/components/products/primitives";
 import type { GuideRow } from "./page";
 
 /**
- * Condensed draft tile — used by DraftStrip to pack the rhythm-suggested
- * lines into a horizontal-scroll grid. Three visual states, mirroring
- * DraftLine's:
+ * Horizontal draft tile: 80px image on the left, name + price + −/N/+
+ * stepper stacked on the right. Border + radius match the catalog card
+ * family so the draft and catalog read as the same visual system.
  *
+ * Three visual states, mirroring DraftLine's:
  *   - SUGGESTED  : rhythm pre-filled qty. Qty cell tinted-blue.
  *   - ADJUSTED   : buyer changed qty. Qty cell white, blue ink.
  *   - SKIPPED    : tile dimmed + strikethrough name; the stepper is
- *                  replaced by a single full-width "+ back" button that
- *                  restores rhythm qty.
+ *                  replaced with a single full-width "+ Add back" button.
  *
- * STOCKOUT is NOT rendered here — substitute chips don't fit on a 96px
- * tile. The parent (DraftStrip's caller in GuideClient) splits out
- * stockout rows and renders them as the existing fullwidth DraftLine.
+ * STOCKOUT is NOT rendered here — substitute chips don't fit. The
+ * parent (GuideClient) splits stockouts into a fullwidth DraftLine list
+ * below the strip.
  *
- * Layout: 96px wide. Image 96×96 with a small price-pill overlay in
- * the top-right corner (so the unit price stays visible without taking
- * a separate text row). Below: name (2-line clamp). Below: [−][N][+]
- * stepper, 28px buttons, exact 96px total width — no gaps, qty cell
- * 40px wide. Tap targets are below the 44px iOS HIG, but the buyer-
- * frequent-use context (chefs editing their daily rhythm) makes the
- * density trade worth it; the QtyInput itself remains tappable for
- * direct numeric entry when the +/- doesn't suffice.
+ * Stepper buttons are exactly 44px square (iOS HIG minimum). The three
+ * cells are flush against each other with a single outer brand-blue
+ * border + internal dividers from the qty cell's border-l/r — reads as
+ * a single segmented control rather than three loose buttons. Total
+ * stepper width: 132px content + 4px outer border = 136px.
  *
  * Tap targets:
- *   - −/+      → bump qty by one (capped at 0)
- *   - qty cell → focus QtyInput (numeric keyboard)
+ *   - −/+      → bump qty (or restore from skipped via the "Add back" pill)
+ *   - qty cell → focus QtyInput for direct numeric entry
  *   - tile body→ open the product detail sheet
  */
 export function DraftTile({ row }: { row: GuideRow }) {
@@ -65,6 +63,8 @@ export function DraftTile({ row }: { row: GuideRow }) {
     product.pack_size,
     product.case_pack,
   );
+  const richSize = product.case_pack ?? product.pack_size;
+  const sizeLabel = richSize ?? product.unit;
 
   function cartLineFromProduct(quantity: number): CartLine {
     return {
@@ -114,42 +114,57 @@ export function DraftTile({ row }: { row: GuideRow }) {
     useProductSheet.getState().open(product, { packs: row.packs });
   }
 
-  // Qty cell background encodes the suggested/adjusted distinction.
-  const qtyCellClass = isSuggested
-    ? "h-7 w-10 flex items-center justify-center bg-brand-blue-tint border-y border-brand-blue/25"
-    : "h-7 w-10 flex items-center justify-center bg-white border-y border-black/15";
+  const qtyCellBg = isSuggested ? "bg-brand-blue-tint" : "bg-white";
   const qtyInputClass = isSuggested
-    ? "h-7 w-10 text-center tabular text-[12px] font-semibold bg-transparent border-none text-brand-blue-dark focus:outline-none"
-    : "h-7 w-10 text-center tabular text-[12px] font-semibold bg-transparent border-none text-brand-blue focus:outline-none";
+    ? "h-full w-full text-center tabular text-[14px] font-semibold bg-transparent border-none text-brand-blue-dark focus:outline-none"
+    : "h-full w-full text-center tabular text-[14px] font-semibold bg-transparent border-none text-brand-blue focus:outline-none";
 
   return (
-    <div className={`relative flex flex-col snap-start ${skipped ? "opacity-50" : ""}`}>
+    <div
+      className={`group/tile relative w-[248px] flex items-stretch gap-3 p-2 rounded-xl border border-black/10 bg-white snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${
+        skipped ? "opacity-50" : ""
+      }`}
+    >
       <button
         type="button"
         onClick={openDetail}
         aria-label={product.name}
-        className="absolute inset-0 z-0 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-blue/40"
+        className="absolute inset-0 z-0 rounded-xl focus:outline-none"
       />
 
-      <div className="relative pointer-events-none">
-        <ProductThumb product={product} photo={photo} sizePx={96} className="rounded-md" />
-        {unitPrice > 0 ? (
-          <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-semibold tabular bg-white/95 text-ink-primary shadow-card">
-            {money(unitPrice)}
-          </span>
-        ) : null}
+      <div className="relative shrink-0 h-20 w-20 rounded-md overflow-hidden bg-white flex items-center justify-center pointer-events-none">
+        {photo ? (
+          <Image
+            src={photo}
+            alt=""
+            fill
+            sizes="80px"
+            className="object-contain mix-blend-multiply"
+          />
+        ) : (
+          <ProductCardFallback product={product} size="sm" />
+        )}
       </div>
 
-      <div
-        className={`pt-1.5 px-0.5 text-[11px] font-semibold leading-snug text-ink-primary line-clamp-2 pointer-events-none ${
-          skipped ? "line-through text-ink-tertiary" : ""
-        }`}
-        title={product.name}
-      >
-        {displayName}
-      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between relative">
+        <div className="pointer-events-none">
+          <div
+            className={`text-[13px] font-semibold leading-snug text-ink-primary line-clamp-2 ${
+              skipped ? "line-through text-ink-tertiary" : ""
+            }`}
+            title={product.name}
+          >
+            {displayName}
+          </div>
+          <PriceLine
+            price={unitPrice > 0 ? unitPrice : null}
+            size={sizeLabel}
+            textSize="xs"
+            weight="medium"
+            className="truncate mt-0.5"
+          />
+        </div>
 
-      <div className="mt-1 relative">
         {skipped ? (
           <button
             type="button"
@@ -157,14 +172,14 @@ export function DraftTile({ row }: { row: GuideRow }) {
               e.stopPropagation();
               handleAddBack();
             }}
-            className="w-full h-7 inline-flex items-center justify-center gap-1 rounded-md bg-accent-gold/15 text-[#8a690f] text-[11px] font-semibold focus:outline-none focus:ring-2 focus:ring-accent-gold/40"
+            className="mt-1 h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-accent-gold/15 text-[#8a690f] text-[13px] font-semibold hover:bg-accent-gold/25 focus:outline-none focus:ring-2 focus:ring-accent-gold/40 transition-colors duration-150"
             aria-label={`Add back ${product.name}`}
           >
             <span aria-hidden>+</span>
             <span>Add back</span>
           </button>
         ) : (
-          <div className="flex items-center justify-center">
+          <div className="mt-1 inline-flex h-11 rounded-md overflow-hidden border-2 border-brand-blue self-start">
             <button
               type="button"
               onClick={(e) => {
@@ -173,11 +188,13 @@ export function DraftTile({ row }: { row: GuideRow }) {
               }}
               disabled={qty <= 0}
               aria-label={`Decrease ${product.name}`}
-              className="h-7 w-7 rounded-l-md border border-brand-blue text-brand-blue bg-white hover:bg-brand-blue-tint focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+              className="h-full w-11 flex items-center justify-center bg-white text-brand-blue hover:bg-brand-blue-tint focus:outline-none transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none"
             >
-              <span className="text-base leading-none">−</span>
+              <span className="text-lg leading-none">−</span>
             </button>
-            <div className={qtyCellClass}>
+            <div
+              className={`h-full w-11 flex items-center justify-center border-l-2 border-r-2 border-brand-blue ${qtyCellBg}`}
+            >
               <QtyInput
                 value={qty}
                 onSet={handleQtyChange}
@@ -192,9 +209,9 @@ export function DraftTile({ row }: { row: GuideRow }) {
                 bumpUp();
               }}
               aria-label={`Increase ${product.name}`}
-              className="h-7 w-7 rounded-r-md bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 flex items-center justify-center"
+              className="h-full w-11 flex items-center justify-center bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none transition-colors duration-150"
             >
-              <span className="text-base leading-none">+</span>
+              <span className="text-lg leading-none">+</span>
             </button>
           </div>
         )}
