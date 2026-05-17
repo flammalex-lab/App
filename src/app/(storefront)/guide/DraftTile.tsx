@@ -159,13 +159,14 @@ export function DraftTile({
             className="mt-1"
           />
         ) : null}
-        <div className="mt-1 pointer-events-auto self-start">
+        <div className="mt-1 pointer-events-auto w-full">
           <ProductStepper
             available
             cartQty={qty}
             onAdd={bumpUp}
             onSub={bumpDown}
             onSet={handleQtyChange}
+            fullWidth
             ariaProductName={product.name}
           />
         </div>
