@@ -62,7 +62,12 @@ export function StickyCartBar({
   const effectiveDeliveryFee = subtotal > 0 ? deliveryFee : 0;
   const total = subtotal + effectiveDeliveryFee;
 
-  const onCartPage = pathname?.startsWith("/cart");
+  // /cart (the edit page) hides the pill — the Cart tab is the destination,
+  // there's nothing to "view." /cart/review is the *commit* screen, where
+  // the pill swaps to the brand-green "Place order" variant per Brief 2.
+  // All other /cart/* subroutes still hide it.
+  const onPureCart = pathname === "/cart";
+  const onCartReview = pathname === "/cart/review";
   // Hide on /chat — the message composer is bottom-anchored and the pill
   // (fixed at ~bottom: 120px on mobile) would otherwise occlude the input
   // for any buyer with cart contents. /chat isn't a BottomSheet so the
@@ -73,7 +78,7 @@ export function StickyCartBar({
   // Hide while any BottomSheet is open so the cart pill doesn't peek out
   // behind the sheet backdrop. BottomSheet sets html[data-sheet-open]
   // (see BottomSheet.tsx) and useSheetOpen mirrors that into React state.
-  const visible = lines.length > 0 && !onCartPage && !onChatPage && !sheetOpen;
+  const visible = lines.length > 0 && !onPureCart && !onChatPage && !sheetOpen;
 
   // Tick the countdown locally so the pill swaps to "Cutoff in 4h 12m"
   // smoothly without waiting on a page refresh. 60s is enough — the
@@ -135,6 +140,29 @@ export function StickyCartBar({
       ? "bottom-[calc(env(safe-area-inset-bottom,0px)+0.625rem)]"
       : "bottom-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"
   }`;
+
+  // /cart/review — brand-green commit variant per Brief 2 DO:
+  //   "On /cart/review the pill swaps to --brand-green and becomes
+  //    'Place order · $TOTAL'. This is the only screen where it changes
+  //    color — green is reserved for commit."
+  // Same shape, same shadow tone (shifted to green), single tap target.
+  // qty-blob and sub-line drop here — at commit the buyer has already
+  // verified contents; just commit the order.
+  if (onCartReview) {
+    return (
+      <div className={wrapperClass}>
+        <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
+          <Link
+            href="/cart/review#place"
+            className="w-full flex items-center justify-center gap-2 px-3.5 py-3 rounded-[14px] bg-brand-green text-white shadow-[0_8px_24px_rgba(42,155,70,0.30)] hover:bg-brand-green-dark focus:outline-none focus:ring-2 focus:ring-brand-green/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-[14px] font-bold"
+          >
+            Place order · {money(total)}
+            <ArrowIcon />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (pastCutoff) {
     // Past-cutoff pill opens a mailto to orders@ilovenyfarms.com so the
@@ -204,17 +232,21 @@ export function StickyCartBar({
     );
   }
 
-  // READY — Brief 2 "stack of papers" metaphor. The cart pill rises up
-  // from the bottom with a back sheet peeking out behind it carrying
-  // the delivery / cutoff context. Front sheet: single-line cart
-  // summary ([blob][Cart · $X][View →]). Back sheet: inset 8px on
-  // either side, offset 12px below, slightly darker brand-blue,
-  // rounded — peeks out as a thin band under the front pill with the
-  // sub-line text right at the bottom edge. Reads as B2B paperwork
-  // sliding into view, not a flat floating button.
+  // READY — flat floating pill per Brief 2 spec table.
   //
-  // CTA routes to /cart on every page (was a window event that only
-  // /guide listened for; PR #167 fix). Brief 2's "View" copy matches.
+  //   bg          brand-blue #1763B5
+  //   radius      14px
+  //   padding     10px 14px
+  //   shadow      0 8px 24px rgba(23,99,181,0.25)   ← brand-blue-tinted, reads as hovering
+  //   layout      flex · center · gap 12px
+  //
+  //   children (left to right):
+  //     .qty-blob    rgba(white,0.18) · radius 8 · pad 4 8 · 12px/700 tab-num
+  //     .label       flex:1 · 13px/600 · "Cart · $TOTAL"
+  //       <small>    11px/400 · opacity 0.85 · "Tue cutoff in 4h 12m"
+  //     .view        13px/700 · flex · gap 4 · "View →"  (svg 14×14, stroke 2)
+  //
+  // Whole pill is a single tap target → /cart. "View" is visual only.
   const subLine = countdownActive
     ? `${next!.deliveryDayName} cutoff in ${countdown(ms!)}`
     : next
@@ -222,35 +254,32 @@ export function StickyCartBar({
       : null;
   return (
     <div className={wrapperClass}>
-      <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto relative pb-3 animate-slide-up">
-        {/* Back paper — sits behind the front pill, peeks 12px below
-            with the delivery sub-line. Inset 8px on each side so the
-            stack reads as layered sheets rather than one tall pill. */}
-        {subLine ? (
-          <div
-            aria-hidden
-            className="absolute inset-x-2 top-3 bottom-0 rounded-b-[10px] rounded-t-[6px] bg-brand-blue-dark shadow-[0_4px_10px_rgba(15,74,138,0.22)]"
-          >
-            <span className="absolute bottom-1 left-3 right-3 text-[10px] font-medium text-white/90 tabular truncate">
-              {subLine}
-            </span>
-          </div>
-        ) : null}
-
-        {/* Front pill — primary cart action */}
+      <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
         <Link
           href="/cart"
-          className="relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] bg-brand-blue text-white shadow-[0_8px_24px_rgba(23,99,181,0.25)] hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] text-left"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] bg-brand-blue text-white shadow-[0_8px_24px_rgba(23,99,181,0.25)] hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
         >
+          {/* qty-blob */}
           <span
             aria-hidden
             className="inline-flex items-center justify-center rounded-lg bg-white/[0.18] px-2 py-1 text-[12px] font-bold tabular leading-none shrink-0"
           >
             {itemCount}
           </span>
-          <span className="flex-1 min-w-0 text-[13px] font-semibold tabular truncate">
-            Cart · {money(total)}
+
+          {/* label — main line + <small> sub-line stacked */}
+          <span className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
+            <span className="text-[13px] font-semibold tabular truncate">
+              Cart · {money(total)}
+            </span>
+            {subLine ? (
+              <small className="block text-[11px] font-normal opacity-85 tabular truncate mt-0.5 not-italic">
+                {subLine}
+              </small>
+            ) : null}
           </span>
+
+          {/* view */}
           <span className="inline-flex items-center gap-1 text-[13px] font-bold shrink-0">
             View
             <ArrowIcon />
