@@ -73,7 +73,12 @@ export function ProductStepper({
   }
 
   const cellH = size === "md" ? "h-11" : "h-9";
-  const btnW = size === "md" ? "w-11" : "w-9";
+  // md buttons widen at md+ breakpoints: catalog/guide cards have more
+  // horizontal room past mobile (~200-240px vs ~140-160px), so the +/−
+  // can grow with them. Mobile keeps the tight 44px iOS HIG width so
+  // narrow strip cards still have room for a 2-3 digit qty in the
+  // middle cell.
+  const btnW = size === "md" ? "w-11 md:w-14" : "w-9";
   const iconLg = size === "md" ? "text-xl" : "text-lg";
   const digitFs = size === "md" ? "text-[15px]" : "text-[14px]";
 
