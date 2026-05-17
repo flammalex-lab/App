@@ -227,7 +227,7 @@ export function StickyCartBar({
         >
           <span
             aria-hidden
-            className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md bg-white/[0.18] text-[12px] font-bold tabular leading-none shrink-0"
+            className="inline-flex items-center justify-center rounded-md bg-white/[0.18] px-2 py-1 text-[12px] font-bold tabular leading-none shrink-0"
           >
             {itemCount}
           </span>
