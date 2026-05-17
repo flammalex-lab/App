@@ -227,20 +227,20 @@ export function StickyCartBar({
         >
           <span
             aria-hidden
-            className="inline-flex items-center justify-center rounded-md bg-white/[0.18] px-2 py-1 text-[12px] font-bold tabular leading-none shrink-0"
+            className="inline-flex items-center justify-center rounded-lg bg-white/[0.18] px-2 py-1 text-[12px] font-bold tabular leading-none shrink-0"
           >
             {itemCount}
           </span>
-          <span className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
-            <span className="text-[13px] font-semibold tabular truncate">
+          <span className="flex-1 min-w-0 flex flex-col justify-center">
+            <span className="text-[13px] font-semibold tabular truncate leading-[1.15]">
               Cart · {money(total)}
             </span>
             {countdownActive ? (
-              <span className="text-[11px] font-normal opacity-85 tabular truncate">
+              <span className="text-[11px] font-normal opacity-85 tabular truncate leading-[1.15]">
                 {next!.deliveryDayName} cutoff in {countdown(ms!)}
               </span>
             ) : next ? (
-              <span className="text-[11px] font-normal opacity-85 tabular truncate">
+              <span className="text-[11px] font-normal opacity-85 tabular truncate leading-[1.15]">
                 {next.deliveryDayName} delivery · {formatPillDate(next)}
               </span>
             ) : null}
