@@ -167,6 +167,7 @@ export function DraftTile({
             onSub={bumpDown}
             onSet={handleQtyChange}
             fullWidth
+            tightButtons
             ariaProductName={product.name}
           />
         </div>
