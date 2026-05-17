@@ -116,7 +116,7 @@ export function DraftTile({
   }
 
   return (
-    <div className="group/tile relative w-[248px] h-full flex items-start gap-3 p-2 rounded-xl border border-black/10 bg-white snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue">
+    <div className="group/tile relative w-[248px] h-full flex items-start gap-3 p-2 rounded-xl border border-black/10 bg-white transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue">
       <button
         type="button"
         onClick={openDetail}

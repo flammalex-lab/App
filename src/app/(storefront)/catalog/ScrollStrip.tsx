@@ -171,7 +171,7 @@ function ScrollStripRail({
       <div className="relative">
         <div
           ref={railRef}
-          className="overflow-x-auto -mx-4 md:-mx-0 px-4 md:px-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_proximity] [scroll-padding-inline:1rem] md:[scroll-padding-inline:0]"
+          className="overflow-x-auto -mx-4 md:-mx-0 px-4 md:px-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{
             WebkitOverflowScrolling: "touch",
             overscrollBehaviorX: "contain",
@@ -182,7 +182,7 @@ function ScrollStripRail({
               <div
                 key={p.id}
                 data-strip-card-index={i}
-                className={`${cardWidth} shrink-0 [scroll-snap-align:start]`}
+                className={`${cardWidth} shrink-0`}
               >
                 <ProductCard
                   product={p}
