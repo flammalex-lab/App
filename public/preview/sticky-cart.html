@@ -3,102 +3,140 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Brief 2 sticky-cart reference</title>
+<title>Cart bar — stack of papers reference</title>
 <style>
   :root {
     --brand-blue: #1763B5;
+    --brand-blue-dark: #0F4A8A;
     --ink-primary: #161616;
     --ink-tertiary: #9A9A9A;
   }
-  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f1; padding: 40px 20px; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f1; padding: 40px 20px; color: var(--ink-primary); }
   .frame { max-width: 480px; margin: 0 auto; }
   h2 { font-size: 14px; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin: 24px 0 8px; }
-  .stage { background: white; border-radius: 16px; padding: 28px 12px; position: relative; min-height: 140px; }
+  .stage { background: white; border-radius: 16px; padding: 28px 12px 36px; position: relative; }
+  .note { font-size: 12px; color: var(--ink-tertiary); margin-top: 8px; line-height: 1.5; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: white; border: 1px solid rgba(0,0,0,0.08); padding: 1px 5px; border-radius: 4px; }
 
-  /* ---- Brief's sticky-cart spec (exact CSS from 02-mobile-chrome.html) ---- */
-  .sticky-cart {
-    background: var(--brand-blue);
-    border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(23,99,181,0.25);
-    padding: 10px 14px;
+  /* ─── Stack-of-papers cart bar ────────────────────────────────── */
+  .cart-stack { position: relative; padding-bottom: 12px; }
+
+  /* Back paper — peeks 12px below the front pill */
+  .cart-stack .back {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 12px;
+    bottom: 0;
+    background: var(--brand-blue-dark);
+    border-radius: 6px 6px 10px 10px;
+    box-shadow: 0 4px 10px rgba(15,74,138,0.22);
+  }
+  .cart-stack .back .sub {
+    position: absolute;
+    bottom: 4px;
+    left: 12px;
+    right: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.90);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Front pill — primary cart action */
+  .cart-stack .front {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
+    padding: 10px 14px;
+    background: var(--brand-blue);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(23,99,181,0.25);
     color: white;
   }
-  .sticky-cart .qty-blob {
+  .cart-stack .front .qty-blob {
     background: rgba(255,255,255,0.18);
     border-radius: 8px;
     padding: 4px 8px;
     font-size: 12px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    line-height: 1;
   }
-  .sticky-cart .label {
-    font-size: 13px;
-    font-weight: 600;
+  .cart-stack .front .label {
     flex: 1;
     min-width: 0;
-  }
-  .sticky-cart .label small {
-    display: block;
-    font-weight: 400;
-    opacity: 0.85;
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .sticky-cart .view {
+  .cart-stack .front .view {
     display: flex;
     align-items: center;
     gap: 4px;
     font-size: 13px;
     font-weight: 700;
   }
-  .sticky-cart .view svg {
+  .cart-stack .front .view svg {
     width: 14px;
     height: 14px;
     stroke: currentColor;
     stroke-width: 2;
     fill: none;
   }
-  .note { font-size: 12px; color: var(--ink-tertiary); margin-top: 8px; line-height: 1.5; }
 </style>
 </head>
 <body>
 <div class="frame">
-  <h2>Brief 2 — sticky-cart reference</h2>
-  <p class="note">This is the brief's exact CSS pulled from <code>briefs/02-mobile-chrome.html</code>, rendered standalone.
-  Open the app's <code>/guide</code> in another tab and compare.</p>
+  <h2>Brief 2 — stack of papers cart bar</h2>
+  <p class="note">Two layered sheets — front pill (cart summary) on top of a back paper (delivery context) peeking 12px below.
+  Open <code>/guide</code> in another tab to compare against the live bar.</p>
 
-  <h2>Cutoff &lt; 12h</h2>
+  <h2>Cutoff &lt; 12h — countdown sub-line</h2>
   <div class="stage">
-    <div class="sticky-cart">
-      <div class="qty-blob">2</div>
-      <div class="label">Cart · $240.00<small>Tue cutoff in 4h 12m</small></div>
-      <div class="view">View
-        <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    <div class="cart-stack">
+      <div class="back">
+        <span class="sub">Tuesday cutoff in 4h 12m</span>
+      </div>
+      <div class="front">
+        <span class="qty-blob">2</span>
+        <span class="label">Cart · $240.00</span>
+        <span class="view">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </div>
     </div>
   </div>
 
-  <h2>Cutoff &gt; 12h (delivery copy)</h2>
+  <h2>Cutoff &gt; 12h — delivery sub-line</h2>
   <div class="stage">
-    <div class="sticky-cart">
-      <div class="qty-blob">2</div>
-      <div class="label">Cart · $315.00<small>Friday delivery · Fri, May 22</small></div>
-      <div class="view">View
-        <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    <div class="cart-stack">
+      <div class="back">
+        <span class="sub">Friday delivery · Fri, May 22</span>
+      </div>
+      <div class="front">
+        <span class="qty-blob">2</span>
+        <span class="label">Cart · $315.00</span>
+        <span class="view">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </div>
     </div>
   </div>
 
   <h2>Single item</h2>
   <div class="stage">
-    <div class="sticky-cart">
-      <div class="qty-blob">1</div>
-      <div class="label">Cart · $108.00<small>Tue cutoff in 4h 11m</small></div>
-      <div class="view">View
-        <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    <div class="cart-stack">
+      <div class="back">
+        <span class="sub">Tuesday cutoff in 4h 11m</span>
+      </div>
+      <div class="front">
+        <span class="qty-blob">1</span>
+        <span class="label">Cart · $108.00</span>
+        <span class="view">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </div>
     </div>
   </div>
