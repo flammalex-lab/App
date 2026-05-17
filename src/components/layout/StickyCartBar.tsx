@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart/store";
@@ -119,13 +120,6 @@ export function StickyCartBar({
   const ms = next && now != null ? new Date(next.cutoffAt).getTime() - now : null;
   const countdownActive = ms != null && ms > 0 && ms < 12 * 60 * 60 * 1000;
 
-  // CTA + click handler vary by state.
-  function handleClick(e: React.MouseEvent) {
-    if (pastCutoff) return; // tel link handled directly below
-    e.preventDefault();
-    window.dispatchEvent(new Event("flf:open-submit"));
-  }
-
   // ---- Render shells ---------------------------------------------------
   // B3: z-30 (was z-20) so the pill sits at the same layer as the
   // BottomTabs and any in-page sticky/animated section that ends up
@@ -184,46 +178,51 @@ export function StickyCartBar({
     return (
       <div className={wrapperClass}>
         <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
-          <button
-            type="button"
-            onClick={handleClick}
+          <Link
+            href="/cart"
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white text-[#8a690f] shadow-floating border border-accent-gold/40 hover:bg-accent-gold/5 focus:outline-none focus:ring-2 focus:ring-accent-gold/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
           >
             {/* Gold left-edge bar — the per-state visual signal */}
             <span aria-hidden className="h-8 w-1 rounded-full bg-accent-gold shrink-0" />
-            <span className="flex-1 min-w-0 leading-tight">
-              <span className="block text-sm font-semibold tabular">
+            <span className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
+              <span className="text-sm font-semibold tabular truncate">
                 {headline}
               </span>
               {countdownActive ? (
-                <span className="block text-[11px] text-[#8a690f]/70 tabular truncate">
+                <span className="text-[11px] text-[#8a690f]/70 tabular truncate">
                   Cutoff in {countdown(ms!)} · {cutoffDayHour(next!)}
                 </span>
               ) : null}
             </span>
             <span className="inline-flex items-center gap-1 text-sm font-bold shrink-0 text-brand-blue">
+              View
               <ArrowIcon />
             </span>
-          </button>
+          </Link>
         </div>
       </div>
     );
   }
 
   // READY — Brief 2 mobile-chrome spec:
-  //   [ qty-blob ] [ Cart · $total / Tue cutoff in 4h 12m ] [ Submit → ]
+  //   [ qty-blob ] [ Cart · $total / Fri cutoff in 4h 12m ] [ View → ]
   //
   // qty-blob: rounded-md, white@18% tint, the distinct-line-count digit.
   // label: "Cart · $X" main, optional cutoff/delivery sub-line at 11px.
-  // CTA: keeps "Submit order →" (the bar opens the SubmitSheet directly;
-  //   brief shows "View" but the existing direct-submit behavior is the
-  //   one-tap path buyers expect — visual swap, behavior preserved).
+  //   Container is `flex flex-col justify-center` so the two block
+  //   children stack inside the pill's box instead of overflowing past
+  //   the rounded bottom edge (the previous inline-span-with-block-
+  //   children approach was rendering the sub-line outside the pill).
+  // CTA: "View →" routes to /cart. Was a one-tap submit via
+  //   window.dispatchEvent("flf:open-submit") but that event had a
+  //   single listener (GuideClient's SubmitSheetBridge), so taps from
+  //   /catalog / /orders / /standing did nothing. Routing to /cart
+  //   matches the brief's intent and works from every page.
   return (
     <div className={wrapperClass}>
       <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
-        <button
-          type="button"
-          onClick={handleClick}
+        <Link
+          href="/cart"
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] bg-brand-blue text-white shadow-[0_8px_24px_rgba(23,99,181,0.25)] hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
         >
           <span
@@ -232,25 +231,25 @@ export function StickyCartBar({
           >
             {itemCount}
           </span>
-          <span className="flex-1 min-w-0 leading-tight">
-            <span className="block text-[13px] font-semibold tabular truncate">
+          <span className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
+            <span className="text-[13px] font-semibold tabular truncate">
               Cart · {money(total)}
             </span>
             {countdownActive ? (
-              <span className="block text-[11px] font-normal opacity-85 tabular truncate">
+              <span className="text-[11px] font-normal opacity-85 tabular truncate">
                 {next!.deliveryDayName} cutoff in {countdown(ms!)}
               </span>
             ) : next ? (
-              <span className="block text-[11px] font-normal opacity-85 tabular truncate">
+              <span className="text-[11px] font-normal opacity-85 tabular truncate">
                 {next.deliveryDayName} delivery · {formatPillDate(next)}
               </span>
             ) : null}
           </span>
           <span className="inline-flex items-center gap-1 text-[13px] font-bold shrink-0">
-            Submit
+            View
             <ArrowIcon />
           </span>
-        </button>
+        </Link>
       </div>
     </div>
   );
