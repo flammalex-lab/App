@@ -89,11 +89,6 @@ export function GuideClient({
 
   const lineCount = useCart((s) => s.lines.length);
   const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
-  // Subtotal (sum of unitPrice * qty across all lines) — drives the under-min
-  // copy on the in-eye-line submit pill.
-  const cartSubtotal = useCart((s) =>
-    s.lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
-  );
 
   // Drop any stale persisted delivery date on every mount.
   useEffect(() => {
@@ -156,23 +151,6 @@ export function GuideClient({
   // Empty when the buyer has no order guide AND no cart from a prior session.
   const guideIsEmpty = items.length === 0 && lineCount === 0;
 
-  // ---- In-eye-line submit pill ---------------------------------------
-  const submitPillUnderMin =
-    accountMinimum > 0 && cartSubtotal < accountMinimum;
-  const submitPillShortfall = Math.ceil(
-    Math.max(0, accountMinimum - cartSubtotal),
-  );
-  const submitPillCopy = submitPillUnderMin
-    ? targetDeliveryDayName
-      ? `Add $${submitPillShortfall} to ship ${targetDeliveryDayName}`
-      : `Add $${submitPillShortfall} to submit`
-    : targetDeliveryDayName
-      ? `Submit ${targetDeliveryDayName}'s order →`
-      : "Submit order →";
-  function handleSubmitPillClick() {
-    window.dispatchEvent(new Event("flf:open-submit"));
-  }
-
   return (
     <>
       {/* ---- Active standing-order callouts (locked-in, above the order guide) */}
@@ -215,28 +193,6 @@ export function GuideClient({
           ) : null}
         </div>
       </div>
-
-      {/* ---- In-eye-line submit pill — hidden until there's something in
-          the cart to submit. With no rhythm prefill, the cart starts
-          empty, so an always-visible "Submit Friday's order →" would
-          point at an empty submission. */}
-      {lineCount > 0 ? (
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={handleSubmitPillClick}
-            disabled={submitPillUnderMin}
-            aria-disabled={submitPillUnderMin}
-            className={
-              submitPillUnderMin
-                ? "w-full flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-bg-secondary text-ink-tertiary border border-black/[0.06] cursor-not-allowed"
-                : "w-full flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98]"
-            }
-          >
-            {submitPillCopy}
-          </button>
-        </div>
-      ) : null}
 
       {/* ---- Search ------------------------------------------------------ */}
       <div className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2 bg-white/95 backdrop-blur-sm mb-3">
