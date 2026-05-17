@@ -12,7 +12,6 @@ import { SubmitSheet } from "./SubmitSheet";
 import type { GuideRow, PricedProductLite } from "./page";
 import { SearchBar } from "@/components/catalog/SearchBar";
 import { ListSwitcher } from "./ListSwitcher";
-import { money } from "@/lib/utils/format";
 
 interface UpcomingDelivery {
   date: string;
@@ -90,11 +89,6 @@ export function GuideClient({
 
   const lineCount = useCart((s) => s.lines.length);
   const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
-  // Subtotal (sum of unitPrice * qty across all lines) — drives the under-min
-  // copy on the in-eye-line submit pill.
-  const cartSubtotal = useCart((s) =>
-    s.lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
-  );
 
   // Drop any stale persisted delivery date on every mount.
   useEffect(() => {
@@ -157,19 +151,6 @@ export function GuideClient({
   // Empty when the buyer has no order guide AND no cart from a prior session.
   const guideIsEmpty = items.length === 0 && lineCount === 0;
 
-  // ---- In-eye-line submit pill ---------------------------------------
-  // Brief 8 V0/V1/V2 spec: rounded-full inline pill with embedded total
-  // chip + trailing arrow. Under-min variant collapses the total chip
-  // and surfaces the shortfall amount inline.
-  const submitPillUnderMin =
-    accountMinimum > 0 && cartSubtotal < accountMinimum;
-  const submitPillShortfall = Math.ceil(
-    Math.max(0, accountMinimum - cartSubtotal),
-  );
-  function handleSubmitPillClick() {
-    window.dispatchEvent(new Event("flf:open-submit"));
-  }
-
   return (
     <>
       {/* ---- Active standing-order callouts (locked-in, above the order guide) */}
@@ -212,43 +193,6 @@ export function GuideClient({
           ) : null}
         </div>
       </div>
-
-      {/* ---- In-eye-line submit pill — Brief 8 rounded-full design with
-          embedded total chip + trailing arrow. Hidden until there's
-          something in the cart to submit. */}
-      {lineCount > 0 ? (
-        <div className="mb-4">
-          {submitPillUnderMin ? (
-            <button
-              type="button"
-              onClick={handleSubmitPillClick}
-              disabled
-              aria-disabled
-              className="inline-flex items-center gap-2 h-10 md:h-11 px-4 rounded-full text-[13px] font-semibold bg-bg-secondary text-ink-tertiary border border-black/[0.06] cursor-not-allowed"
-            >
-              <span>
-                Add{" "}
-                <span className="tabular font-bold text-ink-secondary">${submitPillShortfall}</span>
-                {targetDeliveryDayName ? ` to ship ${targetDeliveryDayName}` : " to submit"}
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmitPillClick}
-              className="inline-flex items-center gap-2 h-10 md:h-11 pl-4 pr-3 rounded-full text-[13px] font-semibold bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] shadow-[0_4px_12px_rgba(23,99,181,0.22)]"
-            >
-              <span>Submit guide</span>
-              <span className="inline-flex items-center rounded-full bg-white/[0.18] px-2 py-0.5 text-[12px] font-bold tabular">
-                {money(cartSubtotal)}
-              </span>
-              <span aria-hidden className="text-base leading-none opacity-90">
-                →
-              </span>
-            </button>
-          )}
-        </div>
-      ) : null}
 
       {/* ---- Search ------------------------------------------------------ */}
       <div className="sticky top-0 z-20 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2 bg-white/95 backdrop-blur-sm mb-3">
