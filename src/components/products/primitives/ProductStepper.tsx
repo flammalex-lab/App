@@ -7,17 +7,20 @@ import { QtyInput } from "@/components/ui/QtyInput";
  *
  *   qty = 0  →  single "+ Add" pill (full-width if `fullWidth`, square
  *               otherwise). Brand-blue solid.
- *   qty > 0  →  −/N/+ pill with circular brand-blue buttons (trash icon
- *               replaces "−" at qty=1 so the action reads as "remove"
- *               rather than ambiguously "decrease to 0").
+ *   qty > 0  →  segmented box stepper: a single rounded-md container
+ *               with a 2px brand-blue border around three flush cells
+ *               — white "−" on the left, tinted qty digit in the
+ *               middle, solid brand-blue "+" on the right. The trash
+ *               icon replaces "−" at qty=1 so the action reads as
+ *               "remove" rather than ambiguously "decrease to 0".
  *
  * Color: brand-blue everywhere. Green is reserved for the commit
  * moment (Place order, Confirm) per the design system — never on a
  * card-level stepper, even inside the VariantPicker sheet.
  *
  * Size:
- *   - "md" (default): h-11 w-11 = 44px. iOS HIG tap target.
- *   - "sm":           h-9  w-9  = 36px. For dense list rows where a
+ *   - "md" (default): h-11 = 44px. iOS HIG tap target.
+ *   - "sm":           h-9  = 36px. For dense list rows where a
  *     44px button would dominate. Use sparingly.
  *
  * Event handling: callers pass simple `() => void` handlers. The stepper
@@ -52,7 +55,7 @@ export function ProductStepper({
   /** Used to make aria-labels more specific when multiple steppers
    *  appear on the same page (e.g. stock-up sheet). */
   ariaProductName?: string;
-  /** When true, render the −/N/+ trio even at qty=0 (with the −
+  /** When true, render the segmented stepper even at qty=0 (with the −
    *  disabled). Used inside the variant picker / stock-up sheets where
    *  the buyer opened the sheet specifically to dial in a number and
    *  expects to tap the digit to type. Card-level steppers leave this
@@ -69,22 +72,32 @@ export function ProductStepper({
     );
   }
 
-  const btnSize = size === "md" ? "h-11 w-11" : "h-9 w-9";
-  const inputSize =
-    size === "md"
-      ? "h-11 flex-1 min-w-0 max-w-[64px] text-[15px]"
-      : "h-9 flex-1 min-w-0 max-w-[48px] text-[14px]";
+  const cellH = size === "md" ? "h-11" : "h-9";
+  const btnW = size === "md" ? "w-11" : "w-9";
   const iconLg = size === "md" ? "text-xl" : "text-lg";
-  const gap = size === "md" ? "gap-2" : "gap-1.5";
-  const wrap = fullWidth ? "w-full justify-between" : "shrink-0";
+  const digitFs = size === "md" ? "text-[15px]" : "text-[14px]";
 
   const labelSuffix = ariaProductName ? ` for ${ariaProductName}` : "";
   const expanded = cartQty > 0 || alwaysExpanded;
 
   if (expanded) {
     const subDisabled = cartQty <= 0;
+    const isFilled = cartQty > 0;
+    // Outer container: `overflow-hidden` clips the inner cell colors so
+    // the 2px brand-blue border reads as one continuous frame; the
+    // middle cell's left+right borders draw the two interior dividers.
+    // Focus rings go on the outer container via focus-within so they
+    // aren't clipped.
+    const containerClass = fullWidth
+      ? `flex w-full ${cellH} rounded-md overflow-hidden border-2 border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/40`
+      : `inline-flex ${cellH} rounded-md overflow-hidden border-2 border-brand-blue shrink-0 focus-within:ring-2 focus-within:ring-brand-blue/40`;
+    const middleClass = fullWidth
+      ? "flex-1 min-w-0"
+      : size === "md"
+        ? "w-12"
+        : "w-10";
     return (
-      <div className={`${wrap} flex items-center ${gap}`}>
+      <div className={containerClass}>
         <button
           type="button"
           onClick={(e) => {
@@ -93,7 +106,7 @@ export function ProductStepper({
             onSub();
           }}
           disabled={subDisabled}
-          className={`${btnSize} flex items-center justify-center rounded-full border-2 border-brand-blue text-brand-blue hover:bg-brand-blue-tint focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97] shrink-0 disabled:opacity-30 disabled:pointer-events-none`}
+          className={`${btnW} shrink-0 h-full flex items-center justify-center bg-white text-brand-blue hover:bg-brand-blue-tint focus:outline-none transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none`}
           aria-label={cartQty === 1 ? `Remove from cart${labelSuffix}` : `Remove one${labelSuffix}`}
         >
           {cartQty === 1 ? (
@@ -102,20 +115,22 @@ export function ProductStepper({
             <span className={`${iconLg} leading-none`}>−</span>
           )}
         </button>
-        {onSet ? (
-          <QtyInput
-            value={cartQty}
-            onSet={onSet}
-            ariaLabel={`Quantity${labelSuffix}`}
-            className={`${inputSize} text-center tabular font-semibold rounded-md border border-black/15 bg-white text-ink-primary focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 transition-colors duration-150`}
-          />
-        ) : (
-          <div
-            className={`${inputSize} flex items-center justify-center tabular font-semibold rounded-md border border-black/15 bg-white text-ink-primary`}
-          >
-            {cartQty}
-          </div>
-        )}
+        <div
+          className={`${middleClass} h-full flex items-center justify-center border-l-2 border-r-2 border-brand-blue ${isFilled ? "bg-brand-blue-tint" : "bg-white"}`}
+        >
+          {onSet ? (
+            <QtyInput
+              value={cartQty}
+              onSet={onSet}
+              ariaLabel={`Quantity${labelSuffix}`}
+              className={`h-full w-full text-center tabular ${digitFs} font-semibold bg-transparent border-none focus:outline-none ${isFilled ? "text-brand-blue-dark" : "text-brand-blue"}`}
+            />
+          ) : (
+            <span className={`tabular ${digitFs} font-semibold ${isFilled ? "text-brand-blue-dark" : "text-brand-blue"}`}>
+              {cartQty}
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={(e) => {
@@ -123,7 +138,7 @@ export function ProductStepper({
             e.stopPropagation();
             onAdd();
           }}
-          className={`${btnSize} flex items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97] shrink-0`}
+          className={`${btnW} shrink-0 h-full flex items-center justify-center bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none transition-colors duration-150`}
           aria-label={`Add one${labelSuffix}`}
         >
           <span className={`${iconLg} leading-none`}>+</span>
@@ -140,7 +155,7 @@ export function ProductStepper({
         e.stopPropagation();
         onAdd();
       }}
-      className={`${fullWidth ? "w-full" : `${btnSize} shrink-0`} ${size === "md" ? "h-11" : "h-9"} flex items-center justify-center gap-1.5 rounded-full bg-brand-blue text-white text-[14px] font-semibold hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97]`}
+      className={`${fullWidth ? "w-full" : `${btnW} shrink-0`} ${cellH} flex items-center justify-center gap-1.5 rounded-full bg-brand-blue text-white text-[14px] font-semibold hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97]`}
       aria-label={`Add to cart${labelSuffix}`}
     >
       <span className={`${iconLg} leading-none`}>+</span>

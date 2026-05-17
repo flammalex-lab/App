@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import { useCart, type CartLine } from "@/lib/cart/store";
-import { QtyInput } from "@/components/ui/QtyInput";
 import { displayProductName } from "@/lib/utils/product-display";
 import { productPhoto } from "@/lib/utils/product-image";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
 import { ProductCardFallback } from "@/components/products/ProductCardFallback";
+import { ProductStepper } from "@/components/products/primitives/ProductStepper";
 import {
   PriceLine,
   ProducerEyebrow,
@@ -62,7 +62,6 @@ export function DraftTile({
   const add = useCart((s) => s.add);
 
   const qty = line?.quantity ?? 0;
-  const inCart = qty > 0;
 
   const photo = productPhoto(product);
   const displayName = displayProductName(
@@ -116,11 +115,6 @@ export function DraftTile({
     useProductSheet.getState().open(product, { packs });
   }
 
-  const qtyCellBg = inCart ? "bg-brand-blue-tint" : "bg-white";
-  const qtyInputClass = inCart
-    ? "h-full w-full text-center tabular text-[14px] font-semibold bg-transparent border-none text-brand-blue-dark focus:outline-none"
-    : "h-full w-full text-center tabular text-[14px] font-semibold bg-transparent border-none text-brand-blue focus:outline-none";
-
   return (
     <div className="group/tile relative w-[248px] h-full flex items-start gap-3 p-2 rounded-xl border border-black/10 bg-white snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue">
       <button
@@ -165,40 +159,15 @@ export function DraftTile({
             className="mt-1"
           />
         ) : null}
-        <div className="mt-1 pointer-events-auto inline-flex h-11 rounded-md overflow-hidden border-2 border-brand-blue self-start">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              bumpDown();
-            }}
-            disabled={qty <= 0}
-            aria-label={`Decrease ${product.name}`}
-            className="h-full w-11 flex items-center justify-center bg-white text-brand-blue hover:bg-brand-blue-tint focus:outline-none transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none"
-          >
-            <span className="text-lg leading-none">−</span>
-          </button>
-          <div
-            className={`h-full w-11 flex items-center justify-center border-l-2 border-r-2 border-brand-blue ${qtyCellBg}`}
-          >
-            <QtyInput
-              value={qty}
-              onSet={handleQtyChange}
-              ariaLabel={`${product.name} quantity`}
-              className={qtyInputClass}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              bumpUp();
-            }}
-            aria-label={`Increase ${product.name}`}
-            className="h-full w-11 flex items-center justify-center bg-brand-blue text-white hover:bg-brand-blue-dark focus:outline-none transition-colors duration-150"
-          >
-            <span className="text-lg leading-none">+</span>
-          </button>
+        <div className="mt-1 pointer-events-auto self-start">
+          <ProductStepper
+            available
+            cartQty={qty}
+            onAdd={bumpUp}
+            onSub={bumpDown}
+            onSet={handleQtyChange}
+            ariaProductName={product.name}
+          />
         </div>
       </div>
     </div>
