@@ -204,26 +204,43 @@ export function StickyCartBar({
     );
   }
 
-  // READY — Brief 2 mobile-chrome spec:
-  //   [ qty-blob ] [ Cart · $total / Fri cutoff in 4h 12m ] [ View → ]
+  // READY — Brief 2 "stack of papers" metaphor. The cart pill rises up
+  // from the bottom with a back sheet peeking out behind it carrying
+  // the delivery / cutoff context. Front sheet: single-line cart
+  // summary ([blob][Cart · $X][View →]). Back sheet: inset 8px on
+  // either side, offset 12px below, slightly darker brand-blue,
+  // rounded — peeks out as a thin band under the front pill with the
+  // sub-line text right at the bottom edge. Reads as B2B paperwork
+  // sliding into view, not a flat floating button.
   //
-  // qty-blob: rounded-md, white@18% tint, the distinct-line-count digit.
-  // label: "Cart · $X" main, optional cutoff/delivery sub-line at 11px.
-  //   Container is `flex flex-col justify-center` so the two block
-  //   children stack inside the pill's box instead of overflowing past
-  //   the rounded bottom edge (the previous inline-span-with-block-
-  //   children approach was rendering the sub-line outside the pill).
-  // CTA: "View →" routes to /cart. Was a one-tap submit via
-  //   window.dispatchEvent("flf:open-submit") but that event had a
-  //   single listener (GuideClient's SubmitSheetBridge), so taps from
-  //   /catalog / /orders / /standing did nothing. Routing to /cart
-  //   matches the brief's intent and works from every page.
+  // CTA routes to /cart on every page (was a window event that only
+  // /guide listened for; PR #167 fix). Brief 2's "View" copy matches.
+  const subLine = countdownActive
+    ? `${next!.deliveryDayName} cutoff in ${countdown(ms!)}`
+    : next
+      ? `${next.deliveryDayName} delivery · ${formatPillDate(next)}`
+      : null;
   return (
     <div className={wrapperClass}>
-      <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
+      <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto relative pb-3 animate-slide-up">
+        {/* Back paper — sits behind the front pill, peeks 12px below
+            with the delivery sub-line. Inset 8px on each side so the
+            stack reads as layered sheets rather than one tall pill. */}
+        {subLine ? (
+          <div
+            aria-hidden
+            className="absolute inset-x-2 top-3 bottom-0 rounded-b-[10px] rounded-t-[6px] bg-brand-blue-dark shadow-[0_4px_10px_rgba(15,74,138,0.22)]"
+          >
+            <span className="absolute bottom-1 left-3 right-3 text-[10px] font-medium text-white/90 tabular truncate">
+              {subLine}
+            </span>
+          </div>
+        ) : null}
+
+        {/* Front pill — primary cart action */}
         <Link
           href="/cart"
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] bg-brand-blue text-white shadow-[0_8px_24px_rgba(23,99,181,0.25)] hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
+          className="relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] bg-brand-blue text-white shadow-[0_8px_24px_rgba(23,99,181,0.25)] hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] text-left"
         >
           <span
             aria-hidden
@@ -231,19 +248,8 @@ export function StickyCartBar({
           >
             {itemCount}
           </span>
-          <span className="flex-1 min-w-0 flex flex-col justify-center">
-            <span className="text-[13px] font-semibold tabular truncate leading-[1.15]">
-              Cart · {money(total)}
-            </span>
-            {countdownActive ? (
-              <span className="text-[11px] font-normal opacity-85 tabular truncate leading-[1.15]">
-                {next!.deliveryDayName} cutoff in {countdown(ms!)}
-              </span>
-            ) : next ? (
-              <span className="text-[11px] font-normal opacity-85 tabular truncate leading-[1.15]">
-                {next.deliveryDayName} delivery · {formatPillDate(next)}
-              </span>
-            ) : null}
+          <span className="flex-1 min-w-0 text-[13px] font-semibold tabular truncate">
+            Cart · {money(total)}
           </span>
           <span className="inline-flex items-center gap-1 text-[13px] font-bold shrink-0">
             View
