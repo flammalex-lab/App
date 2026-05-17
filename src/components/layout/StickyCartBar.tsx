@@ -210,41 +210,44 @@ export function StickyCartBar({
     );
   }
 
-  // READY
-  // B8: The money portion is the most useful info on the pill — never let it
-  // truncate. Split leftMeta into segments so the date + lines prefix can
-  // collapse on narrow viewports (`hidden sm:inline`) while `$total →` stays
-  // intact. Countdown mode keeps its single-string form (urgency copy is
-  // short — "Cutoff in 4h 12m · Tue 2pm" fits without truncation).
-  const linesLabel = `${itemCount} ${itemCount === 1 ? "line" : "lines"}`;
-
+  // READY — Brief 2 mobile-chrome spec:
+  //   [ qty-blob ] [ Cart · $total / Tue cutoff in 4h 12m ] [ Submit → ]
+  //
+  // qty-blob: rounded-md, white@18% tint, the distinct-line-count digit.
+  // label: "Cart · $X" main, optional cutoff/delivery sub-line at 11px.
+  // CTA: keeps "Submit order →" (the bar opens the SubmitSheet directly;
+  //   brief shows "View" but the existing direct-submit behavior is the
+  //   one-tap path buyers expect — visual swap, behavior preserved).
   return (
     <div className={wrapperClass}>
       <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
         <button
           type="button"
           onClick={handleClick}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-brand-blue text-white shadow-floating hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] bg-brand-blue text-white shadow-[0_8px_24px_rgba(23,99,181,0.25)] hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
         >
-          <span className="flex-1 min-w-0 leading-tight">
-            {countdownActive ? (
-              <span className="block text-sm font-semibold tabular truncate">
-                Cutoff in {countdown(ms!)} · {cutoffDayHour(next!)}
-              </span>
-            ) : (
-              <span className="flex items-baseline gap-1.5 text-sm font-semibold tabular">
-                {next ? (
-                  <span className="hidden sm:inline truncate">
-                    {formatPillDate(next)} ·
-                  </span>
-                ) : null}
-                <span className="truncate min-w-0">{linesLabel} ·</span>
-                <span className="whitespace-nowrap shrink-0">{money(total)}</span>
-              </span>
-            )}
+          <span
+            aria-hidden
+            className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md bg-white/[0.18] text-[12px] font-bold tabular leading-none shrink-0"
+          >
+            {itemCount}
           </span>
-          <span className="inline-flex items-center gap-1 text-sm font-bold shrink-0">
-            Submit order
+          <span className="flex-1 min-w-0 leading-tight">
+            <span className="block text-[13px] font-semibold tabular truncate">
+              Cart · {money(total)}
+            </span>
+            {countdownActive ? (
+              <span className="block text-[11px] font-normal opacity-85 tabular truncate">
+                {next!.deliveryDayName} cutoff in {countdown(ms!)}
+              </span>
+            ) : next ? (
+              <span className="block text-[11px] font-normal opacity-85 tabular truncate">
+                {next.deliveryDayName} delivery · {formatPillDate(next)}
+              </span>
+            ) : null}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[13px] font-bold shrink-0">
+            Submit
             <ArrowIcon />
           </span>
         </button>
