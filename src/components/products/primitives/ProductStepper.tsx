@@ -40,6 +40,7 @@ export function ProductStepper({
   unavailableLabel = "Unavailable",
   ariaProductName,
   alwaysExpanded = false,
+  tightButtons = false,
 }: {
   available: boolean;
   cartQty: number;
@@ -61,6 +62,12 @@ export function ProductStepper({
    *  expects to tap the digit to type. Card-level steppers leave this
    *  off so the resting state stays "+ Add" until activated. */
   alwaysExpanded?: boolean;
+  /** When true, lock md +/− buttons at the tight mobile width (44px)
+   *  even on desktop. Used by /guide DraftTile so its tiles keep a
+   *  proportionally smaller stepper — they sit in a narrower content
+   *  column than the catalog scroll-strip cards. Default is the
+   *  responsive bump (w-11 mobile → w-14 md+). */
+  tightButtons?: boolean;
 }) {
   if (!available) {
     return (
@@ -73,12 +80,14 @@ export function ProductStepper({
   }
 
   const cellH = size === "md" ? "h-11" : "h-9";
-  // md buttons widen at md+ breakpoints: catalog/guide cards have more
+  // md buttons widen at md+ breakpoints: catalog cards have more
   // horizontal room past mobile (~200-240px vs ~140-160px), so the +/−
   // can grow with them. Mobile keeps the tight 44px iOS HIG width so
   // narrow strip cards still have room for a 2-3 digit qty in the
-  // middle cell.
-  const btnW = size === "md" ? "w-11 md:w-14" : "w-9";
+  // middle cell. /guide DraftTile passes `tightButtons` to lock at 44px
+  // — its tiles sit in a narrower content column than catalog cards.
+  const btnW =
+    size === "md" ? (tightButtons ? "w-11" : "w-11 md:w-14") : "w-9";
   const iconLg = size === "md" ? "text-xl" : "text-lg";
   const digitFs = size === "md" ? "text-[15px]" : "text-[14px]";
 
@@ -152,6 +161,9 @@ export function ProductStepper({
     );
   }
 
+  // Empty state: "Add +" with label + plus pushed to the right margin
+  // when fullWidth (the long card pill). Non-fullWidth stays a centered
+  // square "+" (row variant, where there's no room for the label).
   return (
     <button
       type="button"
@@ -160,11 +172,11 @@ export function ProductStepper({
         e.stopPropagation();
         onAdd();
       }}
-      className={`${fullWidth ? "w-full" : `${btnW} shrink-0`} ${cellH} flex items-center justify-center gap-1.5 rounded-full bg-brand-blue text-white text-[14px] font-semibold hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97]`}
+      className={`${fullWidth ? "w-full justify-end pr-4 gap-2" : `${btnW} shrink-0 justify-center`} ${cellH} flex items-center rounded-full bg-brand-blue text-white text-[14px] font-semibold hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.97]`}
       aria-label={`Add to cart${labelSuffix}`}
     >
-      <span className={`${iconLg} leading-none`}>+</span>
       {fullWidth ? <span>Add</span> : null}
+      <span className={`${iconLg} leading-none`}>+</span>
     </button>
   );
 }
