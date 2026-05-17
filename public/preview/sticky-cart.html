@@ -3,142 +3,145 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cart bar — stack of papers reference</title>
+<title>StickyCartBar — Brief 2 spec reference</title>
 <style>
   :root {
     --brand-blue: #1763B5;
     --brand-blue-dark: #0F4A8A;
+    --brand-green: #2A9B46;
+    --brand-green-dark: #1F7A35;
     --ink-primary: #161616;
     --ink-tertiary: #9A9A9A;
+    --bg-secondary: #F4F4F1;
+    --feedback-error: #C13A28;
   }
-  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f1; padding: 40px 20px; color: var(--ink-primary); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-secondary); padding: 40px 20px; color: var(--ink-primary); }
   .frame { max-width: 480px; margin: 0 auto; }
-  h2 { font-size: 14px; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin: 24px 0 8px; }
-  .stage { background: white; border-radius: 16px; padding: 28px 12px 36px; position: relative; }
-  .note { font-size: 12px; color: var(--ink-tertiary); margin-top: 8px; line-height: 1.5; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 12px; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin: 24px 0 8px; }
+  .lede { font-size: 13px; color: var(--ink-tertiary); margin: 0 0 24px; line-height: 1.55; }
+  .stage { background: white; border-radius: 16px; padding: 28px 12px; position: relative; }
   code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: white; border: 1px solid rgba(0,0,0,0.08); padding: 1px 5px; border-radius: 4px; }
 
-  /* ─── Stack-of-papers cart bar ────────────────────────────────── */
-  .cart-stack { position: relative; padding-bottom: 12px; }
-
-  /* Back paper — peeks 12px below the front pill */
-  .cart-stack .back {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    top: 12px;
-    bottom: 0;
-    background: var(--brand-blue-dark);
-    border-radius: 6px 6px 10px 10px;
-    box-shadow: 0 4px 10px rgba(15,74,138,0.22);
-  }
-  .cart-stack .back .sub {
-    position: absolute;
-    bottom: 4px;
-    left: 12px;
-    right: 12px;
-    font-size: 10px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.90);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* Front pill — primary cart action */
-  .cart-stack .front {
-    position: relative;
+  /* ============================================================
+     Brief 2 — StickyCartBar spec ("the sticky pill")
+     ------------------------------------------------------------
+     position: fixed · left 12 / right 12 · bottom calc(83 + 10) · z 33
+     bg: --brand-blue
+     border-radius: 14px
+     padding: 10px 14px
+     box-shadow: 0 8px 24px rgba(23,99,181,0.25)
+     color: white
+     layout: flex · center · gap 12px
+     ============================================================ */
+  .sticky-pill {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
     background: var(--brand-blue);
     border-radius: 14px;
+    padding: 10px 14px;
     box-shadow: 0 8px 24px rgba(23,99,181,0.25);
     color: white;
+    text-decoration: none;
   }
-  .cart-stack .front .qty-blob {
+  /* qty-blob: rgba(white,0.18) · radius 8 · pad 4 8 · 12/700 tab-num */
+  .sticky-pill .qb {
     background: rgba(255,255,255,0.18);
     border-radius: 8px;
     padding: 4px 8px;
     font-size: 12px;
     font-weight: 700;
-    font-variant-numeric: tabular-nums;
     line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
-  .cart-stack .front .label {
+  /* label: flex:1 · 13/600 · "Cart · $TOTAL" */
+  .sticky-pill .lab {
     flex: 1;
     min-width: 0;
     font-size: 13px;
     font-weight: 600;
+    line-height: 1.2;
     font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .cart-stack .front .view {
+  /* .label small: 11/400 · opacity 0.85 */
+  .sticky-pill .lab small {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.85;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  /* view: 13/700 · flex · gap 4 · "View →" */
+  .sticky-pill .vw {
     display: flex;
     align-items: center;
     gap: 4px;
     font-size: 13px;
     font-weight: 700;
   }
-  .cart-stack .front .view svg {
+  .sticky-pill .vw svg {
     width: 14px;
     height: 14px;
     stroke: currentColor;
     stroke-width: 2;
     fill: none;
   }
+
+  /* Brand-green /cart/review variant */
+  .sticky-pill.commit {
+    background: var(--brand-green);
+    box-shadow: 0 8px 24px rgba(42,155,70,0.30);
+    justify-content: center;
+    padding: 12px 14px;
+  }
+  .sticky-pill.commit .lab {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 700;
+  }
 </style>
 </head>
 <body>
 <div class="frame">
-  <h2>Brief 2 — stack of papers cart bar</h2>
-  <p class="note">Two layered sheets — front pill (cart summary) on top of a back paper (delivery context) peeking 12px below.
-  Open <code>/guide</code> in another tab to compare against the live bar.</p>
+  <h1>StickyCartBar — Brief 2 spec</h1>
+  <p class="lede">Single flat pill, brand-blue with a brand-blue-tinted floating shadow. Two-line label inside (main + <code>&lt;small&gt;</code> sub-line). The whole pill is one tap target → <code>/cart</code>. Compare against the live app on <code>/guide</code> after deploy.</p>
 
   <h2>Cutoff &lt; 12h — countdown sub-line</h2>
   <div class="stage">
-    <div class="cart-stack">
-      <div class="back">
-        <span class="sub">Tuesday cutoff in 4h 12m</span>
-      </div>
-      <div class="front">
-        <span class="qty-blob">2</span>
-        <span class="label">Cart · $240.00</span>
-        <span class="view">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </div>
-    </div>
+    <a href="#" class="sticky-pill">
+      <span class="qb">2</span>
+      <span class="lab">Cart · $240.00<small>Tuesday cutoff in 4h 12m</small></span>
+      <span class="vw">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
   </div>
 
   <h2>Cutoff &gt; 12h — delivery sub-line</h2>
   <div class="stage">
-    <div class="cart-stack">
-      <div class="back">
-        <span class="sub">Friday delivery · Fri, May 22</span>
-      </div>
-      <div class="front">
-        <span class="qty-blob">2</span>
-        <span class="label">Cart · $315.00</span>
-        <span class="view">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </div>
-    </div>
+    <a href="#" class="sticky-pill">
+      <span class="qb">2</span>
+      <span class="lab">Cart · $315.00<small>Friday delivery · Fri, May 22</small></span>
+      <span class="vw">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
   </div>
 
   <h2>Single item</h2>
   <div class="stage">
-    <div class="cart-stack">
-      <div class="back">
-        <span class="sub">Tuesday cutoff in 4h 11m</span>
-      </div>
-      <div class="front">
-        <span class="qty-blob">1</span>
-        <span class="label">Cart · $108.00</span>
-        <span class="view">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-      </div>
-    </div>
+    <a href="#" class="sticky-pill">
+      <span class="qb">1</span>
+      <span class="lab">Cart · $108.00<small>Tuesday cutoff in 4h 11m</small></span>
+      <span class="vw">View<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+  </div>
+
+  <h2>/cart/review — commit variant (brand-green)</h2>
+  <div class="stage">
+    <a href="#" class="sticky-pill commit">
+      <span class="lab">Place order · $240.00</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
   </div>
 </div>
 </body>
