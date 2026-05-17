@@ -203,7 +203,7 @@ export function ProductCard({
     return (
       <>
         <div
-          className={`group/card relative w-full h-full flex flex-col rounded-xl border border-black/10 bg-white overflow-hidden snap-start transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${paused ? "opacity-70" : ""}`}
+          className={`group/card relative w-full h-full flex flex-col rounded-xl border border-black/10 bg-white overflow-hidden transition-colors duration-150 [@media(hover:hover)]:hover:border-black/20 focus-within:ring-2 focus-within:ring-brand-blue/40 focus-within:border-brand-blue ${paused ? "opacity-70" : ""}`}
         >
           <button
             type="button"
