@@ -171,10 +171,19 @@ export function ChatClient({
     });
     setSending(false);
     if (res.ok) {
-      // When there's no account, realtime isn't subscribed so append
-      // locally using the echoed row from the API.
+      // Optimistically append the echoed message to local state regardless
+      // of whether realtime is wired. Buyer feedback: messages weren't
+      // appearing in their own chat after send. Root cause: realtime
+      // filters on `account_id=eq.${accountId}`, but the POST handler
+      // re-resolves the active account server-side — for buyers with
+      // multiple memberships those can disagree, the insert lands on a
+      // different account thread than the subscription is listening to,
+      // and the buyer's UI never echoes their own message. Appending
+      // locally on send is what every chat UI does anyway. The realtime
+      // listener's `.find((m) => m.id === ...)` dedupe (line 82) prevents
+      // a double-append if realtime ALSO catches it.
       const data = (await res.json().catch(() => ({}))) as { message?: Message };
-      if (data.message && !accountId) {
+      if (data.message) {
         setMessages((prev) =>
           prev.find((m) => m.id === data.message!.id) ? prev : [...prev, data.message!],
         );
