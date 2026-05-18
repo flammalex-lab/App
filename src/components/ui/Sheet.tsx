@@ -209,19 +209,30 @@ export function Sheet({
   // ─── Initial open animation ────────────────────────────────────────
   // Reset state on every open, then animate from closed → initial open
   // position. We start at sheetY = sheetMax (closed off-screen), then
-  // RAF to sheetY = sheetMax * (1 - 0.65) (showing 65%).
+  // RAF to sheetY = sheetMax * (1 - 0.70) (showing 70%).
   const [lastOpen, setLastOpen] = useState(open);
   if (lastOpen !== open) {
     setLastOpen(open);
     if (open) {
       const initial = sheetMax || 800;
-      sheetYRef.current = initial;
-      scrollTopRef.current = 0;
       setSheetY(initial); // start off-screen; resolved sheetMax kicks in next frame
       setScrollTop(0);
       setOpened(false);
     }
   }
+  // Mirror sheetY/scrollTop resets into the refs. React's render-purity
+  // lint forbids ref mutation in the if block above (it's during render);
+  // the effect runs after commit, before any user interaction can read
+  // the refs, so the gesture math stays correct.
+  useEffect(() => {
+    if (open) {
+      sheetYRef.current = sheetMax || 800;
+      scrollTopRef.current = 0;
+    }
+    // Intentionally only depend on `open` — sheetMax updates after first
+    // measure shouldn't reset the refs mid-interaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open || sheetMax === 0) return;
@@ -344,7 +355,11 @@ export function Sheet({
     startP.current = sheetYRef.current - scrollTopRef.current;
     startY.current = e.clientY;
     dragSource.current = source;
-    velocityTrack.current = [{ y: e.clientY, t: performance.now() }];
+    // Use e.timeStamp (pure event property) instead of performance.now()
+    // to satisfy the React 19 react-hooks/purity lint. Both are
+    // DOMHighResTimeStamp values measured against navigation start, so
+    // velocity math (dy/dt) stays equivalent across sources.
+    velocityTrack.current = [{ y: e.clientY, t: e.timeStamp }];
     pointerId.current = e.pointerId;
     setDragging(true);
     try {
@@ -374,8 +389,10 @@ export function Sheet({
       if (sheetY !== 0) setSheetY(0);
       if (nextScrollTop !== scrollTop) setScrollTop(nextScrollTop);
     }
-    // Track velocity (rolling window of last ~80ms)
-    const now = performance.now();
+    // Track velocity (rolling window of last ~80ms). e.timeStamp is the
+    // event's DOMHighResTimeStamp — same time domain as performance.now()
+    // but pure (read from event, not called as a fresh impure function).
+    const now = e.timeStamp;
     velocityTrack.current.push({ y: e.clientY, t: now });
     velocityTrack.current = velocityTrack.current.filter((s) => now - s.t < 80);
   }
