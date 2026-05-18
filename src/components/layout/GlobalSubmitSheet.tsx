@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SubmitSheet } from "@/app/(storefront)/guide/SubmitSheet";
+import { CartSheet } from "@/components/cart/CartSheet";
 import { track } from "@/lib/analytics/track";
 
 interface UpcomingDelivery {
@@ -10,15 +10,19 @@ interface UpcomingDelivery {
 }
 
 /**
- * Globally-mounted SubmitSheet — owns the open/close state and listens
+ * Globally-mounted CartSheet — owns the open/close state and listens
  * for the `flf:open-submit` window event the StickyCartBar dispatches.
- * Lets every storefront page (not just /guide) pop the submit/review
- * overlay when the cart pill is tapped.
+ * Lets every storefront page pop the cart sheet when the cart pill is
+ * tapped, with the brief's full composite-P gesture.
  *
- * All data props are layout-stable: next-delivery + account-minimum +
- * delivery-fee + upcoming-deliveries are computed once at the
- * storefront layout level and threaded down. Cart contents come from
- * the global useCart store inside SubmitSheet itself.
+ * The old SubmitSheet (which only handled commit, not editing) has
+ * been replaced by CartSheet — one sheet handles both editing and
+ * committing in the same place, eliminating the /cart → /cart/review
+ * route hop on mobile.
+ *
+ * Layout-stable props (next-delivery + minimum + fee + upcoming) come
+ * from the storefront layout. Cart contents from the global useCart
+ * store inside CartSheet.
  */
 export function GlobalSubmitSheet({
   deliveryDayName,
@@ -42,7 +46,7 @@ export function GlobalSubmitSheet({
     return () => window.removeEventListener("flf:open-submit", handler);
   }, []);
   return (
-    <SubmitSheet
+    <CartSheet
       open={open}
       onClose={() => {
         track("submit_sheet_dismissed", {});
@@ -56,3 +60,4 @@ export function GlobalSubmitSheet({
     />
   );
 }
+

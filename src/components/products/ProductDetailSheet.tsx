@@ -1,6 +1,6 @@
 "use client";
 
-import { BottomSheet } from "@/components/ui/BottomSheet";
+import { Sheet } from "@/components/ui/Sheet";
 import { useProductSheet } from "@/lib/products/detail-sheet-store";
 import { ProductDetailContent } from "@/app/(storefront)/catalog/[id]/ProductDetailContent";
 import { PackRowsSkeleton } from "@/components/products/primitives";
@@ -12,12 +12,9 @@ import { PackRowsSkeleton } from "@/components/products/primitives";
  * thin inline skeleton fills the pack-rows area until the server
  * action resolves with priced packs.
  *
- * Replaces the parallel-route `@modal/(.)catalog/[id]` interception
- * pattern. Trade-off: the URL doesn't change to /catalog/[id], so the
- * modal isn't shareable or back-button-dismissible (an explicit
- * product decision — buyers don't share PDP URLs in this app's flows).
- * In exchange we get instant open with no body-lock thrash, no scroll
- * restoration to fight, no Suspense boundary handoff.
+ * Uses the new composite-P `Sheet` primitive (cart-sheet brief) for
+ * the bespoke Apple-Maps-style feel — same gesture model as the cart
+ * sheet so the two key product surfaces share the muscle memory.
  */
 export function ProductDetailSheet() {
   const product = useProductSheet((s) => s.product);
@@ -31,12 +28,10 @@ export function ProductDetailSheet() {
   if (!product) return null;
 
   return (
-    <BottomSheet
+    <Sheet
       open
       onClose={close}
       ariaLabel={product.name}
-      desktopMaxWidth="64rem"
-      suppressEnterAnimation
     >
       {packs ? (
         <ProductDetailContent
@@ -62,7 +57,7 @@ export function ProductDetailSheet() {
           onClose={close}
         />
       )}
-    </BottomSheet>
+    </Sheet>
   );
 }
 
