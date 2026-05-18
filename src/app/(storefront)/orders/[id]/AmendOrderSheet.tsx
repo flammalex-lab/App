@@ -54,13 +54,30 @@ export function AmendOrderSheet({
 
   // Cutoff countdown — refresh once a minute. Re-derives from cutoffAtIso
   // so a server-rendered cutoff change (page refresh) is reflected.
-  const [now, setNow] = useState<number>(() => Date.now());
+  //
+  // `now` starts null so SSR and the first CSR paint agree on the
+  // "no countdown yet" branch (cutoffLabel = null → "Append more items
+  // before cutoff."). The post-mount tick swaps in Date.now() and the
+  // live countdown lights up. Without this two-pass setup, a lazy
+  // `useState(() => Date.now())` initializer can produce a server
+  // timestamp and a hydration-time client timestamp that straddle a
+  // minute boundary, making `countdown(ms)` emit different strings on
+  // either side of hydration and tripping React #418. Mirrors the
+  // MobileHeader / CutoffClock / StickyCartBar fix.
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    if (!open) return;
+    const handle = setTimeout(() => setNow(Date.now()), 0);
+    if (!open) return () => clearTimeout(handle);
     const t = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(handle);
+      clearInterval(t);
+    };
   }, [open]);
-  const cutoffMs = cutoffAtIso ? new Date(cutoffAtIso).getTime() - now : null;
+  const cutoffMs =
+    cutoffAtIso && now != null
+      ? new Date(cutoffAtIso).getTime() - now
+      : null;
   const cutoffLabel = cutoffMs != null && cutoffMs > 0 ? countdown(cutoffMs) : null;
   const cutoffPassed = cutoffMs != null && cutoffMs <= 0;
 

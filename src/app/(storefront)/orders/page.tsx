@@ -217,6 +217,7 @@ function EmptyState({
               weekday: "short",
               hour: "numeric",
               minute: "2-digit",
+              timeZone: BUSINESS_TIMEZONE,
             })}
           </strong>
           {" "}({dateLong(nextDelivery.cutoffAt)}).
