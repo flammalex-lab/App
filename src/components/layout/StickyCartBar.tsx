@@ -126,19 +126,16 @@ export function StickyCartBar({
   const countdownActive = ms != null && ms > 0 && ms < 12 * 60 * 60 * 1000;
 
   // ---- Render shells ---------------------------------------------------
-  // B3: z-30 (was z-20) so the pill sits at the same layer as the
-  // BottomTabs and any in-page sticky/animated section that ends up
-  // creating its own paint layer (catalog producer drill-in, expanded
-  // sub-category sections). The wrapper is `pointer-events-none` and
-  // only the inner button is `pointer-events-auto`, so coexisting at
-  // the same z as BottomTabs (which sits below the pill vertically)
-  // doesn't introduce a click-eat. Stays below BottomSheets (z-50)
-  // so the existing sheet-open dance still hides the pill behind any
-  // open sheet without the two layers fighting.
-  const wrapperClass = `fixed inset-x-0 z-30 px-3 md:px-6 pointer-events-none transition-[bottom] duration-200 md:bottom-6 ${
+  // z-index: pill = 33, tab bar = 35, toast = 34 (per Brief 2 spec). The
+  // pill rises UP from BEHIND the tab bar — its bottom edge tucks behind
+  // the nav and the sub-line text peeks just above the nav's top edge.
+  // That's the "rising up from the bottom" feel the brief mockup shows.
+  // Wrapper sits 10px BELOW the nav top (overlap, not gap), so when the
+  // tab bar paints on top (z-35) it covers the pill's bottom ~10px.
+  const wrapperClass = `fixed inset-x-0 z-[33] px-3 md:px-6 pointer-events-none transition-[bottom] duration-200 md:bottom-6 ${
     navHidden
       ? "bottom-[calc(env(safe-area-inset-bottom,0px)+0.625rem)]"
-      : "bottom-[calc(env(safe-area-inset-bottom,0px)+3.75rem)]"
+      : "bottom-[calc(env(safe-area-inset-bottom,0px)+3rem)]"
   }`;
 
   // /cart/review — brand-green commit variant per Brief 2 DO:
