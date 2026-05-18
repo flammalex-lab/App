@@ -44,7 +44,7 @@ export function DraftStrip({
     <div className="relative">
       <div
         ref={scrollRef}
-        className="overflow-x-auto overscroll-x-contain -mx-1 px-1 pb-1"
+        className="overflow-x-auto overscroll-x-contain -mx-1 px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div
           className={`grid grid-flow-col ${gridRowsClass} auto-cols-[248px] gap-x-3 gap-y-3`}
