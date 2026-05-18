@@ -51,33 +51,30 @@ export async function POST(request: Request) {
     accountId = active?.id ?? null;
   }
 
-  // Resolve the recipient. Account thread → salesperson. No-account thread
-  // → fall back to the first admin with a phone so the message still reaches
-  // someone real via SMS.
-  let toProfileId: string | null = null;
+  // Resolve the recipients — every admin profile with a phone + sms_opted_in.
+  // Previous behavior used accounts.salesperson_id with first-admin fallback,
+  // but per the current single-admin setup the routing is "all messages go
+  // to the admin." If multiple admins exist later, each opted-in admin gets
+  // a copy of the SMS. The toProfileId on the message row is set to the
+  // first admin for thread bookkeeping; the admin chat surface lists by
+  // account_id anyway so this is just metadata.
   let accountName: string | null = null;
   if (accountId) {
     const { data: accountRow } = await svc
       .from("accounts")
-      .select("salesperson_id, name")
+      .select("name")
       .eq("id", accountId)
       .maybeSingle();
-    const account = accountRow as { salesperson_id: string | null; name: string } | null;
-    toProfileId = account?.salesperson_id ?? null;
-    accountName = account?.name ?? null;
+    accountName = (accountRow as { name: string } | null)?.name ?? null;
   }
-  if (!toProfileId) {
-    const { data: fallbackAdminRow } = await svc
-      .from("profiles")
-      .select("id, phone")
-      .eq("role", "admin")
-      .not("phone", "is", null)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    const fallbackAdmin = fallbackAdminRow as { id: string; phone: string | null } | null;
-    toProfileId = fallbackAdmin?.id ?? null;
-  }
+  const { data: adminRows } = await svc
+    .from("profiles")
+    .select("id, phone, sms_opted_in")
+    .eq("role", "admin")
+    .order("created_at", { ascending: true });
+  const admins = (adminRows as { id: string; phone: string | null; sms_opted_in: boolean }[] | null) ?? [];
+  const toProfileId: string | null = admins[0]?.id ?? null;
+  const smsRecipients = admins.filter((a) => a.phone && a.sms_opted_in);
 
   const { data: inserted, error: insertErr } = await svc
     .from("messages")
@@ -96,24 +93,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
-  // Forward to the recipient via SMS if they've opted in. Otherwise the
-  // message stays in-app only.
-  if (toProfileId) {
-    const { data: repRow } = await svc
-      .from("profiles")
-      .select("phone, sms_opted_in")
-      .eq("id", toProfileId)
-      .maybeSingle();
-    const rep = repRow as { phone: string | null; sms_opted_in: boolean } | null;
-    const phone = rep?.phone ?? null;
-    const optedIn = Boolean(rep?.sms_opted_in);
-    if (phone && optedIn) {
-      const prefix = accountName ? `[${accountName}]` : "[no account]";
-      await sendSms({
-        to: phone,
-        body: `${prefix} ${fromFirstName}: ${body}`,
-      });
-    }
-  }
+  // Fan out SMS to every opted-in admin. Errors are intentionally swallowed
+  // (Twilio outage shouldn't fail the buyer's send); the message itself is
+  // already persisted so admins can still read it in /admin/messages.
+  const prefix = accountName ? `[${accountName}]` : "[no account]";
+  await Promise.all(
+    smsRecipients.map((r) =>
+      sendSms({ to: r.phone!, body: `${prefix} ${fromFirstName}: ${body}` }).catch(() => {
+        /* swallow */
+      }),
+    ),
+  );
   return NextResponse.json({ ok: true, message: inserted });
 }
