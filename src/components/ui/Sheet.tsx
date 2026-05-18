@@ -14,7 +14,7 @@ let openSheetCount = 0;
 
 // Constants from the cart-sheet brief (`09-cart-sheet.html` spec table)
 const TOP_INSET_PX = 60;
-const INITIAL_OPEN_RATIO = 0.65;
+const INITIAL_OPEN_RATIO = 0.70;
 const DISMISS_TRAVEL_RATIO = 0.70;
 const DISMISS_VELOCITY_PX_PER_MS = 1.1;
 const DISMISS_VELOCITY_OFFSET_RATIO = 0.20;
@@ -28,6 +28,15 @@ const HANDLE_WIDTH_PX = 40;
 const HANDLE_HEIGHT_PX = 4;
 const SHEET_Z_INDEX = 70;
 const BACKDROP_Z_INDEX = 60;
+
+// Momentum scroll tuning.
+//   MOMENTUM_VELOCITY_THRESHOLD : px/ms — below this on release, no momentum
+//   MOMENTUM_FRICTION_PER_FRAME : multiplier applied to velocity each frame
+//                                  at 16ms baseline. 0.92 gives ~250-400ms of
+//                                  decay depending on initial speed.
+const MOMENTUM_VELOCITY_THRESHOLD = 0.20;
+const MOMENTUM_FRICTION_PER_FRAME = 0.92;
+const MOMENTUM_STOP_THRESHOLD = 0.05;
 
 /**
  * Apple-Maps-style bottom sheet with composite-P gesture math. Use for
@@ -46,8 +55,15 @@ const BACKDROP_Z_INDEX = 60;
  * If P < 0 → sheetY = 0, scrollTop = -P. One continuous finger motion
  * across sheet drag and content scroll, with no hand-off seam.
  *
- * **Initial open ratio** = 0.65. Sheet shows 65% of its max-open height
+ * **Initial open ratio** = 0.70. Sheet shows 70% of its max-open height
  * on open; the rest hangs below for the drag-up reveal.
+ *
+ * **Momentum scroll on content.** When the user releases mid-scroll
+ * (sheet at sheetY=0, content scrolling), the inner content continues
+ * with decaying velocity over ~250-400ms via a RAF loop. Same feel as
+ * native iOS overflow momentum but JS-controlled so it plays nice with
+ * the composite-P math. Velocity threshold + friction tuned to feel
+ * natural without overrunning; touching the sheet cancels.
  *
  * **No snap-back on release.** Wherever the finger leaves, the sheet
  * stays. The only automatic motions are open, close (tap), and
@@ -103,6 +119,14 @@ export function Sheet({
   const dragSource = useRef<"handle" | "body" | "header" | null>(null);
   const velocityTrack = useRef<Array<{ y: number; t: number }>>([]);
   const pointerId = useRef<number | null>(null);
+  // Refs mirror sheetY/scrollTop so the gesture math reads the live
+  // values during a drag without stale-closure issues. setState still
+  // fires for rendering.
+  const sheetYRef = useRef(0);
+  const scrollTopRef = useRef(0);
+  // Momentum-scroll RAF handle. Set when content scroll has residual
+  // velocity on release; canceled on the next pointerdown.
+  const momentumRaf = useRef<number | null>(null);
 
   const scrollMax = Math.max(0, contentHeight - bodyHeight);
 
@@ -139,6 +163,11 @@ export function Sheet({
       html.style.overflow = prev.htmlOverflow;
       html.removeAttribute("data-sheet-open");
       window.scrollTo({ top: scrollY, left: 0, behavior: "auto" });
+      // Cancel any momentum loop still running when the sheet closes.
+      if (momentumRaf.current != null) {
+        cancelAnimationFrame(momentumRaf.current);
+        momentumRaf.current = null;
+      }
     };
   }, [open]);
 
@@ -185,7 +214,10 @@ export function Sheet({
   if (lastOpen !== open) {
     setLastOpen(open);
     if (open) {
-      setSheetY(sheetMax || 800); // start off-screen; resolved sheetMax kicks in next frame
+      const initial = sheetMax || 800;
+      sheetYRef.current = initial;
+      scrollTopRef.current = 0;
+      setSheetY(initial); // start off-screen; resolved sheetMax kicks in next frame
       setScrollTop(0);
       setOpened(false);
     }
@@ -200,6 +232,7 @@ export function Sheet({
     // the animation kicks in.
     const id = window.setTimeout(() => {
       const initialY = sheetMax * (1 - INITIAL_OPEN_RATIO);
+      sheetYRef.current = initialY;
       setSheetY(initialY);
       setOpened(true);
     }, 0);
@@ -303,8 +336,12 @@ export function Sheet({
     source: "handle" | "body" | "header",
   ) {
     if (targetIsInteractive(e.target)) return;
-    // Composite-P start position
-    startP.current = sheetY - scrollTop;
+    // Touching the sheet always cancels in-flight momentum so the new
+    // gesture takes over cleanly.
+    cancelMomentum();
+    // Composite-P start position — read refs (live values), not state
+    // (which may not have flushed the latest drag/momentum update yet).
+    startP.current = sheetYRef.current - scrollTopRef.current;
     startY.current = e.clientY;
     dragSource.current = source;
     velocityTrack.current = [{ y: e.clientY, t: performance.now() }];
@@ -325,12 +362,16 @@ export function Sheet({
     if (p > 0) {
       // Sheet partial-open; content sits at top
       const nextSheetY = Math.min(p, sheetMax);
+      sheetYRef.current = nextSheetY;
+      scrollTopRef.current = 0;
       if (nextSheetY !== sheetY) setSheetY(nextSheetY);
       if (scrollTop !== 0) setScrollTop(0);
     } else {
       // Sheet fully open; content scrolled
-      if (sheetY !== 0) setSheetY(0);
+      sheetYRef.current = 0;
       const nextScrollTop = Math.min(-p, scrollMax);
+      scrollTopRef.current = nextScrollTop;
+      if (sheetY !== 0) setSheetY(0);
       if (nextScrollTop !== scrollTop) setScrollTop(nextScrollTop);
     }
     // Track velocity (rolling window of last ~80ms)
@@ -364,18 +405,63 @@ export function Sheet({
     // Dismiss conditions per brief:
     //   1. sheetY > sheetMax * 0.70 (cumulative travel past threshold)
     //   2. vel > 1.1 px/ms downward AND sheetY > sheetMax * 0.20 (fast flick)
-    const travelDismiss = sheetY > sheetMax * DISMISS_TRAVEL_RATIO;
+    const travelDismiss = sheetYRef.current > sheetMax * DISMISS_TRAVEL_RATIO;
     const flickDismiss =
       vel > DISMISS_VELOCITY_PX_PER_MS &&
-      sheetY > sheetMax * DISMISS_VELOCITY_OFFSET_RATIO;
+      sheetYRef.current > sheetMax * DISMISS_VELOCITY_OFFSET_RATIO;
     if (travelDismiss || flickDismiss) {
       // Animate to closed; closing useEffect-derived state will fire onClose
       // after the animation duration so the slide-down is visible.
+      sheetYRef.current = sheetMax;
       setSheetY(sheetMax);
       window.setTimeout(() => onClose(), CLOSE_DURATION_MS);
       return;
     }
+
+    // Content momentum scroll on release. Only applies when the gesture
+    // ended in content-scroll zone (sheet fully open). Sheet drag has
+    // no momentum (release-where-you-let-go per the brief).
+    if (sheetYRef.current === 0 && Math.abs(vel) >= MOMENTUM_VELOCITY_THRESHOLD) {
+      startMomentum(vel);
+    }
     // No snap-back — sheet stays where finger left it.
+  }
+
+  function startMomentum(initialVelocity: number) {
+    // initialVelocity is dy/dt where positive = finger moved down.
+    // Content scrollTop increases when finger moves UP (reveals content
+    // below), so scrollTop delta = -velocity * dt.
+    let vel = initialVelocity;
+    let lastT = performance.now();
+    function step() {
+      const now = performance.now();
+      const dt = Math.min(now - lastT, 50); // clamp dt to survive a tab-switch
+      lastT = now;
+      const delta = -vel * dt;
+      const next = Math.max(0, Math.min(scrollMax, scrollTopRef.current + delta));
+      if (next === scrollTopRef.current) {
+        // Hit boundary — stop momentum
+        momentumRaf.current = null;
+        return;
+      }
+      scrollTopRef.current = next;
+      setScrollTop(next);
+      // Friction
+      vel *= Math.pow(MOMENTUM_FRICTION_PER_FRAME, dt / 16);
+      if (Math.abs(vel) < MOMENTUM_STOP_THRESHOLD) {
+        momentumRaf.current = null;
+        return;
+      }
+      momentumRaf.current = requestAnimationFrame(step);
+    }
+    momentumRaf.current = requestAnimationFrame(step);
+  }
+
+  function cancelMomentum() {
+    if (momentumRaf.current != null) {
+      cancelAnimationFrame(momentumRaf.current);
+      momentumRaf.current = null;
+    }
   }
 
   if (!open) return null;
