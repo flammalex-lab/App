@@ -22,7 +22,7 @@ export function BottomTabs({ tabs }: { tabs: NavTab[] }) {
   const hidden = useScrollHidden();
   return (
     <div
-      className={`fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/10 shadow-sticky pb-safe md:hidden transition-transform duration-200 will-change-transform ${
+      className={`fixed bottom-0 inset-x-0 z-[35] bg-white border-t border-black/10 shadow-sticky pb-safe md:hidden transition-transform duration-200 will-change-transform ${
         hidden ? "translate-y-full" : "translate-y-0"
       }`}
     >
