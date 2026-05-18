@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { trackServer } from "@/lib/analytics/server";
+import { notificationUrl } from "@/lib/analytics/notification-click-url";
 import type { Order, OrderStatus } from "@/lib/supabase/types";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
 
@@ -49,13 +50,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         to_status: status,
       },
     });
+    const smsLink = notificationUrl(`/orders/${id}`, {
+      name: "order_status",
+      transport: "sms",
+    });
+    const emailLink = notificationUrl(`/orders/${id}`, {
+      name: "order_status",
+      transport: "email",
+    });
     const smsBodies: Record<OrderStatus, string> = {
       draft: "",
       pending: "",
-      confirmed: `FLF: order ${prev.order_number} confirmed.`,
-      processing: `FLF: order ${prev.order_number} being prepped.`,
-      ready: `FLF: order ${prev.order_number} is ready for pickup.`,
-      shipped: `FLF: order ${prev.order_number} out for delivery.`,
+      confirmed: `FLF: order ${prev.order_number} confirmed. View: ${smsLink}`,
+      processing: `FLF: order ${prev.order_number} being prepped. View: ${smsLink}`,
+      ready: `FLF: order ${prev.order_number} is ready for pickup. View: ${smsLink}`,
+      shipped: `FLF: order ${prev.order_number} out for delivery. View: ${smsLink}`,
       delivered: `FLF: order ${prev.order_number} delivered. Thanks!`,
       cancelled: `FLF: order ${prev.order_number} cancelled.`,
     };
@@ -116,7 +125,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             channel: "email",
             toAddress: email,
             subject: `Order ${prev.order_number} ${subjectLabels[status] || status} — Fingerlakes Farms`,
-            body: appBody,
+            body: `${appBody}\n\nView your order: ${emailLink}`,
             relatedOrderId: id,
           }),
         );

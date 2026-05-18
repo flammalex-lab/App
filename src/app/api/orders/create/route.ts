@@ -13,6 +13,7 @@ import { buyerHistoryTag } from "@/lib/products/buyer-history";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
 import { getAllowedPrivateProductIds } from "@/lib/products/queries";
 import { trackServer } from "@/lib/analytics/server";
+import { notificationUrl } from "@/lib/analytics/notification-click-url";
 
 interface BodyLine {
   productId: string;
@@ -387,6 +388,14 @@ export async function POST(request: Request) {
   const phone = effectiveProfile.phone;
   const email = effectiveProfile.email;
   const itemCount = body.lines.reduce((s, l) => s + l.quantity, 0);
+  const emailLink = notificationUrl(`/orders/${order.id}`, {
+    name: "order_confirmation",
+    transport: "email",
+  });
+  const smsLink = notificationUrl(`/orders/${order.id}`, {
+    name: "order_confirmation",
+    transport: "sms",
+  });
   const emailBody = [
     `We got your order ${order_number}.`,
     "",
@@ -399,6 +408,8 @@ export async function POST(request: Request) {
       : body.pickupDate
         ? `Pickup: ${formatDateShort(body.pickupDate)}`
         : null,
+    "",
+    `View your order: ${emailLink}`,
     "",
     "We'll let you know when it's confirmed and ready.",
   ]
@@ -416,7 +427,7 @@ export async function POST(request: Request) {
           type: "order_confirmation",
           channel: "sms",
           toAddress: phone,
-          body: `FLF: order ${order_number} received · ${formatMoney(total)}. We'll text you when it's ready.`,
+          body: `FLF: order ${order_number} received · ${formatMoney(total)}. View: ${smsLink}`,
           relatedOrderId: order.id,
         }),
       );

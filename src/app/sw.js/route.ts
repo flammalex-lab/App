@@ -160,8 +160,26 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
-  event.waitUntil(clients.openWindow(url));
+  // Append nt=push (and pass through n=… if the push payload included
+  // one) so NotificationClickTracker on the landed page can fire a
+  // notification_clicked event. Done in the SW so push-tap tracking
+  // works without coordinating across every send-side caller.
+  var baseUrl = event.notification.data && event.notification.data.url
+    ? event.notification.data.url
+    : "/";
+  var notifName = event.notification.data && event.notification.data.notification_name
+    ? event.notification.data.notification_name
+    : null;
+  var trackedUrl;
+  try {
+    var parsed = new URL(baseUrl, self.location.origin);
+    parsed.searchParams.set("nt", "push");
+    if (notifName) parsed.searchParams.set("n", notifName);
+    trackedUrl = parsed.toString();
+  } catch (e) {
+    trackedUrl = baseUrl;
+  }
+  event.waitUntil(clients.openWindow(trackedUrl));
 });
 `;
 
