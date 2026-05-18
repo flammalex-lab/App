@@ -604,7 +604,7 @@ export default async function GuidePage({ searchParams }: PageProps) {
 
       {accountPaused ? (
         <div className="mb-3 rounded-lg bg-accent-rust/10 text-[#7a3b1f] px-4 py-3 border border-accent-rust/20">
-          <div className="text-[14px] font-medium">Account paused — message Alex</div>
+          <div className="text-[14px] font-medium">Account paused — message us</div>
           <p className="text-[12px] text-ink-secondary leading-snug mt-0.5">
             We&apos;ll get you back on rhythm. Lines below are read-only while paused.
           </p>

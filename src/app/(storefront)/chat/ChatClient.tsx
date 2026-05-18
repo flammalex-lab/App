@@ -9,7 +9,7 @@ import type { Message, MessagePayload } from "@/lib/supabase/types";
 import { relativeTime, dateShort } from "@/lib/utils/format";
 import { track } from "@/lib/analytics/track";
 
-const REP_NAME = process.env.NEXT_PUBLIC_REP_NAME || "Alex Flamm";
+const REP_NAME = process.env.NEXT_PUBLIC_REP_NAME || "Your rep";
 const REP_ROLE = "Your rep at Fingerlakes Farms";
 const UNLINKED_ROLE = "Messages go to our team — we'll pair you with a rep";
 
