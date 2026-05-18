@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/lib/cart/store";
+import { track } from "@/lib/analytics/track";
 
 export function CartIconWithBadge() {
   // Count is total cases across all lines so the badge matches the
@@ -12,6 +13,7 @@ export function CartIconWithBadge() {
     <Link
       href="/cart"
       aria-label={`Cart (${count} ${count === 1 ? "item" : "items"})`}
+      onClick={() => track("cart_icon_tapped", { item_count: count })}
       className="relative h-10 w-10 inline-flex items-center justify-center rounded-full hover:bg-bg-secondary transition"
     >
       <CartIcon />

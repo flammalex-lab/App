@@ -13,6 +13,7 @@ import { LineItem } from "@/components/products/LineItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useScrollHidden } from "@/components/layout/ScrollHideHeader";
+import { track } from "@/lib/analytics/track";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface NextDelivery {
@@ -54,6 +55,14 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
   const orderNote = useCart((s) => s.orderNote);
   const setOrderNote = useCart((s) => s.setOrderNote);
   const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
+
+  // `cart_viewed` fires once per /cart mount. Funnel: catalog → pill → cart.
+  useEffect(() => {
+    track("cart_viewed", {
+      line_count: useCart.getState().lines.length,
+      item_count: useCart.getState().lines.reduce((n, l) => n + l.quantity, 0),
+    });
+  }, []);
 
   // Seed the cart with reorder items once, on first mount
   const hydrated = useRef(false);
@@ -175,6 +184,11 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
   const router = useRouter();
   function goToReview() {
     if (lines.length === 0) return;
+    track("checkout_review_opened", {
+      line_count: lines.length,
+      item_count: lines.reduce((n, l) => n + l.quantity, 0),
+      subtotal,
+    });
     // Block checkout if the stored date is missing OR stale relative
     // to the server's nextDelivery. The stale-clear effect will have
     // run by the next paint, but a buyer who taps "Review" immediately
@@ -327,7 +341,15 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
               }}
               mode="edit"
               onQty={(q) => setQty(l.productId, q, l.variantKey)}
-              onRemove={() => setQty(l.productId, 0, l.variantKey)}
+              onRemove={() => {
+                track("remove_from_cart", {
+                  product_id: l.productId,
+                  sku: l.sku,
+                  variant_key: l.variantKey ?? null,
+                  quantity: l.quantity,
+                });
+                setQty(l.productId, 0, l.variantKey);
+              }}
             />
           ))}
           {visibleLines.length === 0 ? (

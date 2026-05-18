@@ -6,6 +6,7 @@ import { useCart } from "@/lib/cart/store";
 import { useToast } from "@/components/ui/Toast";
 import { money } from "@/lib/utils/format";
 import { productImage } from "@/lib/utils/product-image";
+import { track } from "@/lib/analytics/track";
 
 interface ScannedProduct {
   id: string;
@@ -198,6 +199,13 @@ export function BarcodeScanner({
   }
 
   async function handleHit(product: ScannedProduct) {
+    track("barcode_scanned", {
+      product_id: product.id,
+      sku: product.sku ?? null,
+      upc: product.upc ?? null,
+      mode,
+      has_price: product.unitPrice != null,
+    });
     if (product.unitPrice == null) {
       setBanner({ kind: "error", message: `${product.name} — price on request` });
       setTimeout(() => setBanner({ kind: "idle" }), 2000);

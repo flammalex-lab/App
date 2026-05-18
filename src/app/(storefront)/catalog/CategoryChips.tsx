@@ -1,12 +1,18 @@
+"use client";
+
 import Link from "next/link";
 import { GROUP_LABELS, type ProductGroup } from "@/lib/constants";
+import { track } from "@/lib/analytics/track";
 
 /**
  * Horizontal scroll of category chips. Sits under the search bar on
  * /catalog landing. Each chip is a Link so the route fully refreshes
- * (server query re-runs) — keeps the implementation server-only.
+ * (server query re-runs).
  *
  * Active chip = the current ?group=X. Empty/undefined = "All" highlighted.
+ *
+ * Marked "use client" so we can attach onClick for analytics — Link still
+ * handles the navigation; track() is fire-and-forget so it never blocks.
  */
 export function CategoryChips({
   groups,
@@ -37,6 +43,13 @@ export function CategoryChips({
             <Link
               key={c.key ?? "all"}
               href={href}
+              onClick={() =>
+                track("category_filtered", {
+                  group: c.key ?? null,
+                  label: c.label,
+                  from_active: active ?? null,
+                })
+              }
               className={
                 isActive
                   ? "px-3.5 py-1.5 rounded-full bg-brand-blue text-white text-sm font-medium whitespace-nowrap transition"

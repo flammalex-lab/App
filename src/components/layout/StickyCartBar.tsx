@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart/store";
 import { countdown, money } from "@/lib/utils/format";
+import { track } from "@/lib/analytics/track";
 import { useScrollHidden } from "./ScrollHideHeader";
 
 interface SerializedNextDelivery {
@@ -234,6 +235,7 @@ export function StickyCartBar({
   // by GlobalSubmitSheet (mounted in storefront layout). Lets the buyer
   // commit from any page without routing to /cart first.
   function openSubmitSheet() {
+    track("cart_pill_tapped", { item_count: itemCount, total });
     window.dispatchEvent(new Event("flf:open-submit"));
   }
 

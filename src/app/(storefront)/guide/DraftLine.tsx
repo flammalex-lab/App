@@ -5,6 +5,7 @@ import { useCart, type CartLine } from "@/lib/cart/store";
 import { QtyInput } from "@/components/ui/QtyInput";
 import { displayProductName } from "@/lib/utils/product-display";
 import { PriceLine } from "@/components/products/primitives";
+import { track } from "@/lib/analytics/track";
 import type { Product } from "@/lib/supabase/types";
 import type { GuideRow, PricedProductLite } from "./page";
 
@@ -94,6 +95,12 @@ export function DraftLine({ row, substitutes = [] }: Props) {
     if (next === qty) return;
     if (next <= 0) {
       // Zero-out via skip so the row stays visible.
+      track("guide_line_skipped", {
+        product_id: product.id,
+        sku: product.sku,
+        reason: "qty_zero",
+        rhythm_qty: rhythmQty ?? null,
+      });
       skipLine(product.id, variantKey);
       return;
     }
@@ -107,12 +114,23 @@ export function DraftLine({ row, substitutes = [] }: Props) {
 
   function handleAddBack() {
     const restored = rhythmQty && rhythmQty > 0 ? rhythmQty : 1;
+    track("guide_line_restored", {
+      product_id: product.id,
+      sku: product.sku,
+      restored_qty: restored,
+    });
     add(cartLineFromProduct(restored));
     addBackLine(product.id, variantKey);
   }
 
   function handleSwap(sub: PricedProductLite) {
     // Add the substitute, skip the original.
+    track("guide_line_swapped", {
+      original_product_id: product.id,
+      original_sku: product.sku,
+      substitute_product_id: sub.id,
+      substitute_sku: sub.sku ?? null,
+    });
     const subPrice = sub.unitPrice ?? 0;
     add({
       productId: sub.id,
@@ -157,7 +175,15 @@ export function DraftLine({ row, substitutes = [] }: Props) {
             ))}
             <button
               type="button"
-              onClick={() => skipLine(product.id, variantKey)}
+              onClick={() => {
+                track("guide_line_skipped", {
+                  product_id: product.id,
+                  sku: product.sku,
+                  reason: "stockout_skip_button",
+                  rhythm_qty: rhythmQty ?? null,
+                });
+                skipLine(product.id, variantKey);
+              }}
               className="rounded-full bg-bg-secondary text-ink-secondary text-[12px] font-medium px-2.5 py-1 hover:bg-black/[0.08] transition-colors duration-150"
             >
               Skip

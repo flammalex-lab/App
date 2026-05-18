@@ -11,6 +11,7 @@ import type { DraftItem } from "./DraftTile";
 import type { GuideRow, PricedProductLite } from "./page";
 import { SearchBar } from "@/components/catalog/SearchBar";
 import { ListSwitcher } from "./ListSwitcher";
+import { track } from "@/lib/analytics/track";
 
 interface UpcomingDelivery {
   date: string;
@@ -91,6 +92,19 @@ export function GuideClient({
   useEffect(() => {
     clearStaleDeliveryDate(targetDeliveryDate);
   }, [targetDeliveryDate, clearStaleDeliveryDate]);
+
+  // `guide_viewed` — fires once per mount of /guide. Funnel anchor for
+  // the rhythm-driven repeat-order flow.
+  useEffect(() => {
+    track("guide_viewed", {
+      guide_id: activeGuideId,
+      item_count: items.length,
+      active_standing_count: activeStanding.length,
+      target_delivery: targetDeliveryDate,
+    });
+    // Only on first mount of the guide view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const searchMatch = (r: GuideRow) =>
     !search || r.product.name.toLowerCase().includes(search.toLowerCase());

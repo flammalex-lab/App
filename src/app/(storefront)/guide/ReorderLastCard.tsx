@@ -2,6 +2,7 @@
 
 import { useCart } from "@/lib/cart/store";
 import { money } from "@/lib/utils/format";
+import { track } from "@/lib/analytics/track";
 
 interface LastOrder {
   id: string;
@@ -40,6 +41,14 @@ export function ReorderLastCard({ lastOrder }: { lastOrder: LastOrder }) {
       <form action={`/api/orders/reorder?orderId=${lastOrder.id}`} method="post">
         <button
           type="submit"
+          onClick={() =>
+            track("reorder_clicked", {
+              order_id: lastOrder.id,
+              order_number: lastOrder.order_number,
+              prior_total: lastOrder.total,
+              prior_item_count: lastOrder.item_count,
+            })
+          }
           className="w-full rounded-xl p-4 flex items-center gap-4 text-left bg-brand-blue text-white shadow-card hover:bg-brand-blue-dark transition-colors duration-150 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-brand-blue/40"
         >
           <div className="h-12 w-12 rounded-lg bg-white/15 text-white flex items-center justify-center shrink-0">
