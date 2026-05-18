@@ -12,6 +12,7 @@ import { enqueueAndSend } from "@/lib/notifications/dispatch";
 import { buyerHistoryTag } from "@/lib/products/buyer-history";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
 import { getAllowedPrivateProductIds } from "@/lib/products/queries";
+import { trackServer } from "@/lib/analytics/server";
 
 interface BodyLine {
   productId: string;
@@ -307,6 +308,27 @@ export async function POST(request: Request) {
   }));
   const { error: itemsErr } = await svc.from("order_items").insert(itemRows);
   if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 500 });
+
+  // Analytics: stamp the order_placed event. Best-effort, never throws.
+  // Done server-side so we can't miss it (client tracking would skip the
+  // event on a slow connection or a fast redirect).
+  void trackServer(svc, {
+    event: "order_placed",
+    profileId: effectiveProfile.id,
+    accountId: effectiveProfile.account_id,
+    properties: {
+      order_id: order.id,
+      order_number,
+      order_type: body.orderType,
+      payment_method: body.paymentMethod,
+      line_count: body.lines.length,
+      item_count: body.lines.reduce((s, l) => s + l.quantity, 0),
+      subtotal,
+      delivery_fee: deliveryFee,
+      total,
+      placed_by: placedById ? "admin_impersonation" : "buyer",
+    },
+  });
 
   // Buyer's order-history aggregate just changed — drop the cached
   // buyer-history entry so /guide and /catalog re-read fresh numbers.

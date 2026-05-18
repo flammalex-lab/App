@@ -306,6 +306,57 @@ export type Database = {
           },
         ]
       }
+      buyer_events: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          event_name: string
+          id: string
+          path: string | null
+          profile_id: string | null
+          properties: Json
+          session_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          event_name: string
+          id?: string
+          path?: string | null
+          profile_id?: string | null
+          properties?: Json
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          event_name?: string
+          id?: string
+          path?: string | null
+          profile_id?: string | null
+          properties?: Json
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_events_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cron_runs: {
         Row: {
           error: string | null
@@ -368,6 +419,41 @@ export type Database = {
           zone?: Database["public"]["Enums"]["delivery_zone_t"]
         }
         Relationships: []
+      }
+      device_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen_at: string
+          platform: string
+          profile_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          platform: string
+          profile_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          profile_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_tokens_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
@@ -442,6 +528,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_lines"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "messages_to_profile_id_fkey"
@@ -528,6 +621,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_lines"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "notifications_related_standing_order_id_fkey"
@@ -755,9 +855,18 @@ export type Database = {
           order_id: string
           pack_variant_key: string | null
           pack_variant_sku: string | null
+          product_brand: string | null
+          product_category: string | null
           product_id: string
+          product_name: string | null
+          product_pack_size: string | null
+          product_producer: string | null
+          product_sku: string | null
+          product_sub_category: string | null
+          product_unit: string | null
           quantity: number
           unit_price: number
+          wholesale_price_at_order: number | null
         }
         Insert: {
           id?: string
@@ -766,9 +875,18 @@ export type Database = {
           order_id: string
           pack_variant_key?: string | null
           pack_variant_sku?: string | null
+          product_brand?: string | null
+          product_category?: string | null
           product_id: string
+          product_name?: string | null
+          product_pack_size?: string | null
+          product_producer?: string | null
+          product_sku?: string | null
+          product_sub_category?: string | null
+          product_unit?: string | null
           quantity: number
           unit_price: number
+          wholesale_price_at_order?: number | null
         }
         Update: {
           id?: string
@@ -777,9 +895,18 @@ export type Database = {
           order_id?: string
           pack_variant_key?: string | null
           pack_variant_sku?: string | null
+          product_brand?: string | null
+          product_category?: string | null
           product_id?: string
+          product_name?: string | null
+          product_pack_size?: string | null
+          product_producer?: string | null
+          product_sku?: string | null
+          product_sub_category?: string | null
+          product_unit?: string | null
           quantity?: number
           unit_price?: number
+          wholesale_price_at_order?: number | null
         }
         Relationships: [
           {
@@ -788,6 +915,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_lines"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "order_items_product_id_fkey"
@@ -801,8 +935,11 @@ export type Database = {
       orders: {
         Row: {
           account_id: string
+          cancelled_at: string | null
+          confirmed_at: string | null
           created_at: string
           customer_notes: string | null
+          delivered_at: string | null
           delivery_fee: number
           id: string
           internal_notes: string | null
@@ -829,8 +966,11 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           created_at?: string
           customer_notes?: string | null
+          delivered_at?: string | null
           delivery_fee?: number
           id?: string
           internal_notes?: string | null
@@ -857,8 +997,11 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           created_at?: string
           customer_notes?: string | null
+          delivered_at?: string | null
           delivery_fee?: number
           id?: string
           internal_notes?: string | null
@@ -1043,6 +1186,7 @@ export type Database = {
           image_url: string | null
           in_season: boolean
           is_active: boolean
+          is_peak: boolean
           name: string
           needs_naming_review: boolean
           pack_amount: number | null
@@ -1081,6 +1225,7 @@ export type Database = {
           image_url?: string | null
           in_season?: boolean
           is_active?: boolean
+          is_peak?: boolean
           name: string
           needs_naming_review?: boolean
           pack_amount?: number | null
@@ -1119,6 +1264,7 @@ export type Database = {
           image_url?: string | null
           in_season?: boolean
           is_active?: boolean
+          is_peak?: boolean
           name?: string
           needs_naming_review?: boolean
           pack_amount?: number | null
@@ -1473,11 +1619,89 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stripe_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_lines"
+            referencedColumns: ["order_id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      v_order_lines: {
+        Row: {
+          account_buyer_type: string | null
+          account_channel: string | null
+          account_id: string | null
+          account_name: string | null
+          account_type: string | null
+          buyer_email: string | null
+          buyer_name: string | null
+          cancelled_at: string | null
+          confirmed_at: string | null
+          customer_notes: string | null
+          delivered_at: string | null
+          delivery_zone: string | null
+          line_gross_margin: number | null
+          line_id: string | null
+          line_notes: string | null
+          line_total: number | null
+          order_delivery_fee: number | null
+          order_id: string | null
+          order_number: string | null
+          order_subtotal: number | null
+          order_tax: number | null
+          order_total: number | null
+          order_type: string | null
+          pack_variant_key: string | null
+          pack_variant_sku: string | null
+          payment_method: string | null
+          payment_status: string | null
+          pickup_date: string | null
+          placed_at: string | null
+          placed_date: string | null
+          product_brand: string | null
+          product_category: string | null
+          product_id: string | null
+          product_name: string | null
+          product_pack_size: string | null
+          product_producer: string | null
+          product_sku: string | null
+          product_sub_category: string | null
+          product_unit: string | null
+          profile_id: string | null
+          quantity: number | null
+          requested_delivery_date: string | null
+          status: string | null
+          unit_price: number | null
+          wholesale_price_at_order: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       buyer_product_history: {
@@ -1515,6 +1739,7 @@ export type Database = {
           image_url: string | null
           in_season: boolean
           is_active: boolean
+          is_peak: boolean
           name: string
           needs_naming_review: boolean
           pack_amount: number | null
