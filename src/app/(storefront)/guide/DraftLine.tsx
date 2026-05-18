@@ -208,7 +208,7 @@ export function DraftLine({ row, substitutes = [] }: Props) {
               href={`/chat?sku=${encodeURIComponent(product.sku ?? product.id)}&context=${encodeURIComponent(`Stockout: ${product.name}`)}`}
               className="rounded-full bg-bg-secondary text-ink-secondary text-[12px] font-medium px-2.5 py-1 hover:bg-black/[0.08] transition-colors duration-150"
             >
-              Ask Alex
+              Ask us
             </Link>
           </div>
         </div>

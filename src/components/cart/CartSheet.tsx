@@ -67,11 +67,27 @@ export function CartSheet({
 
   const [placing, setPlacing] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
+  // Collapse the lines list when the cart has more than COLLAPSE_THRESHOLD
+  // items. Keeps the sheet's opening height predictable; buyer can expand
+  // to scroll the full list inline.
+  const [linesExpanded, setLinesExpanded] = useState(false);
 
   const subtotal = useMemo(
     () => lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
     [lines],
   );
+  // Cart lines sorted alphabetically by display name. Stable sort keeps
+  // identical-name lines (different variants) adjacent in addition order.
+  const sortedLines = useMemo(
+    () => [...lines].sort((a, b) => a.name.localeCompare(b.name)),
+    [lines],
+  );
+  const COLLAPSE_THRESHOLD = 4;
+  const shouldOfferCollapse = sortedLines.length > COLLAPSE_THRESHOLD;
+  const visibleLines =
+    shouldOfferCollapse && !linesExpanded
+      ? sortedLines.slice(0, COLLAPSE_THRESHOLD)
+      : sortedLines;
   const effectiveDeliveryFee = subtotal > 0 ? deliveryFee : 0;
   const total = subtotal + effectiveDeliveryFee;
   const underMinimum = accountMinimum > 0 && total < accountMinimum;
@@ -250,13 +266,25 @@ export function CartSheet({
           ) : null}
         </section>
 
-        {/* ---- Lines ---------------------------------------------------- */}
+        {/* ---- Lines — sorted alphabetically, collapsed past 4 ----------- */}
         <section>
-          <div className="text-[11px] uppercase tracking-wide text-ink-tertiary font-medium mb-1.5">
-            {lines.length} {lines.length === 1 ? "line" : "lines"}
+          <div className="flex items-baseline justify-between mb-1.5">
+            <div className="text-[11px] uppercase tracking-wide text-ink-tertiary font-medium">
+              {lines.length} {lines.length === 1 ? "line" : "lines"}
+            </div>
+            {shouldOfferCollapse ? (
+              <button
+                type="button"
+                data-no-drag
+                onClick={() => setLinesExpanded((v) => !v)}
+                className="text-[12px] font-medium text-brand-blue hover:text-brand-blue-dark transition-colors duration-150"
+              >
+                {linesExpanded ? "Show fewer" : `Show all ${lines.length}`}
+              </button>
+            ) : null}
           </div>
           <div className="card overflow-hidden divide-y divide-black/[0.04]">
-            {lines.map((l) => (
+            {visibleLines.map((l) => (
               <LineItem
                 key={`${l.productId}|${l.variantKey ?? ""}`}
                 data={{
@@ -284,13 +312,23 @@ export function CartSheet({
                 }}
               />
             ))}
+            {shouldOfferCollapse && !linesExpanded ? (
+              <button
+                type="button"
+                data-no-drag
+                onClick={() => setLinesExpanded(true)}
+                className="w-full px-4 py-2.5 text-[12px] font-medium text-ink-secondary hover:text-ink-primary hover:bg-bg-secondary/50 transition-colors duration-150"
+              >
+                + {lines.length - COLLAPSE_THRESHOLD} more {lines.length - COLLAPSE_THRESHOLD === 1 ? "line" : "lines"}
+              </button>
+            ) : null}
           </div>
         </section>
 
         {/* ---- Order note ---------------------------------------------- */}
         <section>
           <div className="text-[11px] uppercase tracking-wide text-ink-tertiary font-medium mb-1.5">
-            Note for Alex
+            Notes for order
           </div>
           <Textarea
             data-no-drag
