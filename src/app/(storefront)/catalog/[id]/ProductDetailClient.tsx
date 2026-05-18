@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/supabase/types";
 import { useCart } from "@/lib/cart/store";
@@ -8,6 +8,7 @@ import { useGuideMemberships } from "@/lib/products/guide-memberships-store";
 import { money } from "@/lib/utils/format";
 import { useToast } from "@/components/ui/Toast";
 import { QtyInput } from "@/components/ui/QtyInput";
+import { track } from "@/lib/analytics/track";
 import type { PackRow } from "./packs";
 
 export type { PackRow } from "./packs";
@@ -47,6 +48,21 @@ export function ProductDetailClient({
   const inGuide = storeKnowsMembership ? storeMembership : inGuideInitial;
   const writeMembership = useGuideMemberships((s) => s.set);
   const [saving, setSaving] = useState<boolean>(false);
+
+  // `product_viewed` fires once per detail-sheet mount. Useful for
+  // catalog → product → add funnel + "viewed but never added" reports.
+  useEffect(() => {
+    track("product_viewed", {
+      product_id: product.id,
+      sku: product.sku ?? null,
+      name: product.name,
+      category: product.category ?? null,
+      producer: product.producer ?? null,
+      in_guide: inGuideInitial,
+    });
+    // Only on first mount per product id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
 
   function qtyFor(p: PackRow): number {
     return lines.find(

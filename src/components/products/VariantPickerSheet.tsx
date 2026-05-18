@@ -8,6 +8,7 @@ import {
   PriceLine,
   haptic,
 } from "@/components/products/primitives";
+import { track } from "@/lib/analytics/track";
 
 interface VariantRow {
   variantKey: string | null;
@@ -95,6 +96,17 @@ export function VariantPickerSheet({
     }
     const cur = qtyFor(row.variantKey);
     if (cur === 0) {
+      // First time this variant is picked for this product — separate
+      // from `add_to_cart` (fired by store) because variant_picked
+      // captures the *choice between packs* signal: e.g. half-case vs.
+      // case is the kind of insight we'd lose if we only saw add_to_cart.
+      track("variant_picked", {
+        product_id: product.id,
+        variant_key: row.variantKey,
+        variant_label: row.label,
+        variant_sku: row.variantSku,
+        unit_price: row.unitPrice,
+      });
       add({
         productId: product.id,
         variantKey: row.variantKey,

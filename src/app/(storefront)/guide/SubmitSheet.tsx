@@ -8,6 +8,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Textarea } from "@/components/ui/Input";
 import { money, dateLong } from "@/lib/utils/format";
 import { isDeliveryDateStale } from "@/lib/utils/delivery-date";
+import { track } from "@/lib/analytics/track";
 
 interface UpcomingDelivery {
   date: string;
@@ -116,6 +117,13 @@ export function SubmitSheet({
       return;
     }
     setPlacing(true);
+    track("checkout_submitted", {
+      surface: "submit_sheet",
+      payment_method: "invoice",
+      order_type: "b2b",
+      line_count: lines.length,
+      item_count: lines.reduce((n, l) => n + l.quantity, 0),
+    });
     const res = await fetch("/api/orders/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

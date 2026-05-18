@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { money, dateLong } from "@/lib/utils/format";
 import { LineItem } from "@/components/products/LineItem";
+import { track } from "@/lib/analytics/track";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface Props {
@@ -47,6 +48,13 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
 
   async function placeOrder(paymentMethod: "invoice" | "stripe" | "venmo") {
     setPlacing(true);
+    track("checkout_submitted", {
+      surface: "review_page",
+      payment_method: paymentMethod,
+      order_type: isB2B ? "b2b" : "dtc",
+      line_count: lines.length,
+      item_count: lines.reduce((n, l) => n + l.quantity, 0),
+    });
     const res = await fetch("/api/orders/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

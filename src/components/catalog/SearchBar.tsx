@@ -9,6 +9,7 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { track } from "@/lib/analytics/track";
 
 // The BarcodeScanner pulls in @zxing/browser + @zxing/library (~150KB)
 // plus a 370-line camera UI. Lazy-load via next/dynamic with ssr:false
@@ -139,6 +140,12 @@ function UrlSearchBar({
       const qs = params.toString();
       const target = qs ? `${pathname}?${qs}` : pathname;
       startTransition(() => router.replace(target, { scroll: false }));
+      if (trimmed) {
+        // Fires only when a non-empty query commits (post-debounce), not
+        // on every keystroke. Pairs with catalog_viewed.result_count so
+        // a "zero results" search is detectable downstream.
+        track("search_performed", { q: trimmed, path: pathname });
+      }
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(handle);
     // searchParams / pathname / paramName / router are read inside but
