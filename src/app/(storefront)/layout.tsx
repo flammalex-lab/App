@@ -11,6 +11,7 @@ import { StickyCartBar } from "@/components/layout/StickyCartBar";
 import { GlobalSubmitSheet } from "@/components/layout/GlobalSubmitSheet";
 import { CartHydrationGate } from "@/components/CartHydrationGate";
 import { CutoffClock } from "@/components/CutoffClock";
+import { NotificationClickTracker } from "@/components/analytics/NotificationClickTracker";
 import { nextDeliveryForZone, upcomingDeliveriesForZone } from "@/lib/utils/cutoff";
 import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
@@ -110,6 +111,7 @@ export default async function StorefrontLayout({
           impersonating a buyer? Scope to the impersonated profile so
           the cart they build belongs to that buyer, not the admin. */}
       <CartHydrationGate userId={effective.id} />
+      <NotificationClickTracker />
       {impersonating ? (
         <div className="bg-accent-gold/25 text-[#6a4d06] text-[11px] px-3 py-0.5 flex items-center justify-center gap-2 border-b border-accent-gold/30">
           <span>
