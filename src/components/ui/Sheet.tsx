@@ -110,6 +110,13 @@ export function Sheet({
   const [scrollTop, setScrollTop] = useState(0);
   // Whether the user is mid-drag (suppresses transition for 1:1 finger follow)
   const [dragging, setDragging] = useState(false);
+  // True while the RAF momentum loop is ticking on content scroll.
+  // Mirrors `momentumRaf.current` into render so we can suppress the
+  // content's CSS transition during momentum — otherwise each per-frame
+  // setScrollTop fires a 280ms transition that fights the next frame's
+  // update, producing a choppy/snapping motion. With the transition
+  // off, JS owns the position update fully and the motion is smooth.
+  const [momentumActive, setMomentumActive] = useState(false);
   // Whether the sheet has performed its initial open animation
   const [opened, setOpened] = useState(false);
 
@@ -450,6 +457,7 @@ export function Sheet({
     // below), so scrollTop delta = -velocity * dt.
     let vel = initialVelocity;
     let lastT = performance.now();
+    setMomentumActive(true);
     function step() {
       const now = performance.now();
       const dt = Math.min(now - lastT, 50); // clamp dt to survive a tab-switch
@@ -459,6 +467,7 @@ export function Sheet({
       if (next === scrollTopRef.current) {
         // Hit boundary — stop momentum
         momentumRaf.current = null;
+        setMomentumActive(false);
         return;
       }
       scrollTopRef.current = next;
@@ -467,6 +476,7 @@ export function Sheet({
       vel *= Math.pow(MOMENTUM_FRICTION_PER_FRAME, dt / 16);
       if (Math.abs(vel) < MOMENTUM_STOP_THRESHOLD) {
         momentumRaf.current = null;
+        setMomentumActive(false);
         return;
       }
       momentumRaf.current = requestAnimationFrame(step);
@@ -478,6 +488,7 @@ export function Sheet({
     if (momentumRaf.current != null) {
       cancelAnimationFrame(momentumRaf.current);
       momentumRaf.current = null;
+      setMomentumActive(false);
     }
   }
 
@@ -581,7 +592,15 @@ export function Sheet({
             ref={contentRef}
             style={{
               transform: `translateY(${-scrollTop}px)`,
-              transition: dragging ? "none" : `transform ${OPEN_DURATION_MS}ms ${OPEN_EASE}`,
+              // No CSS transition while user is driving the position
+              // (drag) OR while the momentum RAF loop is. Each per-frame
+              // setScrollTop would otherwise kick off a 280ms transition
+              // that gets interrupted by the next frame — visible as a
+              // choppy "snap" instead of smooth glide.
+              transition:
+                dragging || momentumActive
+                  ? "none"
+                  : `transform ${OPEN_DURATION_MS}ms ${OPEN_EASE}`,
               willChange: "transform",
             }}
             className="absolute top-0 left-0 right-0"
