@@ -20,13 +20,35 @@ let openSheetCount = 0;
 
 /**
  * Mobile-first bottom sheet. Slides up from the bottom edge, supports
- * touch drag-to-dismiss, locks body scroll while open. On md+ it
- * morphs into a centered modal — bottom-sheet feel reads weird on
- * wide viewports.
+ * touch drag-to-dismiss, locks body scroll while open. On md+ it morphs
+ * into a centered modal — bottom-sheet feel reads weird on wide
+ * viewports.
  *
- * Pattern follows iOS sheet presentation + Material 3 modal bottom
- * sheet conventions: visible drag handle, backdrop dim, swipe-down
- * to dismiss, ESC + backdrop-click to close.
+ * Gesture model (Phase 1 of the cart-sheet brief — adapted from the
+ * composite-P spec):
+ *
+ *   - **Single max-open height** = `calc(100vh - 60px)`. No peek/full
+ *     detents. Sheet either opens to natural content height (capped at
+ *     max) or sits at max with the inner overflow scrolling.
+ *   - **No snap-back on release.** Wherever the finger leaves the sheet,
+ *     it stays. No animation home unless the drag crossed the dismiss
+ *     threshold (then it animates closed).
+ *   - **70% dismiss threshold.** If `dragOffset > 0.70 * sheetHeight`,
+ *     release fires `onClose`.
+ *   - **Backdrop opacity scales linearly** with `1 - dragOffset/sheetHeight`,
+ *     max 0.40. Mid-drag the scrim fades in/out continuously with the
+ *     sheet's position.
+ *   - **Drag from handle OR content-at-top.** Pulling down from inside
+ *     content only initiates a sheet drag when `scrollTop === 0`;
+ *     otherwise native overflow scroll handles it. This is the
+ *     "composite handoff" — one continuous motion between content
+ *     scroll and sheet drag.
+ *   - **Native overflow inside the sheet.** Composite-P brief proposed
+ *     manual translate; we keep native scroll for keyboard
+ *     accessibility, momentum on iOS, and zero rubber-band fights.
+ *   - **`will-change: transform`** so the transform compositing
+ *     stays on the GPU through the drag — no layout thrash, 60fps on
+ *     mid-tier Android.
  */
 export function BottomSheet({
   open,
@@ -56,50 +78,27 @@ export function BottomSheet({
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // The element that was focused before the sheet opened, so we can
-  // hand focus back when it closes.
+  // Element focused before the sheet opened, so we can hand focus back.
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const startY = useRef<number | null>(null);
-  // Source of the gesture: drag handle (always treats as sheet drag) vs
-  // inner scroll area (only treats as sheet drag while inner is at top
-  // and the sheet hasn't reached full).
+  const startOffset = useRef<number>(0);
+  // "handle": gestures here always control the sheet.
+  // "content": only intercept the gesture when content is at scrollTop = 0
+  //            AND the user is pulling DOWN. Otherwise native overflow handles.
   const dragSource = useRef<"handle" | "content" | null>(null);
-  const startHeightPx = useRef<number>(0);
+  // The sheet's downward translateY in px. 0 = fully open.
+  // Persists across drags (release-where-you-let-go semantics).
   const [dragOffset, setDragOffset] = useState(0);
-  // `dragging` is also state so we can read it during render for the
-  // transition-disable trick — reading startY.current during render
-  // trips React 19's `react-hooks/refs` rule. Always set in lockstep
-  // with startY.current inside the touch handlers.
+  // dragging state is read during render to disable transitions while
+  // the finger is on the sheet (1:1 finger-follow, no smoothing lag).
   const [dragging, setDragging] = useState(false);
-
-  // Two-detent sheet, but the user's pull is what *grows* the sheet —
-  // it doesn't snap from peek to full mid-scroll. Tracked as a height
-  // in px between PEEK_PX and FULL_PX so animation feels natural.
-  const PEEK_VH = 0.75;
-  const FULL_VH = 0.92;
-  const [heightPx, setHeightPx] = useState<number | null>(null);
-  // Gate the height transition until after first paint. Without this,
-  // the parallel-route modal flashes/expands: the sheet first paints
-  // with `height: 75vh` (heightPx === null fallback below) then the
-  // render-time lastOpen sync immediately switches to `height: Npx`,
-  // and even though the values are equivalent, the `transition: height
-  // 220ms` fires across the change. Buyer reads it as a second open
-  // animation on top of `suppressEnterAnimation`.
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => setHasMounted(true));
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  function vh(v: number) {
-    if (typeof window === "undefined") return 600 * v;
-    return window.innerHeight * v;
-  }
+  // Sheet height in px — used to compute the dismiss threshold and the
+  // backdrop opacity ratio. Resolved on open via measuring the rendered
+  // sheet (not via vh math) so iOS Safari's vh quirks don't drift the
+  // values between renders.
+  const [sheetHeightPx, setSheetHeightPx] = useState(0);
 
   // Lock body scroll while open WITHOUT jumping the underlying page.
-  // useLayoutEffect (synced before paint) so the lock applies in the
-  // same frame as the sheet rendering — otherwise iOS Safari paints
-  // one frame of unlocked body, which reads as a scroll-to-top jump.
   useIsoLayoutEffect(() => {
     if (!open) return;
     const scrollY = window.scrollY;
@@ -114,7 +113,6 @@ export function BottomSheet({
       bodyOverflow: body.style.overflow,
       htmlOverflow: html.style.overflow,
     };
-    // Pin the body so the visual position stays where the user left it.
     body.style.position = "fixed";
     body.style.top = `-${scrollY}px`;
     body.style.left = "0";
@@ -122,10 +120,6 @@ export function BottomSheet({
     body.style.width = "100%";
     body.style.overflow = "hidden";
     html.style.overflow = "hidden";
-    // Flag the document synchronously so ScrollHideHeader (and any other
-    // sticky bar that breaks when body is position:fixed) can swap to
-    // a fixed-positioned variant via CSS — no JS race, no MutationObserver
-    // microtask gap, no service-worker-cached old behavior.
     html.setAttribute("data-sheet-open", "true");
     return () => {
       body.style.position = prev.bodyPos;
@@ -140,7 +134,7 @@ export function BottomSheet({
     };
   }, [open]);
 
-  // ESC to close
+  // ESC to close.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -150,18 +144,11 @@ export function BottomSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // Focus management:
-  //  - capture document.activeElement on open so we can restore later
-  //  - move focus into the sheet (autoFocus element wins, else first focusable)
-  //  - on cleanup, restore focus to the captured element if still in DOM
+  // Focus management — capture prior, move into sheet, restore on close.
   useEffect(() => {
     if (!open) return;
     previouslyFocused.current =
       (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-
-    // Defer to a microtask so the sheet's mount animation doesn't fight
-    // a synchronous focus call (some browsers scroll the focused element
-    // into view mid-animation and the layout flickers).
     const id = window.setTimeout(() => {
       const root = sheetRef.current;
       if (!root) return;
@@ -173,20 +160,17 @@ export function BottomSheet({
       const first = root.querySelector<HTMLElement>(FOCUSABLES);
       if (first) first.focus({ preventScroll: true });
     }, 0);
-
     return () => {
       window.clearTimeout(id);
       const prev = previouslyFocused.current;
       previouslyFocused.current = null;
       if (prev && document.contains(prev)) {
-        // preventScroll so closing a sheet doesn't jump the page back to
-        // wherever the trigger sits in the viewport.
         prev.focus({ preventScroll: true });
       }
     };
   }, [open]);
 
-  // Focus trap: keep Tab/Shift+Tab cycling inside the sheet root.
+  // Focus trap.
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -194,18 +178,12 @@ export function BottomSheet({
       const root = sheetRef.current;
       if (!root) return;
       const nodes = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLES)).filter(
-        (n) => !n.hasAttribute("disabled") && n.tabIndex !== -1
+        (n) => !n.hasAttribute("disabled") && n.tabIndex !== -1,
       );
-      if (nodes.length === 0) {
-        // Degenerate sheet (no focusables) — let Tab through rather than
-        // creating a black-hole focus state.
-        return;
-      }
+      if (nodes.length === 0) return;
       const first = nodes[0];
       const last = nodes[nodes.length - 1];
       const active = document.activeElement as HTMLElement | null;
-      // If focus has escaped the sheet entirely (browser focused something
-      // behind the backdrop), pull it back in on the next Tab.
       if (!active || !root.contains(active)) {
         e.preventDefault();
         (e.shiftKey ? last : first).focus({ preventScroll: true });
@@ -223,9 +201,7 @@ export function BottomSheet({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  // Hide page content from assistive tech while the sheet is open.
-  // Refcount across sheets so a nested sheet's cleanup doesn't strip
-  // aria-hidden from <main> while an outer sheet is still open.
+  // aria-hidden <main> while sheet is open. Refcount for nested sheets.
   useEffect(() => {
     if (!open) return;
     const main = document.querySelector("main");
@@ -242,42 +218,57 @@ export function BottomSheet({
     };
   }, [open]);
 
-  // Reset drag + height every time the sheet opens. Render-time sync
-  // instead of useEffect so React 19's set-state-in-effect lint stays
-  // green (no derivable source — open's transition is the trigger).
-  //
-  // We also seed `effectiveHeightPx` so the FIRST paint after open has
-  // the resolved px value already applied. Without this, the first
-  // paint uses the CSS fallback `${PEEK_VH * 100}vh` and the second
-  // paint switches to px. On iOS Safari those disagree (vh includes
-  // the URL bar height, window.innerHeight doesn't) so the panel
-  // visibly shrinks one frame in — buyer reported it as "takes a
-  // second, then jumps in." The setHeightPx state still rides along
-  // so drag handlers see a stable value across renders.
+  // Reset offset on every open. Render-time sync (not useEffect) to
+  // satisfy React 19's set-state-in-effect lint — `open` transitioning
+  // is the trigger, not a derivable source.
   const [lastOpen, setLastOpen] = useState(open);
-  let effectiveHeightPx = heightPx;
   if (lastOpen !== open) {
     setLastOpen(open);
     if (open) {
-      const resolved = vh(PEEK_VH);
       setDragOffset(0);
-      setHeightPx(resolved);
-      effectiveHeightPx = resolved;
     }
   }
 
-  // Drag handle: gesture always controls the sheet (grow / shrink / dismiss)
+  // Measure the rendered sheet height once it mounts. Drives the
+  // dismiss threshold (70% of height) and the backdrop opacity ratio.
+  useEffect(() => {
+    if (!open) return;
+    const el = sheetRef.current;
+    if (!el) return;
+    function measure() {
+      const h = el!.getBoundingClientRect().height;
+      if (h > 0) setSheetHeightPx(h);
+    }
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open]);
+
+  // ─── Gesture handlers ──────────────────────────────────────────────
+  // Don't initiate a drag if the touch started on an interactive
+  // control. Otherwise tapping a stepper's "+" registers as the start
+  // of a drag and the sheet wobbles on every qty-bump.
+  function targetIsInteractive(e: React.TouchEvent): boolean {
+    const t = e.target as HTMLElement | null;
+    if (!t) return false;
+    return Boolean(
+      t.closest("button, input, textarea, select, a, [role='button'], [data-stepper]"),
+    );
+  }
+
   function onHandleTouchStart(e: React.TouchEvent) {
+    if (targetIsInteractive(e)) return;
     startY.current = e.touches[0].clientY;
-    startHeightPx.current = heightPx ?? vh(PEEK_VH);
+    startOffset.current = dragOffset;
     dragSource.current = "handle";
     setDragging(true);
   }
-  // Inner content: only control the sheet while content is at top and
-  // user is pulling DOWN. Pulling UP while at peek lets the sheet grow.
+
   function onContentTouchStart(e: React.TouchEvent) {
+    if (targetIsInteractive(e)) return;
     startY.current = e.touches[0].clientY;
-    startHeightPx.current = heightPx ?? vh(PEEK_VH);
+    startOffset.current = dragOffset;
     dragSource.current = "content";
     setDragging(true);
   }
@@ -285,78 +276,60 @@ export function BottomSheet({
   function onTouchMove(e: React.TouchEvent) {
     if (startY.current == null || dragSource.current == null) return;
     const dy = e.touches[0].clientY - startY.current;
-    const inner = scrollRef.current;
-    const innerAtTop = !inner || inner.scrollTop <= 0;
-    const fullPx = vh(FULL_VH);
-    const peekPx = vh(PEEK_VH);
 
     if (dragSource.current === "handle") {
-      // Handle drag: dy>0 = pull down → drag whole sheet (potentially dismiss);
-      //              dy<0 = pull up → grow sheet height up to FULL.
-      if (dy > 0) {
-        setDragOffset(dy);
-      } else {
-        const next = Math.min(fullPx, Math.max(peekPx, startHeightPx.current - dy));
-        setHeightPx(next);
-        setDragOffset(0);
-      }
+      // Handle drag: any direction adjusts the sheet's offset.
+      // Clamp to >= 0 (can't drag the sheet UP past its natural max-open).
+      const next = Math.max(0, startOffset.current + dy);
+      setDragOffset(next);
       return;
     }
 
-    // Content drag: only intercept while at the top of the inner scroll.
-    if (innerAtTop) {
-      if (dy < 0 && (heightPx ?? peekPx) < fullPx) {
-        // Pulling up while not yet full → grow the sheet at 1:1 with finger.
-        const next = Math.min(fullPx, startHeightPx.current - dy);
-        setHeightPx(next);
-        setDragOffset(0);
-      } else if (dy > 0 && (heightPx ?? peekPx) > peekPx) {
-        // Pulling down while expanded → shrink toward peek (don't dismiss yet).
-        const next = Math.max(peekPx, startHeightPx.current - dy);
-        setHeightPx(next);
-        setDragOffset(0);
-      } else if (dy > 0) {
-        // Already at peek + pulling down further → drag for dismiss.
-        setDragOffset(dy);
-      }
+    // Content drag: only commandeer when scrolled to top AND pulling down.
+    // Otherwise native overflow handles the gesture (composite handoff).
+    const inner = scrollRef.current;
+    const innerAtTop = !inner || inner.scrollTop <= 0;
+    if (!innerAtTop) {
+      // Content has been scrolled — let native scroll do its thing.
+      // Reset the drag baseline so a later transition to sheet-drag
+      // doesn't accumulate the prior dy.
+      startY.current = e.touches[0].clientY;
+      startOffset.current = dragOffset;
+      return;
+    }
+    if (dy > 0) {
+      // Pulling down at the top → drag the sheet for dismiss.
+      const next = startOffset.current + dy;
+      setDragOffset(next);
+    } else {
+      // Pulling up at sheet's natural max-open — no-op. Native overflow
+      // takes over once content has anything to scroll into view.
+      const next = Math.max(0, startOffset.current + dy);
+      setDragOffset(next);
     }
   }
+
   function onTouchEnd() {
-    const peekPx = vh(PEEK_VH);
-    // Dismiss if dragged the WHOLE sheet down past threshold (only the
-    // dismiss gesture; height stays wherever the user released).
-    if (dragOffset > 0) {
-      const threshold = Math.min(100, peekPx * 0.25);
-      if (dragOffset > threshold) {
-        onClose();
-        startY.current = null;
-        dragSource.current = null;
-        setDragging(false);
-        return;
-      }
-      setDragOffset(0);
+    const threshold = sheetHeightPx > 0 ? sheetHeightPx * 0.70 : 280;
+    if (dragOffset > threshold) {
+      onClose();
     }
-    // Intentionally NO height snap — sheet stays at whatever height
-    // the user released at, anywhere between peek and full. Feels
-    // continuous, not detent-y.
+    // No snap-back. If dragOffset is < threshold, the sheet stays at
+    // whatever offset the finger left it. Buyer can tap close, tap
+    // backdrop, or drag again to dismiss.
     startY.current = null;
     dragSource.current = null;
     setDragging(false);
   }
 
   if (!open) return null;
-
-  // Portal to <body>. If any DOM ancestor of the trigger has
-  // `will-change: transform`, `transform`, `filter`, `perspective`, etc.,
-  // it establishes a new containing block for `position: fixed`
-  // descendants (per CSS spec). Rendering inline would then resolve our
-  // `inset: 0` against that ancestor instead of the viewport. Concrete
-  // regression we caught: the MobileHeader 3-dot trigger lives inside
-  // `.scroll-hide-header` which has `will-change: transform`, so the
-  // dialog rendered at height 0 with the panel positioned above the
-  // viewport — invisible to the user. Portaling to <body> bypasses every
-  // intermediate containing block in one move.
   if (typeof document === "undefined") return null;
+
+  // Backdrop opacity scales linearly with sheet visibility.
+  // visibleRatio = 1 when sheet is at offset 0; 0 when offset = sheetHeight.
+  const visibleRatio =
+    sheetHeightPx > 0 ? Math.max(0, 1 - dragOffset / sheetHeightPx) : 1;
+  const backdropOpacity = visibleRatio * 0.40;
 
   return createPortal(
     <div
@@ -364,41 +337,35 @@ export function BottomSheet({
       aria-modal="true"
       aria-label={ariaLabel ?? (typeof title === "string" ? title : "Dialog")}
       onMouseDown={(e) => {
-        // Only fire close on a backdrop mousedown (not when interacting
-        // with sheet content)
         if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center bg-black/55 animate-fade-in"
+      style={{ backgroundColor: `rgba(0,0,0,${backdropOpacity})` }}
+      className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center transition-colors duration-150 animate-fade-in"
     >
       <div
         ref={sheetRef}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          // No transition while the finger is on the sheet — the user's
-          // drag is the source of truth. Smooth snap on release only.
-          // Height transition is gated on `hasMounted` so the first paint
-          // (where heightPx flips from null fallback to a resolved px
-          // value) doesn't animate — that was the "modal expands on
-          // first open" flash buyers reported. After mount, height
-          // changes from user drag animate smoothly as before.
-          transition: dragging
-            ? "none"
-            : hasMounted
-              ? "transform 200ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)"
-              : "transform 200ms cubic-bezier(.2,.8,.2,1)",
+          // No transition while the finger is on the sheet (1:1 follow).
+          // After release: 240ms ease-out only on dismiss (which fires
+          // onClose, unmounting before any animation runs anyway). For
+          // partial drags released below threshold, the sheet stays
+          // at its dragged position — no animate-home (per brief).
+          transition: dragging ? "none" : undefined,
           maxWidth: desktopMaxWidth,
-          height: effectiveHeightPx != null ? `${effectiveHeightPx}px` : `${PEEK_VH * 100}vh`,
+          willChange: "transform",
         }}
-        className={`relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-floating ${suppressEnterAnimation ? "" : "animate-sheet-up md:animate-slide-up"} md:!h-auto md:max-h-[92vh] flex flex-col`}
+        className={`relative w-full bg-white rounded-t-2xl md:rounded-2xl shadow-[0_-8px_32px_rgba(0,0,0,0.18)] ${suppressEnterAnimation ? "" : "animate-sheet-up md:animate-slide-up"} md:!h-auto max-h-[calc(100vh-60px)] md:max-h-[92vh] flex flex-col`}
       >
         {/* Drag handle (mobile) — gestures here always control the sheet */}
         <div
           onTouchStart={onHandleTouchStart}
-          className="md:hidden pt-2 pb-2 flex items-center justify-center cursor-grab active:cursor-grabbing"
+          className="md:hidden pt-2 pb-2 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
         >
-          <span aria-hidden className="block h-1 w-10 rounded-full bg-black/15" />
+          <span aria-hidden className="block h-1 w-10 rounded-full bg-black/20" />
         </div>
 
         {title ? (
