@@ -9,6 +9,7 @@ import {
   getAllowedPrivateProductIds,
   isProductVisibleToAccount,
 } from "@/lib/products/queries";
+import { trackServer } from "@/lib/analytics/server";
 import type {
   Account,
   DeliveryZoneRow,
@@ -347,6 +348,19 @@ export async function POST(
       },
     });
   }
+
+  void trackServer(svc, {
+    event: "order_amended",
+    profileId: buyer.id,
+    accountId: buyer.account_id,
+    properties: {
+      order_id: order.id,
+      order_number: order.order_number,
+      added_line_count: pricedLines.length,
+      added_item_count: pricedLines.reduce((n, l) => n + l.quantity, 0),
+      new_total: total,
+    },
+  });
 
   return NextResponse.json({
     ok: true,

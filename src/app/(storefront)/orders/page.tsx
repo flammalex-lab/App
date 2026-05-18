@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { dateShort, dateLong, money } from "@/lib/utils/format";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
+import { PageView } from "@/components/analytics/PageView";
 
 export const metadata = { title: "Orders — Fingerlakes Farms" };
 
@@ -102,6 +103,10 @@ export default async function OrdersPage({
 
   return (
     <div className="max-w-screen-xl mx-auto">
+      <PageView
+        event="orders_list_viewed"
+        properties={{ tab, upcoming_count: upcoming.length, past_count: past.length }}
+      />
       <h1 className="display text-2xl mb-3">Orders</h1>
 
       <div className="flex border-b border-black/10 mb-3">

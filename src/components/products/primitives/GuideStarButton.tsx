@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useGuideMemberships } from "@/lib/products/guide-memberships-store";
+import { track } from "@/lib/analytics/track";
 import { haptic } from "./haptic";
 
 /**
@@ -55,6 +56,7 @@ export function GuideStarButton({
     e.preventDefault();
     if (saving || disabled) return;
     const wasIn = inGuide;
+    track(wasIn ? "guide_unstarred" : "guide_starred", { product_id: productId });
     // Optimistic flip — write through the store so every other surface
     // for this product (cards, PDP modal) updates instantly.
     writeMembership(productId, !wasIn);

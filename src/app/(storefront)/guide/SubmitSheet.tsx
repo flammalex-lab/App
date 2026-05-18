@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
 import { useToast } from "@/components/ui/Toast";
@@ -64,6 +64,20 @@ export function SubmitSheet({
   const [placing, setPlacing] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
+
+  // Fire submit_sheet_opened on the open false→true edge. We don't track
+  // dismissed because onClose runs on every close path (backdrop tap,
+  // escape, success route), which is noisy. If you want a "dismissed
+  // without submitting" signal, derive it from open/close pairs without
+  // an intervening checkout_submitted in the same session.
+  useEffect(() => {
+    if (open) {
+      track("submit_sheet_opened", { line_count: lines.length });
+    }
+    // Only react to the open boolean flipping; lines.length on open is the
+    // snapshot value, intentional.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const subtotal = useMemo(
     () => lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
@@ -146,7 +160,14 @@ export function SubmitSheet({
     });
     setPlacing(false);
     if (!res.ok) {
-      toast.push((await res.json()).error ?? "Order failed", "error");
+      const errBody = await res.json();
+      track("checkout_failed", {
+        surface: "submit_sheet",
+        payment_method: "invoice",
+        status: res.status,
+        error: errBody?.error ?? null,
+      });
+      toast.push(errBody.error ?? "Order failed", "error");
       return;
     }
     const { orderId } = await res.json();
@@ -185,6 +206,10 @@ export function SubmitSheet({
                       key={u.date as string}
                       type="button"
                       onClick={() => {
+                        track("delivery_date_picked", {
+                          date: u.date,
+                          surface: "submit_sheet",
+                        });
                         setDeliveryDate(u.date as string);
                         setEditingDate(false);
                       }}

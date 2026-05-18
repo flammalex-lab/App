@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImpersonation } from "@/lib/auth/impersonation";
+import { PageView } from "@/components/analytics/PageView";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { prettyPhone } from "@/lib/utils/phone";
 import { titleCase } from "@/lib/utils/format";
@@ -47,6 +48,7 @@ export default async function ProfileSheetPage() {
 
   return (
     <div className="max-w-2xl mx-auto pb-12">
+      <PageView event="account_viewed" />
       <div className="flex flex-col items-center pt-4 pb-6">
         <div className="h-24 w-24 rounded-full bg-accent-rust text-white display text-4xl inline-flex items-center justify-center shadow-card">
           {initials}

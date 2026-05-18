@@ -207,6 +207,11 @@ export function BarcodeScanner({
       has_price: product.unitPrice != null,
     });
     if (product.unitPrice == null) {
+      track("price_not_available", {
+        product_id: product.id,
+        sku: product.sku ?? null,
+        source: "barcode_scan",
+      });
       setBanner({ kind: "error", message: `${product.name} — price on request` });
       setTimeout(() => setBanner({ kind: "idle" }), 2000);
       return;

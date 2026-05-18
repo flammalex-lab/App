@@ -302,6 +302,7 @@ function SearchShell({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
+              track("search_cleared", {});
               onClear();
               inputRef.current?.focus();
             }}
