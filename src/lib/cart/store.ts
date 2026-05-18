@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { track } from "@/lib/analytics/track";
 
 export interface CartLine {
   productId: string;
@@ -96,7 +97,17 @@ export const useCart = create<CartState>()(
       adjustedKeys: [],
       rhythmQtyByKey: {},
       skippedKeys: [],
-      add: (line) =>
+      add: (line) => {
+        // Analytics: buyer-initiated add. Doesn't fire on seedRhythm or
+        // bulkSet — those are system-driven and use different actions.
+        track("add_to_cart", {
+          product_id: line.productId,
+          sku: line.sku,
+          variant_key: line.variantKey ?? null,
+          variant_sku: line.variantSku ?? null,
+          quantity: line.quantity,
+          unit_price: line.unitPrice,
+        });
         set((state) => {
           const vk = line.variantKey ?? null;
           const key = lineKey(line.productId, vk);
@@ -125,7 +136,8 @@ export const useCart = create<CartState>()(
             adjustedKeys,
             skippedKeys,
           };
-        }),
+        });
+      },
       setQty: (productId, qty, variantKey = null) =>
         set((state) => {
           const key = lineKey(productId, variantKey);

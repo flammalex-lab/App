@@ -13,6 +13,7 @@ const SECTIONS: { title?: string; links: NavLink[] }[] = [
     links: [
       { href: "/dashboard", label: "Dashboard" },
       { href: "/admin/orders", label: "Orders" },
+      { href: "/admin/analytics", label: "Analytics" },
       { href: "/admin/products", label: "Products" },
       { href: "/admin/accounts", label: "Accounts" },
     ],
