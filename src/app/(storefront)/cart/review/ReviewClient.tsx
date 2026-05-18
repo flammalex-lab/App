@@ -77,12 +77,20 @@ export function ReviewClient({ isB2B, accountName, pickupLocations }: Props) {
     });
     setPlacing(false);
     if (!res.ok) {
-      toast.push((await res.json()).error ?? "Order failed", "error");
+      const errBody = await res.json();
+      track("checkout_failed", {
+        surface: "review_page",
+        payment_method: paymentMethod,
+        status: res.status,
+        error: errBody?.error ?? null,
+      });
+      toast.push(errBody.error ?? "Order failed", "error");
       return;
     }
     const { orderId, stripeUrl } = await res.json();
     clear();
     if (stripeUrl) {
+      track("stripe_redirect_started", { order_id: orderId });
       window.location.href = stripeUrl;
     } else {
       router.push(`/orders/${orderId}?placed=1`);

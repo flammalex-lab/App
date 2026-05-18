@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import type { Message, MessagePayload } from "@/lib/supabase/types";
 import { relativeTime, dateShort } from "@/lib/utils/format";
+import { track } from "@/lib/analytics/track";
 
 const REP_NAME = process.env.NEXT_PUBLIC_REP_NAME || "Alex Flamm";
 const REP_ROLE = "Your rep at Fingerlakes Farms";
@@ -66,6 +67,10 @@ export function ChatClient({
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const didInitialScroll = useRef(false);
+
+  useEffect(() => {
+    track("chat_viewed", { message_count: initial.length });
+  }, [initial.length]);
 
   useEffect(() => {
     // Without an account the realtime channel has nothing to filter on

@@ -17,6 +17,7 @@ import Link from "next/link";
 import { OrderPlacedHero } from "./OrderPlacedHero";
 import { AmendOrderSheet, type AmendCandidate } from "./AmendOrderSheet";
 import { SaveAsStandingSheet } from "./SaveAsStandingSheet";
+import { PageView } from "@/components/analytics/PageView";
 import { defaultDayFromOrder } from "@/lib/standing-orders/create-from-order";
 import { nextDeliveryForZone } from "@/lib/utils/cutoff";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
@@ -242,6 +243,17 @@ export default async function OrderDetail({
 
   return (
     <div className="max-w-3xl mx-auto pt-3 pb-24">
+      <PageView
+        event="order_detail_viewed"
+        properties={{
+          order_id: order.id,
+          order_number: order.order_number,
+          status: order.status,
+          payment_status: order.payment_status,
+          total: order.total,
+          just_placed: Boolean(placed),
+        }}
+      />
       {/* Receipt-style top bar — back link */}
       <div className="mb-3">
         <Link

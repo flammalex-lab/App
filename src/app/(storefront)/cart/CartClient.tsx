@@ -147,6 +147,33 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
     ? shortfall({ subtotal, deliveryFee: effectiveDeliveryFee, minimum: accountMinimum })
     : 0;
 
+  // Surface friction signal — fires when the underMinimum flag flips
+  // from false → true, not on every render. Tells us how often a buyer
+  // hits the minimum wall and what the shortfall is.
+  const prevUnderMin = useRef(false);
+  useEffect(() => {
+    if (underMinimum && !prevUnderMin.current) {
+      track("under_minimum_warning_shown", {
+        shortfall: minShortfall,
+        minimum: accountMinimum,
+        subtotal,
+      });
+    }
+    prevUnderMin.current = underMinimum;
+  }, [underMinimum, minShortfall, accountMinimum, subtotal]);
+
+  // Past-cutoff warning fires once per cart mount when the server says
+  // the cutoff is already past — buyer can only order for the *next*
+  // window. Knowing how often this state is seen guides cutoff/UX work.
+  const cutoffPassed = Boolean(nextDelivery?.pastCutoff);
+  useEffect(() => {
+    if (cutoffPassed) {
+      track("cutoff_passed_seen", {
+        next_delivery_day: nextDelivery?.deliveryDayName ?? null,
+      });
+    }
+  }, [cutoffPassed, nextDelivery?.deliveryDayName]);
+
   const [search, setSearch] = useState("");
   const visibleLines = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -294,8 +321,14 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
           pickupLocations={pickupLocations}
           nextDelivery={nextDelivery}
           upcomingDeliveries={upcomingDeliveries}
-          onSetDelivery={(d) => setDeliveryDate(d)}
-          onSetPickup={(d, id) => setPickup(d, id)}
+          onSetDelivery={(d) => {
+            track("delivery_date_picked", { date: d });
+            setDeliveryDate(d);
+          }}
+          onSetPickup={(d, id) => {
+            track("pickup_location_picked", { date: d, location_id: id });
+            setPickup(d, id);
+          }}
           open={dateOpen}
           setOpen={setDateOpen}
         />
@@ -392,6 +425,11 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
             </button>
             <button
               onClick={() => {
+                track("cart_cleared", {
+                  line_count: lines.length,
+                  item_count: lines.reduce((n, l) => n + l.quantity, 0),
+                  subtotal,
+                });
                 clear();
                 setConfirmRemoveAll(false);
               }}

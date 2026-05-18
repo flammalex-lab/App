@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useToast } from "@/components/ui/Toast";
 import { countdown, money } from "@/lib/utils/format";
+import { track } from "@/lib/analytics/track";
 
 export interface AmendCandidate {
   productId: string;
@@ -109,6 +110,11 @@ export function AmendOrderSheet({
         variantSku: null,
       }));
 
+    track("amend_submitted", {
+      order_id: orderId,
+      line_count: linesPayload.length,
+      item_count: linesPayload.reduce((n, l) => n + l.quantity, 0),
+    });
     let res: Response;
     try {
       res = await fetch(`/api/orders/${orderId}/amend`, {
@@ -118,6 +124,7 @@ export function AmendOrderSheet({
       });
     } catch {
       setSubmitting(false);
+      track("amend_failed", { order_id: orderId, reason: "network" });
       toast.push("Network error — try again.", "error");
       return;
     }
@@ -125,6 +132,7 @@ export function AmendOrderSheet({
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as { error?: string };
       const msg = errBody.error ?? "Couldn't add to order.";
+      track("amend_failed", { order_id: orderId, status: res.status, error: msg });
       // Cutoff-passed (and order-state-changed) failures: lock the CTA so
       // the buyer can't retry into the same wall. They'll see the error
       // toast and the disabled button.
@@ -161,7 +169,10 @@ export function AmendOrderSheet({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          track("amend_opened", { order_id: orderId });
+          setOpen(true);
+        }}
         disabled={disabled || cutoffPassed}
         className="w-full btn-primary py-3.5 text-base font-semibold disabled:opacity-50"
       >

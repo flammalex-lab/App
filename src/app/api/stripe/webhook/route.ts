@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/client";
 import { createServiceClient } from "@/lib/supabase/server";
+import { trackServer } from "@/lib/analytics/server";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -98,6 +99,15 @@ export async function POST(request: Request) {
             // to. Log and 200 — returning 500 would make Stripe retry an
             // unwinnable mutation. Mutation is intentionally skipped.
             console.warn("[stripe webhook] checkout.session.completed: metadata.order_id does not match order's stripe_payment_id", { eventId: event.id, sessionId: session.id, metadataOrderId: id });
+          } else {
+            void trackServer(svc, {
+              event: "payment_succeeded",
+              properties: {
+                order_id: id,
+                amount_total: session.amount_total ?? null,
+                currency: session.currency ?? null,
+              },
+            });
           }
         }
         break;
@@ -110,6 +120,15 @@ export async function POST(request: Request) {
             payment_status: "failed",
           }).eq("id", orderId);
           if (error) mutationError = error.message;
+          else {
+            void trackServer(svc, {
+              event: "payment_failed",
+              properties: {
+                order_id: orderId,
+                last_payment_error: pi.last_payment_error?.message ?? null,
+              },
+            });
+          }
         }
         break;
       }

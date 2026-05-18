@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { enqueueAndSend } from "@/lib/notifications/dispatch";
+import { trackServer } from "@/lib/analytics/server";
 import type { Order, OrderStatus } from "@/lib/supabase/types";
 import { requireSameOrigin } from "@/lib/auth/same-origin";
 
@@ -37,6 +38,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   //    stayed on the original order_placed bubble for the entire
   //    lifecycle.
   if (prev.status !== status) {
+    void trackServer(svc, {
+      event: "order_status_changed",
+      profileId: prev.profile_id,
+      accountId: prev.account_id,
+      properties: {
+        order_id: id,
+        order_number: prev.order_number,
+        from_status: prev.status,
+        to_status: status,
+      },
+    });
     const smsBodies: Record<OrderStatus, string> = {
       draft: "",
       pending: "",

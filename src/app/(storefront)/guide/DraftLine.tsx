@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useCart, type CartLine } from "@/lib/cart/store";
 import { QtyInput } from "@/components/ui/QtyInput";
@@ -66,6 +67,21 @@ export function DraftLine({ row, substitutes = [] }: Props) {
   const isSuggested = !adjusted && rhythmQty != null && qty > 0;
   const isStockout = !inStock;
   const showSkipped = skipped && !isStockout;
+
+  // Friction signal — fires once per mounted-stockout-row. Useful for
+  // "how often do buyers see a stockout, and which products?"
+  useEffect(() => {
+    if (isStockout) {
+      track("stockout_seen", {
+        product_id: product.id,
+        sku: product.sku,
+        substitute_count: substitutes.length,
+      });
+    }
+    // product.id is the only meaningful dependency — same product won't
+    // become stockout-then-unstocked within a single render cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id, isStockout]);
 
   // Pack qualifier ("GALLON", "HALF GALLON", "12/6 OZ") rendered as an
   // uppercase eyebrow on the producer line. `displayProductName` strips

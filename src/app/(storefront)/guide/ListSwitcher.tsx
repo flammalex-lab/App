@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderGuide } from "@/lib/supabase/types";
+import { track } from "@/lib/analytics/track";
 import { NewListSheet } from "./NewListSheet";
 import { RenameListSheet } from "./RenameListSheet";
 
@@ -128,6 +129,11 @@ export function ListSwitcher({ guides, activeGuideId }: Props) {
                     role="menuitemradio"
                     aria-checked={isActive}
                     onClick={() => {
+                      track("guide_list_switched", {
+                        from_guide_id: active.id,
+                        to_guide_id: g.id,
+                        is_default: g.is_default,
+                      });
                       setOpen(false);
                       if (g.is_default) {
                         router.push("/guide");

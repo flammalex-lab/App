@@ -6,6 +6,7 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import type { StandingOrder, StandingOrderItem, Product } from "@/lib/supabase/types";
 import { dateShort } from "@/lib/utils/format";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageView } from "@/components/analytics/PageView";
 
 export const metadata = { title: "Standing orders — Fingerlakes Farms" };
 
@@ -32,6 +33,7 @@ export default async function StandingPage() {
 
   return (
     <div className="max-w-screen-xl mx-auto">
+      <PageView event="standing_list_viewed" properties={{ count: orders.length }} />
       <div className="flex justify-between items-center mb-4">
         <h1 className="display text-3xl">Standing orders</h1>
         <Link href="/standing/new" className="btn-primary text-sm">New</Link>

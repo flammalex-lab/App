@@ -8,6 +8,7 @@ import { useProductSheet } from "@/lib/products/detail-sheet-store";
 import { useGuideMemberships } from "@/lib/products/guide-memberships-store";
 import { productPhoto } from "@/lib/utils/product-image";
 import { displayProductName } from "@/lib/utils/product-display";
+import { track } from "@/lib/analytics/track";
 import { VariantPickerSheet } from "@/components/products/VariantPickerSheet";
 import {
   ProducerEyebrow,
@@ -133,6 +134,11 @@ export function ProductCard({
   function addOne() {
     if (!available) return;
     if (hasVariants) {
+      track("variant_picker_opened", {
+        product_id: product.id,
+        sku: product.sku,
+        trigger: "add",
+      });
       setVariantOpen(true);
       return;
     }
@@ -152,6 +158,11 @@ export function ProductCard({
   }
   function sub() {
     if (hasVariants) {
+      track("variant_picker_opened", {
+        product_id: product.id,
+        sku: product.sku,
+        trigger: "subtract",
+      });
       setVariantOpen(true);
       return;
     }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SubmitSheet } from "@/app/(storefront)/guide/SubmitSheet";
+import { track } from "@/lib/analytics/track";
 
 interface UpcomingDelivery {
   date: string;
@@ -43,7 +44,10 @@ export function GlobalSubmitSheet({
   return (
     <SubmitSheet
       open={open}
-      onClose={() => setOpen(false)}
+      onClose={() => {
+        track("submit_sheet_dismissed", {});
+        setOpen(false);
+      }}
       deliveryDayName={deliveryDayName}
       accountMinimum={accountMinimum}
       deliveryFee={deliveryFee}
