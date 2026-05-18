@@ -203,8 +203,9 @@ export function StickyCartBar({
     return (
       <div className={wrapperClass}>
         <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
-          <Link
-            href="/cart"
+          <button
+            type="button"
+            onClick={openSubmitSheet}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white text-[#8a690f] shadow-floating border border-accent-gold/40 hover:bg-accent-gold/5 focus:outline-none focus:ring-2 focus:ring-accent-gold/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
           >
             {/* Gold left-edge bar — the per-state visual signal */}
@@ -220,13 +221,20 @@ export function StickyCartBar({
               ) : null}
             </span>
             <span className="inline-flex items-center gap-1 text-sm font-bold shrink-0 text-brand-blue">
-              View
+              Review
               <ArrowIcon />
             </span>
-          </Link>
+          </button>
         </div>
       </div>
     );
+  }
+
+  // Tap handler — dispatches the global flf:open-submit event picked up
+  // by GlobalSubmitSheet (mounted in storefront layout). Lets the buyer
+  // commit from any page without routing to /cart first.
+  function openSubmitSheet() {
+    window.dispatchEvent(new Event("flf:open-submit"));
   }
 
   // READY — flat floating pill per Brief 2 spec table.
@@ -252,8 +260,9 @@ export function StickyCartBar({
   return (
     <div className={wrapperClass}>
       <div className="mx-auto max-w-screen-md md:max-w-2xl pointer-events-auto">
-        <Link
-          href="/cart"
+        <button
+          type="button"
+          onClick={openSubmitSheet}
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] bg-brand-blue text-white shadow-[0_8px_24px_rgba(23,99,181,0.25)] hover:bg-brand-blue-dark focus:outline-none focus:ring-2 focus:ring-brand-blue/40 transition-colors duration-150 active:scale-[0.98] animate-slide-up text-left"
         >
           {/* qty-blob */}
@@ -276,23 +285,24 @@ export function StickyCartBar({
             ) : null}
           </span>
 
-          {/* view */}
+          {/* view → opens overlay sheet for review + submit */}
           <span className="inline-flex items-center gap-1 text-[13px] font-bold shrink-0">
-            View
+            Review
             <ArrowIcon />
           </span>
-        </Link>
+        </button>
       </div>
     </div>
   );
 }
 
-/** Formats the delivery date as e.g. "Fri May 22" for the pill's left meta. */
+/** Formats the delivery date as e.g. "May 22" for the pill's sub-line.
+ *  Weekday is omitted — the sub-line already starts with the day name
+ *  ("Friday delivery · May 22"), so a second weekday read as a stutter. */
 function formatPillDate(next: SerializedNextDelivery): string {
   const d = new Date(next.deliveryDate);
   if (Number.isNaN(d.getTime())) return next.deliveryDayName;
   return d.toLocaleDateString("en-US", {
-    weekday: "short",
     month: "short",
     day: "numeric",
   });

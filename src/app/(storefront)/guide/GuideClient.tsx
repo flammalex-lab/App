@@ -8,7 +8,6 @@ import { useCart } from "@/lib/cart/store";
 import { DraftLine, pickSubstitutes } from "./DraftLine";
 import { DraftStrip } from "./DraftStrip";
 import type { DraftItem } from "./DraftTile";
-import { SubmitSheet } from "./SubmitSheet";
 import type { GuideRow, PricedProductLite } from "./page";
 import { SearchBar } from "@/components/catalog/SearchBar";
 import { ListSwitcher } from "./ListSwitcher";
@@ -85,8 +84,6 @@ export function GuideClient({
   activeGuideId = null,
 }: Props) {
   const [search, setSearch] = useState("");
-  const [submitOpen, setSubmitOpen] = useState(false);
-
   const lineCount = useCart((s) => s.lines.length);
   const clearStaleDeliveryDate = useCart((s) => s.clearStaleDeliveryDate);
 
@@ -282,33 +279,12 @@ export function GuideClient({
         </section>
       ) : null}
 
-      <SubmitSheet
-        open={submitOpen}
-        onClose={() => setSubmitOpen(false)}
-        deliveryDayName={targetDeliveryDayName}
-        accountMinimum={accountMinimum}
-        deliveryFee={deliveryFee}
-        pastCutoff={pastCutoff}
-        upcomingDeliveries={upcomingDeliveries}
-      />
-
-      <SubmitSheetBridge onOpen={() => setSubmitOpen(true)} />
+      {/* SubmitSheet is now mounted globally in the storefront layout
+          (GlobalSubmitSheet). Removed the duplicate /guide-scoped mount
+          + SubmitSheetBridge — both would listen for the same
+          flf:open-submit event and pop two stacked sheets. */}
     </>
   );
-}
-
-/** Listens for a global 'flf:open-submit' event the StickyCartBar
- *  dispatches when its CTA is tapped. Keeps the pill decoupled from this
- *  component's React tree. */
-function SubmitSheetBridge({ onOpen }: { onOpen: () => void }) {
-  useEffect(() => {
-    function handler() {
-      onOpen();
-    }
-    window.addEventListener("flf:open-submit", handler);
-    return () => window.removeEventListener("flf:open-submit", handler);
-  }, [onOpen]);
-  return null;
 }
 
 /** Adapter: PricedProductLite has product fields flat; DraftTile wants

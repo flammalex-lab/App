@@ -8,9 +8,10 @@ import { getImpersonation } from "@/lib/auth/impersonation";
 import { resolveActiveAccount } from "@/lib/auth/active-account";
 import { StoreNav } from "@/components/layout/StoreNav";
 import { StickyCartBar } from "@/components/layout/StickyCartBar";
+import { GlobalSubmitSheet } from "@/components/layout/GlobalSubmitSheet";
 import { CartHydrationGate } from "@/components/CartHydrationGate";
 import { CutoffClock } from "@/components/CutoffClock";
-import { nextDeliveryForZone } from "@/lib/utils/cutoff";
+import { nextDeliveryForZone, upcomingDeliveriesForZone } from "@/lib/utils/cutoff";
 import { effectiveOrderMinimum } from "@/lib/utils/order-minimum";
 import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { Account, DeliveryZone, DeliveryZoneRow, Profile } from "@/lib/supabase/types";
@@ -95,6 +96,12 @@ export default async function StorefrontLayout({
   // once at the layout level instead of refetching on /guide.
   const accountMinimum = effectiveOrderMinimum(activeAccount as Account | null, zone);
   const deliveryFee = zone?.delivery_fee ?? 0;
+  // Upcoming-deliveries list feeds the GlobalSubmitSheet's day-switcher.
+  // Same shape /guide computed when it owned the sheet locally — hoisted
+  // here so the sheet works from every page (catalog, orders, etc.).
+  const upcomingDeliveries = zone
+    ? upcomingDeliveriesForZone(zone, new Date(), BUSINESS_TIMEZONE, 4, activeAccount?.delivery_days)
+    : [];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -135,6 +142,13 @@ export default async function StorefrontLayout({
         next={serialized}
         accountMinimum={accountMinimum}
         deliveryFee={deliveryFee}
+      />
+      <GlobalSubmitSheet
+        deliveryDayName={serialized?.deliveryDayName ?? null}
+        accountMinimum={accountMinimum}
+        deliveryFee={deliveryFee}
+        pastCutoff={serialized?.pastCutoff ?? false}
+        upcomingDeliveries={upcomingDeliveries}
       />
       <ProductDetailSheet />
       <footer className="hidden md:block border-t border-black/[0.06] mt-8 bg-white">

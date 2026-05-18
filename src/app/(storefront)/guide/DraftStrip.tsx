@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { DraftTile, type DraftItem } from "./DraftTile";
 
 /**
@@ -25,26 +25,6 @@ export function DraftStrip({
   tiles: DraftItem[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [overflowLeft, setOverflowLeft] = useState(false);
-  const [overflowRight, setOverflowRight] = useState(false);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    function update() {
-      if (!el) return;
-      setOverflowLeft(el.scrollLeft > 4);
-      setOverflowRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-    }
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", update);
-      ro.disconnect();
-    };
-  }, [tiles.length]);
 
   if (tiles.length === 0) return null;
 
@@ -74,18 +54,6 @@ export function DraftStrip({
           ))}
         </div>
       </div>
-      {overflowLeft ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent"
-        />
-      ) : null}
-      {overflowRight ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent"
-        />
-      ) : null}
     </div>
   );
 }

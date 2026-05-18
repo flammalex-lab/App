@@ -194,24 +194,6 @@ function ScrollStripRail({
             ))}
           </div>
         </div>
-        {/* Fades: siblings of the scrolling rail so they don't translate
-            with content. Negative margins on mobile match the rail's
-            -mx-4 bleed so the fade overlays the *visible* right/left
-            edge of the rail, not the section's content box. Opacity-
-            toggled so the gradient never hides "more" when there's
-            nothing more to see. */}
-        <div
-          aria-hidden
-          className={`pointer-events-none absolute top-0 right-0 bottom-2 w-16 md:w-20 bg-gradient-to-l from-white via-white/80 to-white/0 transition-opacity duration-150 -mr-4 md:mr-0 ${
-            canScrollRight ? "opacity-100" : "opacity-0"
-          }`}
-        />
-        <div
-          aria-hidden
-          className={`pointer-events-none absolute top-0 left-0 bottom-2 w-12 md:w-16 bg-gradient-to-r from-white via-white/80 to-white/0 transition-opacity duration-150 -ml-4 md:ml-0 ${
-            canScrollLeft ? "opacity-100" : "opacity-0"
-          }`}
-        />
       </div>
     </section>
   );
