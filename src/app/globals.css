@@ -27,6 +27,23 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+  /* iOS Safari treats a quick second tap on the same element as a zoom
+     gesture (the legacy "double-tap to zoom" interaction). On a +/- qty
+     stepper or any frequently-tapped button this causes an annoying
+     mid-tap viewport zoom. `touch-action: manipulation` opts the element
+     out of the double-tap zoom gesture while keeping single taps + pan
+     + pinch-zoom intact. Applied to every interactive element so this
+     class of bug can't show up in a new button. */
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea,
+  label,
+  summary {
+    touch-action: manipulation;
+  }
   h1, h2, h3, h4 {
     font-family: var(--font-display), Georgia, serif;
     letter-spacing: -0.015em;
