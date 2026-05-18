@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { dateLong, money } from "@/lib/utils/format";
 import { useToast } from "@/components/ui/Toast";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 
 const DAY_NAMES_LONG = [
   "Sunday",
@@ -28,12 +29,18 @@ function dayFromIso(iso: string | null): string {
 function placedAtShort(iso: string | null | undefined): string {
   if (!iso) return "just now";
   const d = new Date(iso);
+  // Pin to BUSINESS_TIMEZONE so SSR (Node, typically UTC) and CSR
+  // (buyer's browser zone) emit the same string. Without timeZone,
+  // "Tue, 18 May, 4:30 PM" (EST) vs "Tue, 18 May, 8:30 PM" (UTC) trips
+  // React hydration mismatch #418 on every order-placed page load.
+  // Mirrors the MobileHeader/CutoffClock fix for the same family of bug.
   return d.toLocaleString("en-US", {
     weekday: "short",
     day: "numeric",
     month: "short",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: BUSINESS_TIMEZONE,
   });
 }
 

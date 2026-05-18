@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useScrollHidden } from "@/components/layout/ScrollHideHeader";
 import { track } from "@/lib/analytics/track";
+import { BUSINESS_TIMEZONE } from "@/lib/constants";
 import type { PickupLocation } from "@/lib/supabase/types";
 
 interface NextDelivery {
@@ -235,6 +236,13 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
     // Empty cart still surfaces the buyer's next-delivery context so
     // they leave the page knowing when they need to act, not just that
     // there's nothing in here right now.
+    // B1 hydration fix: pin the cutoff time to BUSINESS_TIMEZONE so
+    // SSR (Node, UTC) and CSR (browser local) emit the same "Thu 11:00 AM"
+    // string. Without timeZone, Node renders "Thu 3:00 PM" and the
+    // hydrating browser renders "Thu 11:00 AM" for the same instant —
+    // React fires #418 on every /cart load whose initial render hits
+    // the empty-cart branch (which is *every* load before rehydrate
+    // because the cart store uses skipHydration: true).
     const nextDeliveryLine =
       isB2B && nextDelivery
         ? nextDelivery.pastCutoff
@@ -245,6 +253,7 @@ export function CartClient({ isB2B, accountMinimum, deliveryFee, nextDelivery, u
               weekday: "short",
               hour: "numeric",
               minute: "2-digit",
+              timeZone: BUSINESS_TIMEZONE,
             })}.`
         : null;
     return (
